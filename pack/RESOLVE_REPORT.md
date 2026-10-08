@@ -16,7 +16,7 @@
 - [x] `mr:waystones` (pinned)
 - [x] `mr:xaeros-minimap` (pinned)
 - [x] `mr:xaeros-world-map` (pinned)
-- [x] `cf:dynamiclights-reforged`
+- [x] `cf:dynamiclights-reforged` (pinned)
 - [x] `mr:jade` (pinned)
 - [x] `mr:jei` (pinned)
 - [x] `mr:mouse-tweaks` (pinned)
