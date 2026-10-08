@@ -64,6 +64,7 @@ public final class Settlers {
         BlockPos center = Encounters.groundAt(level, s.x, s.z);
         if (center == null) center = new BlockPos(s.x, s.y, s.z);
         for (NpcRole role : roles) spawn(level, s, center, role, r);
+        com.skycraft.crafting.SettlementStations.populate(level, s, center, r);
 
         String hold = Holds.holdAt(level, center);
         if (!data.seats.contains(hold)) {

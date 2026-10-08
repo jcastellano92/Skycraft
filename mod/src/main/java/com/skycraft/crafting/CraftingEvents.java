@@ -18,6 +18,11 @@ import net.minecraft.world.item.ProjectileWeaponItem;
 import net.minecraftforge.event.ItemAttributeModifierEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
+import com.skycraft.crafting.menu.StationMenu;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -81,5 +86,17 @@ public final class CraftingEvents {
         if (random.nextFloat() >= 0.6f + 0.1f * event.getLootingLevel()) return;
         event.getDrops().add(new ItemEntity(victim.level(), victim.getX(), victim.getY() + 0.5, victim.getZ(),
                 new ItemStack(CraftingItems.HIDE.get())));
+    }
+
+    /** The vanilla crafting table becomes a Skyrim armor workbench. */
+    @SubscribeEvent
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getLevel().getBlockState(event.getPos()).is(Blocks.CRAFTING_TABLE)) {
+            event.setCanceled(true);
+            event.setCancellationResult(InteractionResult.SUCCESS);
+            if (event.getEntity() instanceof ServerPlayer sp) {
+                StationMenu.open(sp, StationType.ARMOR_WORKBENCH, event.getPos());
+            }
+        }
     }
 }

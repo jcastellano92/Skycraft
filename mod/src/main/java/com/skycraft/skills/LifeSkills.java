@@ -23,7 +23,9 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.server.TickTask;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.level.storage.loot.LootParams;
@@ -107,12 +109,32 @@ public final class LifeSkills {
         } else if (state.is(BlockTags.LOGS)) {
             Progression.addSkillXp(player, Skill.WOODCUTTING, 2.5f);
             SkyData.get(player).addStat("logs_chopped", 1);
+            if (level.getBlockState(pos.below()).is(BlockTags.DIRT)) {
+                Block sapling = saplingFor(state);
+                level.getServer().tell(new TickTask(level.getServer().getTickCount() + 1, () -> {
+                    if (level.getBlockState(pos).isAir() && level.getBlockState(pos.below()).is(BlockTags.DIRT)) {
+                        level.setBlock(pos, sapling.defaultBlockState(), 3);
+                    }
+                }));
+            }
             if (!CHAIN_BREAKING.get() && player.isCrouching() && Perks.has(player, "woodcutting.timber")) {
                 chainBreak(player, level, pos, null, 96, true);
             }
         } else if (state.is(BlockTags.LEAVES) && Perks.has(player, "woodcutting.forager") && rnd.nextFloat() < 0.1f) {
             Block.popResource(level, pos, new ItemStack(rnd.nextBoolean() ? Items.APPLE : Items.STICK));
         }
+    }
+
+    private static Block saplingFor(BlockState logState) {
+        Block b = logState.getBlock();
+        if (b == Blocks.SPRUCE_LOG || b == Blocks.SPRUCE_WOOD || b == Blocks.STRIPPED_SPRUCE_LOG || b == Blocks.STRIPPED_SPRUCE_WOOD) return Blocks.SPRUCE_SAPLING;
+        if (b == Blocks.BIRCH_LOG || b == Blocks.BIRCH_WOOD || b == Blocks.STRIPPED_BIRCH_LOG || b == Blocks.STRIPPED_BIRCH_WOOD) return Blocks.BIRCH_SAPLING;
+        if (b == Blocks.DARK_OAK_LOG || b == Blocks.DARK_OAK_WOOD || b == Blocks.STRIPPED_DARK_OAK_LOG || b == Blocks.STRIPPED_DARK_OAK_WOOD) return Blocks.DARK_OAK_SAPLING;
+        if (b == Blocks.ACACIA_LOG || b == Blocks.ACACIA_WOOD || b == Blocks.STRIPPED_ACACIA_LOG || b == Blocks.STRIPPED_ACACIA_WOOD) return Blocks.ACACIA_SAPLING;
+        if (b == Blocks.JUNGLE_LOG || b == Blocks.JUNGLE_WOOD || b == Blocks.STRIPPED_JUNGLE_LOG || b == Blocks.STRIPPED_JUNGLE_WOOD) return Blocks.JUNGLE_SAPLING;
+        if (b == Blocks.CHERRY_LOG || b == Blocks.CHERRY_WOOD || b == Blocks.STRIPPED_CHERRY_LOG || b == Blocks.STRIPPED_CHERRY_WOOD) return Blocks.CHERRY_SAPLING;
+        if (b == Blocks.MANGROVE_LOG || b == Blocks.MANGROVE_WOOD || b == Blocks.STRIPPED_MANGROVE_LOG || b == Blocks.STRIPPED_MANGROVE_WOOD) return Blocks.MANGROVE_PROPAGULE;
+        return Blocks.OAK_SAPLING;
     }
 
     /** Breaks connected blocks (ore veins, or whole trees when {@code logs} is true). */
@@ -134,7 +156,18 @@ public final class LifeSkills {
                     BlockPos immutable = next.immutable();
                     seen.add(immutable);
                     queue.add(immutable);
-                    if (player.gameMode.destroyBlock(immutable)) broken++;
+                    boolean baseDirt = logs && level.getBlockState(immutable.below()).is(BlockTags.DIRT);
+                    Block sapling = baseDirt ? saplingFor(s) : null;
+                    if (player.gameMode.destroyBlock(immutable)) {
+                        broken++;
+                        if (baseDirt && sapling != null) {
+                            level.getServer().tell(new TickTask(level.getServer().getTickCount() + 1, () -> {
+                                if (level.getBlockState(immutable).isAir() && level.getBlockState(immutable.below()).is(BlockTags.DIRT)) {
+                                    level.setBlock(immutable, sapling.defaultBlockState(), 3);
+                                }
+                            }));
+                        }
+                    }
                     if (broken >= max) break;
                 }
             }

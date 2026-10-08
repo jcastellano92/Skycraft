@@ -393,7 +393,7 @@ public final class Encounters {
 
     /** Ground level at a column (top of the highest solid non-leaf block), or null over water/unloaded chunks. */
     @Nullable
-    static BlockPos groundAt(ServerLevel level, int x, int z) {
+    public static BlockPos groundAt(ServerLevel level, int x, int z) {
         if (!level.isLoaded(new BlockPos(x, level.getSeaLevel(), z))) return null;
         int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
         BlockState below = level.getBlockState(new BlockPos(x, y - 1, z));

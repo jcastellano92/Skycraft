@@ -22,7 +22,9 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
+import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerContainerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -185,6 +187,22 @@ public final class Theft {
         if (s.seen || Crimes.witnessed(player, null)) {
             int bounty = (int) Math.max(Bounty.MIN_THEFT, Math.min(100000, stolenValue / 2));
             Crimes.report(player, s.pos, bounty, true, null);
+        }
+    }
+
+    /** Picking up owned placed clutter in settlements is stealing. */
+    @SubscribeEvent
+    public static void onPickup(EntityItemPickupEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        ItemEntity itemEntity = event.getItem();
+        if (!Ownership.isOwnedByOther(player, itemEntity)) return;
+
+        ItemStack stack = itemEntity.getItem();
+        Bounty.markStolen(stack);
+        Bounty.increment(player, "items_stolen", stack.getCount());
+        if (Crimes.witnessed(player, null)) {
+            int bounty = (int) Math.max(Bounty.MIN_THEFT, Math.min(100000, unitValue(stack) * stack.getCount() / 2));
+            Crimes.report(player, itemEntity.blockPosition(), bounty, true, null);
         }
     }
 

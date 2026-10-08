@@ -6,7 +6,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.skycraft.Skycraft;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
@@ -57,11 +59,37 @@ public class AddTableModifier extends LootModifier {
     protected ObjectArrayList<ItemStack> doApply(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
         ResourceLocation id = context.getQueriedLootTableId();
         if (id == null || id.equals(table) || !id.getPath().startsWith(prefix)) return generatedLoot;
+
+        sanitize(generatedLoot, id);
+
         if (id.getNamespace().equals(Skycraft.MODID) && id.getPath().startsWith("chests/")) return generatedLoot;
         if (context.getRandom().nextFloat() > chance) return generatedLoot;
         LootTable extra = context.getResolver().getLootTable(table);
         extra.getRandomItemsRaw(context, generatedLoot::add);
+
+        sanitize(generatedLoot, id);
         return generatedLoot;
+    }
+
+    private static void sanitize(ObjectArrayList<ItemStack> loot, ResourceLocation id) {
+        loot.removeIf(stack -> {
+            Item item = stack.getItem();
+            if (item == Items.REDSTONE || item == Items.LAPIS_LAZULI || item == Items.EMERALD
+                    || item == Items.MAP || item == Items.FILLED_MAP || item == Items.COMPASS) {
+                return true;
+            }
+            if (id.getPath().contains("village") || id.getPath().contains("farm")) {
+                ResourceLocation key = ForgeRegistries.ITEMS.getKey(item);
+                if (key != null && key.getNamespace().equals(Skycraft.MODID)) {
+                    String p = key.getPath();
+                    if (p.startsWith("elven_") || p.startsWith("glass_") || p.startsWith("ebony_")
+                            || p.startsWith("daedric_") || p.startsWith("dragon") || p.startsWith("orcish_")) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
     }
 
     @Override
