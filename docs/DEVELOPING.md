@@ -112,3 +112,28 @@ These names are fixed so modules can be written independently.
 cd mod && ./gradlew build      # needs network access to Forge & Mojang maven
 ```
 The jar lands in `mod/build/libs/`.
+
+## Second-wave contracts
+
+18. **Skill XP modifiers** (core): `Progression.registerXpModifier((player, skill) -> multiplier)` — Standing Stones,
+    fortify effects, etc. multiply skill XP without touching core.
+19. **Item weights** (inventory owns): data files `data/<ns>/skycraft_weights/*.json` with
+    `{"weights": {"minecraft:iron_sword": 9, "#forge:ingots": 1}}`; API `com.skycraft.inventory.ItemWeights.get(ItemStack) -> float`
+    (per item) and `com.skycraft.inventory.CarryWeight.capacity(Player)`. Other modules add carry capacity with
+    `data.module("bonus").putFloat("carry", ...)` (summed by inventory, like `health`/`magicka`/`stamina`).
+20. **Leveled loot** (arsenal owns): loot tables `skycraft:chests/dungeon_common`, `skycraft:chests/dungeon_boss`,
+    `skycraft:chests/dungeon_minor` (urns/satchels), `skycraft:leveled/weapon`, `skycraft:leveled/armor`, and the loot function
+    `skycraft:leveled_gear` (picks Skyrim's material tier from the looting player's level). The dungeons module places chests with
+    these table ids. Global loot modifier entry `skycraft:leveled_loot` is arsenal's.
+21. **Dwarven automatons** (dungeons owns): `skycraft:dwarven_spider`, `skycraft:dwarven_sphere`, `skycraft:dwarven_centurion`.
+22. **Society NPCs** (society owns): one entity `skycraft:npc` with a role (hunter, miner, lumberjack, bard, priest, beggar,
+    mage, adventurer, thalmor, imperial_soldier, stormcloak_soldier, forsworn, vampire, necromancer, assassin, thug, courier,
+    innkeeper, jarl, housecarl). API `com.skycraft.society.Npcs.spawn(ServerLevel, BlockPos, String role) -> Mob`.
+    Overhead speech: `com.skycraft.society.Barks.say(LivingEntity speaker, Component text)`.
+23. **Reputation** (society owns): `data.module("society").getCompound("reputation")` faction id -> int (-100..100).
+24. **Diseases** (survival owns): mob effects `skycraft:<disease>` listed in `com.skycraft.survival.Diseases`; the arcane
+    `skycraft:cure_disease` effect, shrines and priests cure them.
+25. **Standing Stones** (lore owns): `data.module("lore").getString("stone")`.
+26. **Global loot modifier entries** added: `skycraft:leveled_loot` (arsenal), `skycraft:lore_books` (lore), `skycraft:skyrim_food` (survival).
+27. **Corpse loot**: arrows that hit a mob are recorded in its persistent data `skycraft_arrows` (ListTag of ItemStack NBT) by
+    arsenal; the creatures corpse adds them to the body's loot.

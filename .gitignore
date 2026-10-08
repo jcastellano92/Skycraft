@@ -19,3 +19,4 @@ bin/
 Thumbs.db
 # Pack build outputs
 dist/
+*.args

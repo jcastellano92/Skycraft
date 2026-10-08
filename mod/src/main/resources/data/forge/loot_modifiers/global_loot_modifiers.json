@@ -8,6 +8,9 @@
     "skycraft:alchemy_ingredients",
     "skycraft:skyrim_gear",
     "skycraft:lockpicks",
-    "skycraft:skill_books"
+    "skycraft:skill_books",
+    "skycraft:leveled_loot",
+    "skycraft:lore_books",
+    "skycraft:skyrim_food"
   ]
 }

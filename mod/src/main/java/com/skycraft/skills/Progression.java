@@ -29,6 +29,17 @@ import java.util.UUID;
  */
 public final class Progression {
     private static final Map<UUID, long[]> LAST_POPUP = new HashMap<>();
+    private static final java.util.List<XpModifier> MODIFIERS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Multiplies skill XP gains, e.g. Standing Stones (+20% combat skills) or fortify effects. Return 1 for no change. */
+    @FunctionalInterface
+    public interface XpModifier {
+        float multiplier(ServerPlayer player, Skill skill);
+    }
+
+    public static void registerXpModifier(XpModifier modifier) {
+        MODIFIERS.add(modifier);
+    }
 
     private Progression() {}
 
@@ -44,6 +55,7 @@ public final class Progression {
         float mult = (float) (double) SkyConfig.SKILL_XP_RATE.get();
         if (player.hasEffect(ModEffects.WELL_RESTED.get())) mult *= 1.10f;
         if (player.hasEffect(ModEffects.LOVERS_COMFORT.get())) mult *= 1.15f;
+        for (XpModifier modifier : MODIFIERS) mult *= modifier.multiplier(player, skill);
         float gained = useValue * skill.useMult * mult;
         addRawSkillXp(player, data, skill, gained);
     }
