@@ -1,0 +1,16 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:mineshaft",
+    "minecraft:mineshaft_mesa",
+    "minecraft:stronghold",
+    "minecraft:ancient_city",
+    "minecraft:desert_pyramid",
+    "minecraft:jungle_pyramid",
+    "minecraft:trail_ruins",
+    {"id": "betterdungeons:skeleton_dungeon", "required": false},
+    {"id": "betterdungeons:zombie_dungeon", "required": false},
+    {"id": "betterdungeons:spider_dungeon", "required": false},
+    {"id": "betterdungeons:small_dungeon", "required": false}
+  ]
+}

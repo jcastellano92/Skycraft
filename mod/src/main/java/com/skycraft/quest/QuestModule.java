@@ -1,16 +1,28 @@
 package com.skycraft.quest;
 
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
 
-/** Parties, quests, radiant bounties, factions (Companions, College, Thieves Guild, Dark Brotherhood...) and the journal. */
+/**
+ * Parties, quests, radiant bounties, factions (Companions, College, Thieves Guild, Dark Brotherhood, Legion,
+ * Stormcloaks, Bards College), the main quest "The Dragonborn" and the journal.
+ *
+ * <p>Forge-bus handlers: {@link QuestEvents}, {@link com.skycraft.quest.party.PartyEvents};
+ * client: {@code com.skycraft.quest.client}.</p>
+ */
 public final class QuestModule {
     private QuestModule() {}
 
     /** Registers this module's DeferredRegisters and mod-bus listeners. Called from the mod constructor. */
     public static void init(IEventBus modBus) {
+        QuestItems.init(modBus);
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, QuestConfig.SPEC, "skycraft-quest.toml");
+        QuestDialogue.register();
     }
 
     /** Registers this module's packets via {@link com.skycraft.network.SkyNetwork#register}. Called once at startup. */
     public static void registerPackets() {
+        QuestPackets.register();
     }
 }

@@ -1,0 +1,153 @@
+package com.skycraft.quest;
+
+import com.skycraft.core.PlayerData;
+import com.skycraft.core.SkyData;
+import com.skycraft.network.SkyNetwork;
+import com.skycraft.quest.client.ClientQuestData;
+import com.skycraft.quest.party.Parties;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
+import net.minecraftforge.network.NetworkDirection;
+import net.minecraftforge.network.NetworkEvent;
+
+import java.util.UUID;
+import java.util.function.Supplier;
+
+/** Quest & party packets: journal sync, party state (HUD), party actions and quest actions (track, abandon). */
+public final class QuestPackets {
+    /** "No target" UUID for party actions. */
+    public static final UUID NONE = new UUID(0L, 0L);
+
+    private QuestPackets() {}
+
+    public static void register() {
+        SkyNetwork.register(SyncQuests.class, NetworkDirection.PLAY_TO_CLIENT, SyncQuests::encode, SyncQuests::decode, SyncQuests::handle);
+        SkyNetwork.register(SyncParty.class, NetworkDirection.PLAY_TO_CLIENT, SyncParty::encode, SyncParty::decode, SyncParty::handle);
+        SkyNetwork.register(PartyAction.class, NetworkDirection.PLAY_TO_SERVER, PartyAction::encode, PartyAction::decode, PartyAction::handle);
+        SkyNetwork.register(QuestAction.class, NetworkDirection.PLAY_TO_SERVER, QuestAction::encode, QuestAction::decode, QuestAction::handle);
+    }
+
+    // ------------------------------------------------------------------ S2C
+
+    /** Every quest (active and finished) of the player and their party, as {@code {quests: [Quest NBT + shared]}}. */
+    public record SyncQuests(CompoundTag tag) {
+        static void encode(SyncQuests m, FriendlyByteBuf buf) {
+            buf.writeNbt(m.tag);
+        }
+
+        static SyncQuests decode(FriendlyByteBuf buf) {
+            CompoundTag tag = buf.readNbt();
+            return new SyncQuests(tag == null ? new CompoundTag() : tag);
+        }
+
+        static void handle(SyncQuests m, Supplier<NetworkEvent.Context> ctx) {
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientQuestData.onQuests(m.tag));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Party state for the HUD and party screen (members with health, pending invites). Empty tag = no party. */
+    public record SyncParty(CompoundTag tag) {
+        static void encode(SyncParty m, FriendlyByteBuf buf) {
+            buf.writeNbt(m.tag);
+        }
+
+        static SyncParty decode(FriendlyByteBuf buf) {
+            CompoundTag tag = buf.readNbt();
+            return new SyncParty(tag == null ? new CompoundTag() : tag);
+        }
+
+        static void handle(SyncParty m, Supplier<NetworkEvent.Context> ctx) {
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientQuestData.onParty(m.tag));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    // ------------------------------------------------------------------ C2S
+
+    public record PartyAction(int action, UUID target) {
+        public static final int CREATE = 0;
+        public static final int INVITE = 1;
+        public static final int ACCEPT = 2;
+        public static final int DECLINE = 3;
+        public static final int LEAVE = 4;
+        public static final int KICK = 5;
+        public static final int PROMOTE = 6;
+
+        static void encode(PartyAction m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.action);
+            buf.writeUUID(m.target);
+        }
+
+        static PartyAction decode(FriendlyByteBuf buf) {
+            return new PartyAction(buf.readVarInt(), buf.readUUID());
+        }
+
+        static void handle(PartyAction m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            if (player != null) {
+                UUID target = NONE.equals(m.target) ? null : m.target;
+                switch (m.action) {
+                    case CREATE -> Parties.create(player);
+                    case INVITE -> {
+                        ServerPlayer other = target == null ? null : player.server.getPlayerList().getPlayer(target);
+                        if (other != null) Parties.invite(player, other);
+                    }
+                    case ACCEPT -> Parties.accept(player, target);
+                    case DECLINE -> Parties.decline(player, target);
+                    case LEAVE -> Parties.leave(player);
+                    case KICK -> {
+                        if (target != null) Parties.kick(player, target);
+                    }
+                    case PROMOTE -> {
+                        if (target != null) Parties.promote(player, target);
+                    }
+                    default -> {
+                    }
+                }
+            }
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    public record QuestAction(int action, String questId) {
+        public static final int TRACK = 0;
+        public static final int UNTRACK = 1;
+        public static final int ABANDON = 2;
+
+        static void encode(QuestAction m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.action);
+            buf.writeUtf(m.questId, 64);
+        }
+
+        static QuestAction decode(FriendlyByteBuf buf) {
+            return new QuestAction(buf.readVarInt(), buf.readUtf(64));
+        }
+
+        static void handle(QuestAction m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            if (player != null) {
+                PlayerData data = SkyData.get(player);
+                switch (m.action) {
+                    case TRACK -> {
+                        if (Quests.find(player.server, player.getUUID(), m.questId) != null) {
+                            data.module("quest").putString("tracked", m.questId);
+                            data.markDirty();
+                        }
+                    }
+                    case UNTRACK -> {
+                        data.module("quest").remove("tracked");
+                        data.markDirty();
+                    }
+                    case ABANDON -> Quests.abandon(player, m.questId);
+                    default -> {
+                    }
+                }
+            }
+            ctx.get().setPacketHandled(true);
+        }
+    }
+}

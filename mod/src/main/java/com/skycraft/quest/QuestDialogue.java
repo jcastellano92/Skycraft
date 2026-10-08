@@ -1,0 +1,398 @@
+package com.skycraft.quest;
+
+import com.skycraft.Skycraft;
+import com.skycraft.core.Currency;
+import com.skycraft.core.Holds;
+import com.skycraft.core.PlayerData;
+import com.skycraft.core.SkyData;
+import com.skycraft.dialogue.Dialogue;
+import com.skycraft.dialogue.DialogueOption;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.VillagerProfession;
+import net.minecraft.world.entity.npc.WanderingTrader;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
+import net.minecraftforge.registries.ForgeRegistries;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
+
+/**
+ * Every quest-related conversation topic: turn-ins (TALK_TO / FETCH), radiant offers (accept / decline), guard
+ * bounties and monster hunts, faction joining and contracts, and the Thieves Guild's bounty service.
+ */
+public final class QuestDialogue {
+    public static final TagKey<EntityType<?>> GUARDS = TagKey.create(Registries.ENTITY_TYPE, new ResourceLocation(Skycraft.MODID, "guards"));
+    /** An offer stays open this long (ticks) after the NPC pitched it. */
+    private static final long OFFER_TICKS = 20L * 300;
+
+    private static final Map<UUID, Conversation> CONV = new HashMap<>();
+    private static Boolean guardsRegistered;
+
+    private record Conversation(UUID npc, @Nullable RadiantQuests.Offer offer, String dailyKey, boolean bountyMenu, long expires) {
+    }
+
+    private QuestDialogue() {}
+
+    public static void register() {
+        Dialogue.registerProvider(QuestDialogue::addOptions);
+    }
+
+    public static void forget(UUID player) {
+        CONV.remove(player);
+    }
+
+    public static void reset() {
+        CONV.clear();
+        guardsRegistered = null;
+    }
+
+    private static Component tr(String key, Object... args) {
+        return Component.translatable(key, args);
+    }
+
+    private static DialogueOption opt(String id, String labelKey, int order, BiConsumer<ServerPlayer, LivingEntity> action, Object... args) {
+        return new DialogueOption(id, tr(labelKey, args), order, action);
+    }
+
+    // ------------------------------------------------------------------ NPC kinds
+
+    /** Guards (creatures module), or — if that module isn't installed — armorers and unemployed villagers. */
+    public static boolean isGuard(LivingEntity e) {
+        if (e.getType().is(GUARDS)) return true;
+        if (guardsRegistered == null) guardsRegistered = EntityType.byString("skycraft:guard").isPresent();
+        if (!guardsRegistered && e instanceof Villager v) {
+            VillagerProfession prof = v.getVillagerData().getProfession();
+            return prof == VillagerProfession.ARMORER || prof == VillagerProfession.NONE;
+        }
+        return false;
+    }
+
+    private static boolean isProfession(LivingEntity e, VillagerProfession prof) {
+        return e instanceof Villager v && v.getVillagerData().getProfession() == prof;
+    }
+
+    public static boolean matchesNpc(Objective o, LivingEntity npc) {
+        if (o.npc != null) return o.npc.equals(npc.getUUID());
+        boolean typeOk = switch (o.npcFilter) {
+            case "villager" -> npc instanceof Villager;
+            case "guard" -> isGuard(npc);
+            case "trader" -> npc instanceof WanderingTrader;
+            case "any" -> npc instanceof AbstractVillager || isGuard(npc) || Dialogue.canTalk(npc);
+            default -> false;
+        };
+        if (!typeOk) return false;
+        if (o.hasPos && o.radius > 0) {
+            if (!npc.level().dimension().location().toString().equals(o.dim)) return false;
+            return Locate.horizontalDist(npc.blockPosition(), o.pos) <= o.radius;
+        }
+        return true;
+    }
+
+    // ------------------------------------------------------------------ provider
+
+    static void addOptions(ServerPlayer player, LivingEntity npc, List<DialogueOption> out) {
+        MinecraftServer server = player.server;
+        // 1. turn-ins for current objectives
+        for (Quests.Ref ref : Quests.active(server, player.getUUID())) {
+            Quest q = ref.quest();
+            Objective o = q.current();
+            if (o == null || (o.type != Objective.Type.TALK_TO && o.type != Objective.Type.FETCH)) continue;
+            if (!matchesNpc(o, npc)) continue;
+            String questId = q.id;
+            out.add(new DialogueOption("quest.turnin." + questId, o.topic, 100, (pl, n) -> turnIn(pl, n, questId)));
+        }
+        // 2. an open offer from this NPC
+        Conversation c = CONV.get(player.getUUID());
+        if (c != null && c.npc().equals(npc.getUUID()) && player.level().getGameTime() < c.expires()) {
+            if (c.offer() != null) {
+                out.add(opt("quest.accept", "dialogue.skycraft.quest.accept", 150, QuestDialogue::accept));
+                out.add(opt("quest.decline", "dialogue.skycraft.quest.decline", 151, QuestDialogue::decline));
+                return;
+            }
+            if (c.bountyMenu()) addBountyOptions(player, out);
+        }
+        // 3. topics by kind of NPC
+        PlayerData data = SkyData.get(player);
+        boolean guard = isGuard(npc);
+        if (npc instanceof Villager villager) {
+            out.add(opt("quest.help", "dialogue.skycraft.quest.help", 300,
+                    (pl, n) -> ask(pl, n, "help", () -> RadiantQuests.villager(pl, villager))));
+            if (isProfession(npc, VillagerProfession.WEAPONSMITH)) companionsTopics(player, data, out);
+            if (isProfession(npc, VillagerProfession.LIBRARIAN)) {
+                collegeTopics(player, data, out);
+                bardsTopics(player, data, out);
+            }
+        }
+        if (guard) {
+            out.add(opt("quest.bounty", "dialogue.skycraft.quest.bounties", 310,
+                    (pl, n) -> ask(pl, n, "bounty", () -> RadiantQuests.bounty(pl, n))));
+            out.add(opt("quest.hunt", "dialogue.skycraft.quest.hunts", 311,
+                    (pl, n) -> ask(pl, n, "hunt", () -> RadiantQuests.hunt(pl, n))));
+            companionsTopics(player, data, out);
+            civilWarTopics(player, data, out);
+        }
+        if (npc instanceof WanderingTrader) {
+            thievesTopics(player, data, out);
+            darkBrotherhoodTopics(player, data, out);
+        }
+    }
+
+    // ------------------------------------------------------------------ offers
+
+    private static long day(LivingEntity npc) {
+        return npc.level().getDayTime() / 24000L;
+    }
+
+    private static boolean usedToday(LivingEntity npc, String key) {
+        CompoundTag pd = npc.getPersistentData();
+        String k = "skycraft_quest_day_" + key;
+        return pd.contains(k, Tag.TAG_LONG) && pd.getLong(k) == day(npc);
+    }
+
+    private static void markToday(LivingEntity npc, String key) {
+        npc.getPersistentData().putLong("skycraft_quest_day_" + key, day(npc));
+    }
+
+    /**
+     * The NPC pitches a quest generated by {@code generator}. With a non-empty {@code dailyKey} the NPC makes only one
+     * such offer per in-game day.
+     */
+    private static void ask(ServerPlayer player, LivingEntity npc, String dailyKey, Supplier<RadiantQuests.Offer> generator) {
+        long now = player.level().getGameTime();
+        Conversation c = CONV.get(player.getUUID());
+        if (c != null && c.npc().equals(npc.getUUID()) && c.offer() != null && now < c.expires() && c.dailyKey().equals(dailyKey)) {
+            Dialogue.open(player, npc, c.offer().pitch());
+            return;
+        }
+        if (!dailyKey.isEmpty() && usedToday(npc, dailyKey)) {
+            Dialogue.open(player, npc, tr("quest.skycraft.reply.no_work"));
+            return;
+        }
+        if (!Quests.canTakeMore(player)) {
+            Dialogue.open(player, npc, tr("quest.skycraft.reply.too_busy"));
+            return;
+        }
+        RadiantQuests.Offer offer;
+        try {
+            offer = generator.get();
+        } catch (Exception e) {
+            Skycraft.LOGGER.error("Quest generation failed", e);
+            offer = null;
+        }
+        if (!dailyKey.isEmpty()) markToday(npc, dailyKey);
+        if (offer == null) {
+            Dialogue.open(player, npc, tr("quest.skycraft.reply.nothing"));
+            return;
+        }
+        CONV.put(player.getUUID(), new Conversation(npc.getUUID(), offer, dailyKey, false, now + OFFER_TICKS));
+        Dialogue.open(player, npc, offer.pitch());
+    }
+
+    private static void accept(ServerPlayer player, LivingEntity npc) {
+        Conversation c = CONV.remove(player.getUUID());
+        if (c == null || c.offer() == null || !c.npc().equals(npc.getUUID())) return;
+        if (Quests.start(player, c.offer().quest())) Dialogue.open(player, npc, tr("quest.skycraft.reply.accepted"));
+        else Dialogue.open(player, npc, tr("quest.skycraft.reply.too_busy"));
+    }
+
+    private static void decline(ServerPlayer player, LivingEntity npc) {
+        CONV.remove(player.getUUID());
+        Dialogue.open(player, npc, tr("quest.skycraft.reply.declined"));
+    }
+
+    // ------------------------------------------------------------------ turn-ins
+
+    private static void turnIn(ServerPlayer player, LivingEntity npc, String questId) {
+        MinecraftServer server = player.server;
+        Quests.Ref ref = Quests.find(server, player.getUUID(), questId);
+        if (ref == null || !ref.quest().isActive()) return;
+        Quest q = ref.quest();
+        Objective o = q.current();
+        if (o == null || !matchesNpc(o, npc)) return;
+        if (o.type == Objective.Type.FETCH) {
+            ResourceLocation id = ResourceLocation.tryParse(o.target);
+            Item item = id == null ? null : ForgeRegistries.ITEMS.getValue(id);
+            if (item == null || item == Items.AIR) return;
+            int have = Quests.count(player, item);
+            if (have < o.required) {
+                Dialogue.open(player, npc, tr("quest.skycraft.reply.not_enough", have, o.required, item.getDescription()));
+                return;
+            }
+            Quests.remove(player, item, o.required);
+        }
+        if (o.data.contains("consume")) {
+            ResourceLocation id = ResourceLocation.tryParse(o.data.getString("consume"));
+            Item item = id == null ? null : ForgeRegistries.ITEMS.getValue(id);
+            if (item != null && item != Items.AIR && Quests.count(player, item) > 0) Quests.remove(player, item, 1);
+        }
+        Component reply = o.reply;
+        Quests.completeObjective(server, ref.key(), q, o, player);
+        Dialogue.open(player, npc, reply);
+    }
+
+    // ------------------------------------------------------------------ factions
+
+    private static boolean hasFactionQuest(ServerPlayer player, Faction f) {
+        for (Quests.Ref ref : Quests.active(player.server, player.getUUID())) {
+            if (ref.quest().faction.equals(f.id)) return true;
+        }
+        return false;
+    }
+
+    /** Offers a faction quest unless one is already running. */
+    private static void factionAsk(ServerPlayer player, LivingEntity npc, Faction f, Supplier<RadiantQuests.Offer> generator) {
+        if (hasFactionQuest(player, f)) {
+            Dialogue.open(player, npc, tr("quest.skycraft.reply.finish_first", f.displayName()));
+            return;
+        }
+        ask(player, npc, "", generator);
+    }
+
+    private static void companionsTopics(ServerPlayer player, PlayerData data, List<DialogueOption> out) {
+        Faction f = Faction.COMPANIONS;
+        if (!Factions.isMember(data, f)) {
+            out.add(opt("quest.companions.join", "dialogue.skycraft.faction.companions.join", 400,
+                    (pl, n) -> factionAsk(pl, n, f, () -> RadiantQuests.companionsTrial(pl, n))));
+        } else {
+            out.add(opt("quest.companions.work", "dialogue.skycraft.faction.work", 400,
+                    (pl, n) -> factionAsk(pl, n, f, () -> RadiantQuests.companionsContract(pl, n)), f.displayName()));
+        }
+    }
+
+    private static void collegeTopics(ServerPlayer player, PlayerData data, List<DialogueOption> out) {
+        Faction f = Faction.COLLEGE;
+        if (!Factions.isMember(data, f)) {
+            out.add(opt("quest.college.join", "dialogue.skycraft.faction.college.join", 401, (pl, n) -> {
+                int spells = SkyData.get(pl).module("magic").getList("spells", Tag.TAG_STRING).size();
+                if (spells < 3) {
+                    Dialogue.open(pl, n, tr("quest.skycraft.reply.college_refuse", spells));
+                } else if (Factions.join(pl, f)) {
+                    Dialogue.open(pl, n, tr("quest.skycraft.reply.college_welcome"));
+                }
+            }));
+        } else {
+            out.add(opt("quest.college.work", "dialogue.skycraft.faction.work", 401,
+                    (pl, n) -> factionAsk(pl, n, f, () -> RadiantQuests.collegeContract(pl, n)), f.displayName()));
+        }
+    }
+
+    private static void bardsTopics(ServerPlayer player, PlayerData data, List<DialogueOption> out) {
+        Faction f = Faction.BARDS_COLLEGE;
+        if (!Factions.isMember(data, f)) {
+            out.add(opt("quest.bards.join", "dialogue.skycraft.faction.bards_college.join", 402,
+                    (pl, n) -> factionAsk(pl, n, f, () -> RadiantQuests.bardsTrial(pl, n))));
+        } else {
+            out.add(opt("quest.bards.work", "dialogue.skycraft.faction.work", 402,
+                    (pl, n) -> factionAsk(pl, n, f, () -> RadiantQuests.bardsContract(pl, n)), f.displayName()));
+        }
+    }
+
+    private static void civilWarTopics(ServerPlayer player, PlayerData data, List<DialogueOption> out) {
+        for (Faction f : new Faction[]{Faction.IMPERIAL_LEGION, Faction.STORMCLOAKS}) {
+            Faction rival = f.rival();
+            if (Factions.isMember(data, f)) {
+                out.add(opt("quest." + f.id + ".work", "dialogue.skycraft.faction.civil_war.work", 403,
+                        (pl, n) -> factionAsk(pl, n, f, () -> RadiantQuests.civilWarContract(pl, n, f)), f.displayName()));
+            } else if (rival != null && !Factions.isMember(data, rival) && !hasFactionQuest(player, rival)) {
+                out.add(opt("quest." + f.id + ".join", "dialogue.skycraft.faction." + f.id + ".join", 403,
+                        (pl, n) -> factionAsk(pl, n, f, () -> RadiantQuests.civilWarTrial(pl, n, f))));
+            }
+        }
+    }
+
+    private static void thievesTopics(ServerPlayer player, PlayerData data, List<DialogueOption> out) {
+        Faction f = Faction.THIEVES_GUILD;
+        if (!Factions.isMember(data, f)) {
+            out.add(opt("quest.thieves.join", "dialogue.skycraft.faction.thieves_guild.join", 404, (pl, n) -> {
+                int stolen = SkyData.get(pl).module("crime").getInt("items_stolen");
+                if (stolen < 5) {
+                    Dialogue.open(pl, n, tr("quest.skycraft.reply.thieves_refuse"));
+                } else if (Factions.join(pl, f)) {
+                    Dialogue.open(pl, n, tr("quest.skycraft.reply.thieves_welcome"));
+                }
+            }));
+            return;
+        }
+        out.add(opt("quest.thieves.work", "dialogue.skycraft.faction.thieves_guild.work", 404,
+                (pl, n) -> factionAsk(pl, n, f, () -> RadiantQuests.thievesContract(pl, n))));
+        out.add(opt("quest.thieves.bounty", "dialogue.skycraft.faction.thieves_guild.bounty", 405, (pl, n) -> {
+            if (bounties(pl).getAllKeys().isEmpty()) {
+                Dialogue.open(pl, n, tr("quest.skycraft.reply.no_bounty"));
+                return;
+            }
+            CONV.put(pl.getUUID(), new Conversation(n.getUUID(), null, "", true, pl.level().getGameTime() + OFFER_TICKS));
+            Dialogue.open(pl, n, tr("quest.skycraft.reply.bounty_menu"));
+        }));
+    }
+
+    private static CompoundTag bounties(ServerPlayer player) {
+        return SkyData.get(player).module("crime").getCompound("bounty");
+    }
+
+    private static long bountyCost(int bounty) {
+        return (bounty + 1) / 2;
+    }
+
+    private static void addBountyOptions(ServerPlayer player, List<DialogueOption> out) {
+        CompoundTag b = bounties(player);
+        int order = 160;
+        for (String hold : b.getAllKeys()) {
+            int amount = b.getInt(hold);
+            if (amount <= 0) continue;
+            long cost = bountyCost(amount);
+            out.add(new DialogueOption("quest.clear_bounty." + hold,
+                    tr("dialogue.skycraft.faction.thieves_guild.clear", Holds.displayName(hold), amount, cost), order++, (pl, n) -> {
+                PlayerData data = SkyData.get(pl);
+                CompoundTag crime = data.module("crime");
+                CompoundTag current = crime.getCompound("bounty");
+                int now = current.getInt(hold);
+                if (now <= 0) return;
+                long price = bountyCost(now);
+                if (!Currency.take(pl, price)) {
+                    Dialogue.open(pl, n, tr("quest.skycraft.reply.cant_afford", price));
+                    return;
+                }
+                current.remove(hold);
+                crime.put("bounty", current);
+                data.markDirty();
+                CONV.remove(pl.getUUID());
+                Dialogue.open(pl, n, tr("quest.skycraft.reply.bounty_cleared", Holds.displayName(hold)));
+            }));
+        }
+    }
+
+    private static void darkBrotherhoodTopics(ServerPlayer player, PlayerData data, List<DialogueOption> out) {
+        Faction f = Faction.DARK_BROTHERHOOD;
+        if (!Factions.isNight(player.level())) return;
+        if (!Factions.isMember(data, f)) {
+            if (!data.module("quest").getBoolean("db_whispered")) return;
+            out.add(opt("quest.db.join", "dialogue.skycraft.faction.dark_brotherhood.join", 406, (pl, n) -> {
+                if (SkyData.get(pl).module("crime").getInt("murders") < 1) {
+                    Dialogue.open(pl, n, tr("quest.skycraft.reply.db_refuse"));
+                } else if (Factions.join(pl, f)) {
+                    Dialogue.open(pl, n, tr("quest.skycraft.reply.db_welcome"));
+                }
+            }));
+            return;
+        }
+        out.add(opt("quest.db.work", "dialogue.skycraft.faction.dark_brotherhood.work", 406,
+                (pl, n) -> factionAsk(pl, n, f, () -> RadiantQuests.darkBrotherhoodContract(pl, n))));
+    }
+}
