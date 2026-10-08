@@ -85,3 +85,4 @@ public class FalmerEntity extends SkyHumanoid implements Ranked {
         return rank == null ? null : Component.translatable("entity.skycraft.falmer." + rank);
     }
 }
+

@@ -77,3 +77,4 @@ public class SprigganEntity extends SkyHumanoid implements Ranked {
         return rank == null ? null : Component.translatable("entity.skycraft.spriggan." + rank);
     }
 }
+

@@ -3,6 +3,7 @@ package com.skycraft.crime.client;
 import com.skycraft.core.Holds;
 import com.skycraft.crime.Bounty;
 import com.skycraft.crime.CrimePackets;
+import com.skycraft.crime.Crimes;
 import com.skycraft.crime.Jail;
 import com.skycraft.crime.Locks;
 import com.skycraft.crime.Ownership;
@@ -50,6 +51,11 @@ public final class CrimeHud {
             }
         }
         if (status != null) drawSmall(g, font, status, width / 2, 32, 0.8f, 0xE0 << 24 | color);
+
+        // ---- Skyrim Sneak Detection Eye
+        if (mc.player.isCrouching()) {
+            renderSneakEye(g, font, mc.player, width, height);
+        }
 
         // ---- crosshair hints (Skyrim interactive prompts; ordinary blocks show nothing)
         if (mc.screen != null) return;
@@ -119,8 +125,11 @@ public final class CrimeHud {
                     || block instanceof net.minecraft.world.level.block.TrapDoorBlock
                     || block instanceof net.minecraft.world.level.block.FenceGateBlock) {
                 boolean owned = Ownership.isOwnedByOther(mc.player, mc.level, bpos);
-                String t = owned ? "Open  Door (owned)" : "Open  Door";
-                drawSmall(g, font, Component.literal(t), cx, cy, 0.75f, owned ? (0xD0000000 | RED) : 0xD0E8E2D0);
+                long dayTime = mc.level.getDayTime() % 24000L;
+                boolean night = dayTime >= 13000L && dayTime <= 23000L;
+                boolean locked = owned && night && (block instanceof net.minecraft.world.level.block.DoorBlock || block instanceof net.minecraft.world.level.block.TrapDoorBlock);
+                String t = locked ? "Locked  Door" : (owned ? "Open  Door (owned)" : "Open  Door");
+                drawSmall(g, font, Component.literal(t), cx, cy, 0.75f, (owned || locked) ? (0xD0000000 | RED) : 0xD0E8E2D0);
                 return;
             }
 
@@ -130,6 +139,95 @@ public final class CrimeHud {
                 drawSmall(g, font, Component.literal("Use  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
             }
         }
+    }
+
+    private enum SneakState {
+        HIDDEN, CAUTION, DETECTED
+    }
+
+    private static SneakState getSneakState(net.minecraft.world.entity.player.Player player) {
+        var level = player.level();
+        var box = player.getBoundingBox().inflate(24);
+        var list = level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, box,
+                e -> e != player && e.isAlive() && !(e instanceof net.minecraft.world.entity.player.Player));
+        if (list.isEmpty()) return SneakState.HIDDEN;
+
+        int sneakSkill = com.skycraft.core.SkyData.get(player).getSkill(com.skycraft.core.Skill.SNEAK);
+        int light = level.getMaxLocalRawBrightness(player.blockPosition());
+        boolean dark = light < 7;
+        boolean moving = player.getDeltaMovement().horizontalDistanceSqr() > 0.0004;
+
+        boolean anyCaution = false;
+        for (net.minecraft.world.entity.LivingEntity e : list) {
+            if (e instanceof net.minecraft.world.entity.Mob mob && mob.getTarget() == player) {
+                return SneakState.DETECTED;
+            }
+            boolean civilian = Crimes.isCivilian(e);
+            boolean hostile = e instanceof net.minecraft.world.entity.monster.Enemy;
+            if (!civilian && !hostile) continue;
+            if (e.isSleeping()) continue;
+
+            double dist = e.distanceTo(player);
+            double baseVision = 20.0;
+            double vision = baseVision * (1.0 - (sneakSkill * 0.005));
+            if (dark) vision *= 0.6;
+            if (moving) vision *= 1.3;
+
+            if (e.hasLineOfSight(player)) {
+                boolean facing = Crimes.facing(e, player);
+                if (facing) {
+                    if (dist < vision) {
+                        return SneakState.DETECTED;
+                    } else if (dist < vision * 1.4) {
+                        anyCaution = true;
+                    }
+                } else {
+                    if (dist < Math.max(3.0, vision * 0.35)) {
+                        return SneakState.DETECTED;
+                    } else if (dist < vision * 0.7) {
+                        anyCaution = true;
+                    }
+                }
+            } else {
+                if (moving && dist < 6.0 && sneakSkill < 50) {
+                    anyCaution = true;
+                }
+            }
+        }
+        return anyCaution ? SneakState.CAUTION : SneakState.HIDDEN;
+    }
+
+    private static void renderSneakEye(GuiGraphics g, Font font, net.minecraft.world.entity.player.Player player, int width, int height) {
+        SneakState state = getSneakState(player);
+        int cx = width / 2;
+        int cy = height / 2 - 20;
+
+        Component label;
+        String eyeBrackets;
+        int color;
+        switch (state) {
+            case HIDDEN -> {
+                label = Component.literal("HIDDEN");
+                eyeBrackets = "— —  •  — —";
+                color = 0xD0E0E0E0;
+            }
+            case CAUTION -> {
+                label = Component.literal("CAUTION");
+                eyeBrackets = "< ( • ) >";
+                color = 0xE0E0C050;
+            }
+            case DETECTED -> {
+                label = Component.literal("DETECTED");
+                eyeBrackets = "(   ●   )";
+                color = 0xE0E04040;
+            }
+            default -> {
+                return;
+            }
+        }
+
+        drawSmall(g, font, Component.literal(eyeBrackets), cx, cy - 7, 1.0f, color);
+        drawSmall(g, font, label, cx, cy + 4, 0.75f, color);
     }
 
     private static void drawSmall(GuiGraphics g, Font font, Component text, int x, int y, float scale, int argb) {

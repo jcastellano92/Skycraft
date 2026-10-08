@@ -40,3 +40,4 @@ public class FrostbiteSpiderEntity extends Spider {
         return hit;
     }
 }
+

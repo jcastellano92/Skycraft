@@ -27,3 +27,4 @@ public class IceWraithRenderer extends MobRenderer<IceWraithEntity, BlazeModel<I
         return TEXTURE;
     }
 }
+

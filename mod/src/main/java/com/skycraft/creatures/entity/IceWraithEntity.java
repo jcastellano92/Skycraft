@@ -86,3 +86,4 @@ public class IceWraithEntity extends Monster {
         return SoundEvents.GLASS_BREAK;
     }
 }
+

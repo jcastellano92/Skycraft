@@ -91,6 +91,18 @@ public final class RestManager {
         }
     }
 
+    /** Ensure vanilla sleeping (e.g. shift-clicking a bed) also checks bed ownership and occupancy. */
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onPlayerSleepInBed(net.minecraftforge.event.entity.player.PlayerSleepInBedEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            BlockPos pos = event.getPos();
+            if (com.skycraft.crime.Ownership.isOwnedByOther(player, player.level(), pos)) {
+                event.setResult(Player.BedSleepingProblem.OTHER_PROBLEM);
+                Notifier.message(player, Component.translatable("world.skycraft.rest.bed_owned"));
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ requests
 
     public static void request(ServerPlayer player, int hours, boolean sleep, BlockPos bed) {

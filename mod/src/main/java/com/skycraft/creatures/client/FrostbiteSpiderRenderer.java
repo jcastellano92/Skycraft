@@ -27,3 +27,4 @@ public class FrostbiteSpiderRenderer extends MobRenderer<FrostbiteSpiderEntity, 
         return TEXTURE;
     }
 }
+

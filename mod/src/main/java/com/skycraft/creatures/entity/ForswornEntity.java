@@ -76,3 +76,4 @@ public class ForswornEntity extends SkyHumanoid implements Ranked {
         return rank == null ? null : Component.translatable("entity.skycraft.forsworn." + rank);
     }
 }
+

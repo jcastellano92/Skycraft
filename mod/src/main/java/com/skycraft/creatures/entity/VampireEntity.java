@@ -82,3 +82,4 @@ public class VampireEntity extends SkyHumanoid implements Ranked {
         return rank == null ? null : Component.translatable("entity.skycraft.vampire." + rank);
     }
 }
+

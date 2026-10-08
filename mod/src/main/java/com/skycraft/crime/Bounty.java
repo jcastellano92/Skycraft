@@ -160,6 +160,12 @@ public final class Bounty {
         SkyData.get(player).markDirty();
     }
 
+    public static void clearHostile(Player player) {
+        CompoundTag state = state(player);
+        state.remove("hostile_until");
+        SkyData.get(player).markDirty();
+    }
+
     // ------------------------------------------------------------------ stolen goods
 
     public static boolean isStolen(net.minecraft.world.item.ItemStack stack) {

@@ -122,13 +122,27 @@ public final class Crimes {
     public static void onHurt(LivingHurtEvent event) {
         if (event.isCanceled() || event.getAmount() <= 0) return;
         LivingEntity victim = event.getEntity();
-        if (victim.level().isClientSide || !isCivilian(victim)) return;
+        if (victim.level().isClientSide) return;
         ServerPlayer player = attacker(event.getSource());
         if (player == null || !canCommitCrime(player)) return;
 
+        // Attacking an owned farm animal in a settlement
+        if (victim instanceof net.minecraft.world.entity.animal.Animal animal && Ownership.isOwnedByOther(player, animal)) {
+            report(player, victim.blockPosition(), 15, false, null);
+            return;
+        }
+
+        if (!isCivilian(victim)) return;
+
+        // Attacking a guard while yielding or being confronted is resisting arrest
+        if (isGuard(victim)) {
+            if (victim instanceof Mob mob) mob.setTarget(player);
+            Guards.resist(player);
+            return;
+        }
+
         // fighting back against someone who's already attacking you isn't a new crime
         if (victim instanceof Mob mob && mob.getTarget() == player) return;
-        if (isGuard(victim) && Bounty.isHostile(player)) return;
 
         long now = victim.level().getGameTime();
         String key = victim.getUUID() + "|" + player.getUUID();
@@ -149,9 +163,21 @@ public final class Crimes {
     public static void onDeath(LivingDeathEvent event) {
         if (event.isCanceled()) return;
         LivingEntity victim = event.getEntity();
-        if (victim.level().isClientSide || !isCivilian(victim)) return;
+        if (victim.level().isClientSide) return;
         ServerPlayer player = attacker(event.getSource());
         if (player == null || !canCommitCrime(player)) return;
+
+        // Killing an owned farm animal in a settlement
+        if (victim instanceof net.minecraft.world.entity.animal.Animal animal && Ownership.isOwnedByOther(player, animal)) {
+            if (witnessed(player, victim)) {
+                String hold = Holds.holdAt(player.level(), victim.blockPosition());
+                Bounty.add(player, hold, 50);
+                Guards.alert(player);
+            }
+            return;
+        }
+
+        if (!isCivilian(victim)) return;
 
         // the Dark Brotherhood always knows
         Bounty.increment(player, "murders", 1);

@@ -58,8 +58,15 @@ public final class Guards {
             double distSqr = guard.distanceToSqr(player);
             boolean sees = distSqr < 64 || guard.hasLineOfSight(player);
             if (hostile) {
-                if (sees && guard.getTarget() != player) guard.setTarget(player);
-                continue;
+                // Yielding: if player sheathes their weapon (or has empty hands) and bounty < KILL_ON_SIGHT, guards stand down to arrest
+                if (com.skycraft.combat.Sheathe.isSheathed(player) && bounty < Bounty.KILL_ON_SIGHT) {
+                    Bounty.clearHostile(player);
+                    hostile = false;
+                    calm(guard);
+                } else {
+                    if (sees && guard.getTarget() != player) guard.setTarget(player);
+                    continue;
+                }
             }
             if (guard.getTarget() == player) calm(guard);
             if (!sees) continue;

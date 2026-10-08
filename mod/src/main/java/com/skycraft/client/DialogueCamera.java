@@ -88,3 +88,4 @@ public final class DialogueCamera {
         event.setFOV(Mth.lerp(smoothFactor, baseFov, targetFov));
     }
 }
+
