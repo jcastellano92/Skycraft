@@ -46,6 +46,11 @@ hash = "2fba2317a375669ccb1376525d4d4e0d1903cc5dc44fc70dce1d0e3dbb6aacb1"
 metafile = true
 
 [[files]]
+file = "mods/creativecore.pw.toml"
+hash = "83696650659994c6facf18e79b7b53877a0df0622d6beeeb7b27bbe75f6bc0b7"
+metafile = true
+
+[[files]]
 file = "mods/cristel-lib.pw.toml"
 hash = "88325807c01b522a76d686f39c442da99b73a90ae3ec9b5434fea5f79baa4d49"
 metafile = true
@@ -101,6 +106,11 @@ hash = "03783bea6895d8acf198ac7d8bce4f91746659d0954f7367d0029b11963edee0"
 metafile = true
 
 [[files]]
+file = "mods/essential.pw.toml"
+hash = "92db92fc9161c4283b25e4b2a809ebe683b5ad27c1497531a8c79a066e4cc99e"
+metafile = true
+
+[[files]]
 file = "mods/explorify.pw.toml"
 hash = "6adce6422e74091638dbd7872270ee58d9a22dc18340580f809cc50c739e0d4f"
 metafile = true
@@ -113,6 +123,11 @@ metafile = true
 [[files]]
 file = "mods/ferrite-core.pw.toml"
 hash = "902bac905b93271f02bd0951a22bac06a3da24f5c237fcaeb469e14a7679e508"
+metafile = true
+
+[[files]]
+file = "mods/itemphysic-lite.pw.toml"
+hash = "cf31130ba0da56362298409418b9a6b6e5ab01822d9c04e0aee61c0682662b01"
 metafile = true
 
 [[files]]
@@ -171,13 +186,18 @@ hash = "f83b253ca6a8e6f2f847952704da0e1fb00e65cbb10b7c9cb15d1a1780618da0"
 metafile = true
 
 [[files]]
+file = "mods/physicsmod.pw.toml"
+hash = "762ee3d2dee5355be633bc365829c546800163ec4757f052be665601afe90fba"
+metafile = true
+
+[[files]]
 file = "mods/playeranimator.pw.toml"
 hash = "765987a78e5d8c782d0da2de99998b43b5907d6c41347d3804045ad109e4a586"
 metafile = true
 
 [[files]]
 file = "mods/skycraft-core.jar"
-hash = "e4b3839f4976fe80159d917214ff2e3148b5e16f56edcc9677df732ae57decb9"
+hash = "385eca9c48357c039c4e64b622ec14f8cbff910cb219f53ab76b38a2079057aa"
 
 [[files]]
 file = "mods/sodium-options-api.pw.toml"

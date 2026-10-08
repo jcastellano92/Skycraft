@@ -21,9 +21,11 @@
 - [x] `mr:jei` (pinned)
 - [x] `mr:mouse-tweaks` (pinned)
 - [x] `mr:default-options` (pinned)
+- [x] `mr:essential`
+- [x] `mr:itemphysic-lite`
+- [x] `mr:physicsmod`
 - [x] `cf:minecraft-comes-alive-reborn` (pinned)
 - [x] `mr:villager-recruits` (pinned)
-- [x] `mr:guard-villagers` (pinned)
 - [x] `mr:easy-npc` (pinned)
 - [x] `mr:vampirism` (pinned)
 - [x] `mr:werewolves` (pinned)
@@ -47,9 +49,8 @@
 - [x] `mr:yungs-extras` (pinned)
 - [x] `mr:aquaculture` (pinned)
 - [x] `mr:farmers-delight` (pinned)
-- [x] `cf:sophisticated-backpacks` (pinned)
 - [x] `mr:comforts` (pinned)
 - [x] `mr:complementary-reimagined` (pinned)
 - [x] Skycraft Core (local jar)
 
-Resolved: 50, unresolved: 0
+Resolved: 51, unresolved: 0
