@@ -169,13 +169,13 @@ third-party mod that provides it.
 * **Vampires and werewolves** (Vampirism, Werewolves: Become a Beast) let you transform, with their own skill
   trees.
 * **Fast travel.** The Skyrim map on **N** takes you to discovered locations; Waystones are wayshrines.
-* **Terrain map.** Xaero's World Map and Minimap.
+* **Terrain map.** Xaero's World Map on **M** (the Skyrim compass replaces a minimap).
 
 ## Performance
 
 * **Distant Horizons** renders terrain to the horizon cheaply.
 * **Rendering and memory:** Embeddium, Oculus, ModernFix, FerriteCore, Entity Culling, Canary and Memory Leak Fix.
-* **Pre-generation:** Chunky pre-generates worlds. On servers, run `/chunky radius 3000` then `/chunky start` before
-  inviting players.
+* **Distant terrain generation:** Distant Horizons builds far-off terrain in the background on its own worker threads,
+  so no separate pre-generation mod is needed. (Chunky was dropped: it crashes new worlds alongside Distant Horizons 3.)
 * **Skycraft's own systems** stay cheap: road paving and NPC traffic run on a per-tick budget and never force chunks
   to load.

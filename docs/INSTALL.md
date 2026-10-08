@@ -48,9 +48,7 @@ The host's PC runs the server, so give the host at least 8 GB of RAM in Prism. G
    `server.properties` (flight allowed, because giants launch players into the air) and JVM flags in `user_jvm_args.txt`.
 2. Read the [Minecraft EULA](https://aka.ms/MinecraftEULA) and set `eula=true` in `eula.txt`.
 3. Start it with `./run.sh` (Linux/macOS) or `run.bat` (Windows). Give it 6–10 GB of RAM in `user_jvm_args.txt`.
-4. Recommended before inviting players: pre-generate the world so Distant Horizons and the road network are ready:
-   `/chunky radius 3000` then `/chunky start`.
-5. Players join with the client instance from step 2. Essential isn't needed for a dedicated server, but is harmless.
+4. Players join with the client instance from step 2. Essential isn't needed for a dedicated server, but is harmless.
 
 ## 5. Controls
 
@@ -83,7 +81,8 @@ free one. Everything can be changed in **Options → Controls → Key Binds → 
   render distance on weaker PCs. 64–128 chunks looks great and is cheap.
 * Shaders (Complementary Reimagined) are optional: **Options → Video Settings → Shader Packs**. Skycraft's sky
   hands the sky over to the shader when one is active.
-* If you stutter while exploring new land, pre-generate with Chunky (see the dedicated server section).
+* If you stutter while exploring new land, lower Distant Horizons' CPU load (Distant Horizons settings → Threading) so it
+  builds distant terrain more slowly.
 
 ## 7. Troubleshooting
 

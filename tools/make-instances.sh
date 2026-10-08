@@ -83,8 +83,7 @@ Skycraft dedicated server (Minecraft $MC, Forge $FORGE)
 
 1. Read and accept the Minecraft EULA (https://aka.ms/MinecraftEULA) by setting eula=true in eula.txt.
 2. Start with ./run.sh (Linux/macOS) or run.bat (Windows).
-3. Recommended: pre-generate the world with Chunky (/chunky radius 3000, /chunky start) so
-   Distant Horizons LODs load instantly for players.
+3. Give the server 6-10 GB of RAM in user_jvm_args.txt. Distant Horizons builds distant terrain in the background.
 TXT
 (cd "$WORK" && zip -qr "$DIST/Skycraft-server.zip" server)
 ls -la "$DIST"

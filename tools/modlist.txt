@@ -12,7 +12,6 @@ mr:ferrite-core                  # memory usage
 mr:entityculling                 # skip rendering hidden entities
 mr:canary                        # Lithium port: server tick optimisations
 mr:memoryleakfix
-mr:chunky                        # world pre-generation (recommended with Distant Horizons)
 mr:spark                         # profiler for diagnosing lag
 
 # --- Core RPG behaviour (Skycraft Core is added from mod/build/libs) ---

@@ -8,7 +8,6 @@
 - [x] `mr:entityculling` (pinned)
 - [x] `mr:canary` (pinned)
 - [x] `mr:memoryleakfix` (pinned)
-- [x] `mr:chunky` (pinned)
 - [x] `mr:spark` (pinned)
 - [x] `mr:lootr` (pinned)
 - [x] `mr:better-combat` (pinned)
