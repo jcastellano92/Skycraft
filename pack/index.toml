@@ -121,16 +121,6 @@ hash = "cf31130ba0da56362298409418b9a6b6e5ab01822d9c04e0aee61c0682662b01"
 metafile = true
 
 [[files]]
-file = "mods/jade.pw.toml"
-hash = "5d03d20b037a8b7a4765ded0e25146fc970964be46401dff5f9b1059875084e8"
-metafile = true
-
-[[files]]
-file = "mods/jei.pw.toml"
-hash = "df724beef20c6a6458b6eced0a36d6ac72dffe00849676f80bdf328207f6d061"
-metafile = true
-
-[[files]]
 file = "mods/lootr.pw.toml"
 hash = "66bcfe786e6bbdee6f7ea0805ec3d2561b41285a5c77f1e465e80f4c2fd9200c"
 metafile = true
@@ -220,16 +210,6 @@ hash = "2e23c17c935bd2bb323320e68b38c7bd0ffca332fc715c2f25ada7bf56ac7795"
 metafile = true
 
 [[files]]
-file = "mods/villager-recruits.pw.toml"
-hash = "d5f4503ebad66eef05027dd7e158d21276a0ec7ea49343a4e60b793b43f4bf07"
-metafile = true
-
-[[files]]
-file = "mods/waystones.pw.toml"
-hash = "1dc6ca31c7b6912c494caa2a4f5f9f7250af50fbeb9ce9141ae9b741f9861987"
-metafile = true
-
-[[files]]
 file = "mods/werewolves.pw.toml"
 hash = "2f13dc11c0d7bd59bed4a50874668d6e60c4de6c3be467416e01af652cb5a011"
 metafile = true
@@ -237,11 +217,6 @@ metafile = true
 [[files]]
 file = "mods/when-dungeons-arise.pw.toml"
 hash = "1901cefc095dfaeafb78fc34610febb36f9e4a0ae32f7b96f484f0dacc94c681"
-metafile = true
-
-[[files]]
-file = "mods/xaeros-world-map.pw.toml"
-hash = "5290b1a5c4624ba20a080385052eb55cfdc42170dfc5cd5aeecd570115d5f947"
 metafile = true
 
 [[files]]
