@@ -44,6 +44,7 @@ public class Skycraft {
         com.skycraft.quest.QuestModule.init(modBus);
         com.skycraft.crafting.CraftingModule.init(modBus);
         com.skycraft.world.WorldModule.init(modBus);
+        com.skycraft.roads.RoadsModule.init(modBus);
 
         modBus.addListener(this::registerCapabilities);
         modBus.addListener(this::commonSetup);

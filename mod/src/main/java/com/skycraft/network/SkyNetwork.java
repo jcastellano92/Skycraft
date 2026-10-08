@@ -50,6 +50,7 @@ public final class SkyNetwork {
         com.skycraft.quest.QuestModule.registerPackets();
         com.skycraft.crafting.CraftingModule.registerPackets();
         com.skycraft.world.WorldModule.registerPackets();
+        com.skycraft.roads.RoadsModule.registerPackets();
     }
 
     public static void sendToPlayer(ServerPlayer player, Object msg) {
