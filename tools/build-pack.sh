@@ -7,6 +7,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PACK="$ROOT/pack"
 LIST="$ROOT/tools/modlist.txt"
 REPORT="$ROOT/pack/RESOLVE_REPORT.md"
+JAR=""
+if [ $# -ge 1 ] && [ -f "$1" ]; then JAR="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"; fi
 cd "$PACK"
 
 echo "# Mod resolution report" > "$REPORT"
@@ -56,9 +58,9 @@ while IFS= read -r raw; do
   fi
 done < "$LIST"
 
-if [ $# -ge 1 ] && [ -f "$1" ]; then
+if [ -n "$JAR" ]; then
   mkdir -p "$PACK/mods"
-  cp "$1" "$PACK/mods/skycraft-core.jar"
+  cp "$JAR" "$PACK/mods/skycraft-core.jar"
   echo "- [x] Skycraft Core (local jar)" >> "$REPORT"
 fi
 

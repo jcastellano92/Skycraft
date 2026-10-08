@@ -56,11 +56,6 @@ hash = "ddffdb4dd442977115656e4378bc1a38290c9299fb316ae24ba54ee229f30c13"
 metafile = true
 
 [[files]]
-file = "mods/ctov-friends-and-foes-compat.pw.toml"
-hash = "afcd4470f08c342d9c09af255d113736906d2d2c739f5277951eb7ebde9446b9"
-metafile = true
-
-[[files]]
 file = "mods/default-options.pw.toml"
 hash = "6311134242af3f639923e825caea40821c7e7ee7caadf4105234f5d7fa44ec8b"
 metafile = true
@@ -118,11 +113,6 @@ metafile = true
 [[files]]
 file = "mods/guard-villagers.pw.toml"
 hash = "145d32a60f94c6541c7d381e09590f6ad96b89a904fa059a50b1491f80b8ff6d"
-metafile = true
-
-[[files]]
-file = "mods/immediatelyfast.pw.toml"
-hash = "835bd8b05a05ce6c0981ddc37c49e4c476aa0414cc2a5321fd9f8994193b6feb"
 metafile = true
 
 [[files]]

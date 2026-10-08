@@ -10,7 +10,6 @@ mr:distanthorizons               # Distant Horizons: LOD terrain to the horizon
 mr:modernfix                     # faster launch, lower memory
 mr:ferrite-core                  # memory usage
 mr:entityculling                 # skip rendering hidden entities
-mr:immediatelyfast               # faster immediate-mode rendering (HUD, text)
 mr:canary                        # Lithium port: server tick optimisations
 mr:memoryleakfix
 mr:chunky                        # world pre-generation (recommended with Distant Horizons)
@@ -23,7 +22,7 @@ mr:corpse                        # player corpses keep your gear when you die
 mr:waystones                     # Skyrim-style wayshrines for fast travel
 mr:xaeros-minimap
 mr:xaeros-world-map              # terrain world map (Skycraft adds the Skyrim fast-travel map on N)
-mr:dynamiclights-reforged        # torches light up the world in your hand
+cf:dynamiclights-reforged | mr:dynamic-lights-reforged   # torches light up the world in your hand
 mr:jade                          # look-at info
 mr:jei                           # recipe viewer
 mr:mouse-tweaks
@@ -42,7 +41,7 @@ mr:werewolves | cf:werewolves-become-a-beast   # werewolf transformation
 # --- Towns, cities, dungeons, roads and secrets ---
 mr:terralith                     # Skyrim-like mountains and biomes
 mr:tectonic                      # dramatic terrain
-mr:ctov                          # overhauled villages: towns and cities
+mr:ct-overhaul-village           # ChoiceTheorem's Overhauled Village: towns and cities
 mr:towns-and-towers              # more settlements, castles and towers
 mr:dungeons-and-taverns          # taverns (inns), dungeons
 mr:when-dungeons-arise           # huge dungeons and fortresses
@@ -62,7 +61,6 @@ mr:yungs-extras
 # --- Survival: fishing, cooking, gear, backpacks, sleeping ---
 cf:aquaculture | mr:aquaculture     # fishing overhaul (feeds the Fishing skill)
 mr:farmers-delight                  # cooking pots and meals
-cf:epic-knights-shields-armor-and-weapons   # medieval armor and weapons
 mr:sophisticated-backpacks | cf:sophisticated-backpacks
 mr:comforts                         # sleeping bags and hammocks for camping
 
