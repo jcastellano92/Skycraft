@@ -41,6 +41,11 @@ hash = "2fba2317a375669ccb1376525d4d4e0d1903cc5dc44fc70dce1d0e3dbb6aacb1"
 metafile = true
 
 [[files]]
+file = "mods/create-controllable.pw.toml"
+hash = "a8f0cb4aac4fdf36969e03cd46638e421e93e2a78a76917cbdfba603e00829d0"
+metafile = true
+
+[[files]]
 file = "mods/creativecore.pw.toml"
 hash = "83696650659994c6facf18e79b7b53877a0df0622d6beeeb7b27bbe75f6bc0b7"
 metafile = true
