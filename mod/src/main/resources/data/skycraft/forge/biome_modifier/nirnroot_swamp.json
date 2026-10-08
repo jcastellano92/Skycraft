@@ -1,0 +1,6 @@
+{
+  "type": "forge:add_features",
+  "biomes": "#forge:is_swamp",
+  "features": "skycraft:nirnroot_patch",
+  "step": "vegetal_decoration"
+}

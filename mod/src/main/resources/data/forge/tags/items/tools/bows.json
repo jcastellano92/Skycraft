@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:iron_bow",
+    "skycraft:steel_bow",
+    "skycraft:orcish_bow",
+    "skycraft:dwarven_bow",
+    "skycraft:elven_bow",
+    "skycraft:glass_bow",
+    "skycraft:ebony_bow",
+    "skycraft:daedric_bow",
+    "skycraft:dragonbone_bow"
+  ]
+}

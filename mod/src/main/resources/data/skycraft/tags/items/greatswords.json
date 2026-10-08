@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:iron_greatsword",
+    "skycraft:steel_greatsword",
+    "skycraft:orcish_greatsword",
+    "skycraft:dwarven_greatsword",
+    "skycraft:elven_greatsword",
+    "skycraft:glass_greatsword",
+    "skycraft:ebony_greatsword",
+    "skycraft:daedric_greatsword",
+    "skycraft:dragonbone_greatsword"
+  ]
+}

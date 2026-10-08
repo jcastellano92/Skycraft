@@ -1,0 +1,21 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:hide_helmet",
+    "skycraft:hide_chestplate",
+    "skycraft:hide_leggings",
+    "skycraft:hide_boots",
+    "skycraft:elven_helmet",
+    "skycraft:elven_chestplate",
+    "skycraft:elven_leggings",
+    "skycraft:elven_boots",
+    "skycraft:glass_helmet",
+    "skycraft:glass_chestplate",
+    "skycraft:glass_leggings",
+    "skycraft:glass_boots",
+    "skycraft:dragonscale_helmet",
+    "skycraft:dragonscale_chestplate",
+    "skycraft:dragonscale_leggings",
+    "skycraft:dragonscale_boots"
+  ]
+}

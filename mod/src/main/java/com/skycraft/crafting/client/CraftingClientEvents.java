@@ -1,0 +1,27 @@
+package com.skycraft.crafting.client;
+
+import com.skycraft.Skycraft;
+import com.skycraft.crafting.Tempering;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.event.entity.player.ItemTooltipEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
+import java.util.List;
+
+/** Forge-bus client hooks: the tempering quality line under the item name ("Fine", "Legendary"...). */
+@Mod.EventBusSubscriber(modid = Skycraft.MODID, value = Dist.CLIENT)
+public final class CraftingClientEvents {
+    private CraftingClientEvents() {}
+
+    @SubscribeEvent
+    public static void onTooltip(ItemTooltipEvent event) {
+        int quality = Tempering.quality(event.getItemStack());
+        if (quality <= 0) return;
+        List<Component> tooltip = event.getToolTip();
+        Component line = Tempering.qualityName(quality).copy().withStyle(ChatFormatting.GOLD);
+        tooltip.add(Math.min(1, tooltip.size()), line);
+    }
+}

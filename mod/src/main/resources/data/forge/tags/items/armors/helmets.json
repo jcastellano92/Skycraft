@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:hide_helmet",
+    "skycraft:elven_helmet",
+    "skycraft:glass_helmet",
+    "skycraft:dragonscale_helmet",
+    "skycraft:steel_helmet",
+    "skycraft:dwarven_helmet",
+    "skycraft:orcish_helmet",
+    "skycraft:ebony_helmet",
+    "skycraft:daedric_helmet",
+    "skycraft:dragonplate_helmet"
+  ]
+}

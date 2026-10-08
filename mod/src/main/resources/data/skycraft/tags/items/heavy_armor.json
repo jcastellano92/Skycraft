@@ -1,0 +1,29 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:steel_helmet",
+    "skycraft:steel_chestplate",
+    "skycraft:steel_leggings",
+    "skycraft:steel_boots",
+    "skycraft:dwarven_helmet",
+    "skycraft:dwarven_chestplate",
+    "skycraft:dwarven_leggings",
+    "skycraft:dwarven_boots",
+    "skycraft:orcish_helmet",
+    "skycraft:orcish_chestplate",
+    "skycraft:orcish_leggings",
+    "skycraft:orcish_boots",
+    "skycraft:ebony_helmet",
+    "skycraft:ebony_chestplate",
+    "skycraft:ebony_leggings",
+    "skycraft:ebony_boots",
+    "skycraft:daedric_helmet",
+    "skycraft:daedric_chestplate",
+    "skycraft:daedric_leggings",
+    "skycraft:daedric_boots",
+    "skycraft:dragonplate_helmet",
+    "skycraft:dragonplate_chestplate",
+    "skycraft:dragonplate_leggings",
+    "skycraft:dragonplate_boots"
+  ]
+}

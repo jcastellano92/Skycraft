@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:hide_leggings",
+    "skycraft:elven_leggings",
+    "skycraft:glass_leggings",
+    "skycraft:dragonscale_leggings",
+    "skycraft:steel_leggings",
+    "skycraft:dwarven_leggings",
+    "skycraft:orcish_leggings",
+    "skycraft:ebony_leggings",
+    "skycraft:daedric_leggings",
+    "skycraft:dragonplate_leggings"
+  ]
+}

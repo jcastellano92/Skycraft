@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:tanning_rack",
+    "skycraft:grindstone_wheel",
+    "skycraft:armor_workbench"
+  ]
+}

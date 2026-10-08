@@ -1,0 +1,32 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:iron_greatsword",
+    "skycraft:steel_greatsword",
+    "skycraft:orcish_greatsword",
+    "skycraft:dwarven_greatsword",
+    "skycraft:elven_greatsword",
+    "skycraft:glass_greatsword",
+    "skycraft:ebony_greatsword",
+    "skycraft:daedric_greatsword",
+    "skycraft:dragonbone_greatsword",
+    "skycraft:iron_battleaxe",
+    "skycraft:steel_battleaxe",
+    "skycraft:orcish_battleaxe",
+    "skycraft:dwarven_battleaxe",
+    "skycraft:elven_battleaxe",
+    "skycraft:glass_battleaxe",
+    "skycraft:ebony_battleaxe",
+    "skycraft:daedric_battleaxe",
+    "skycraft:dragonbone_battleaxe",
+    "skycraft:iron_warhammer",
+    "skycraft:steel_warhammer",
+    "skycraft:orcish_warhammer",
+    "skycraft:dwarven_warhammer",
+    "skycraft:elven_warhammer",
+    "skycraft:glass_warhammer",
+    "skycraft:ebony_warhammer",
+    "skycraft:daedric_warhammer",
+    "skycraft:dragonbone_warhammer"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "skycraft:item/soul_gem_greater"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "skycraft:filled": 1
+      },
+      "model": "skycraft:item/soul_gem_greater_filled"
+    }
+  ]
+}

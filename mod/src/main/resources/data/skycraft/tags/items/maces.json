@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:iron_mace",
+    "skycraft:steel_mace",
+    "skycraft:orcish_mace",
+    "skycraft:dwarven_mace",
+    "skycraft:elven_mace",
+    "skycraft:glass_mace",
+    "skycraft:ebony_mace",
+    "skycraft:daedric_mace",
+    "skycraft:dragonbone_mace"
+  ]
+}

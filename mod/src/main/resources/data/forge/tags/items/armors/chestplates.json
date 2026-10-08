@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:hide_chestplate",
+    "skycraft:elven_chestplate",
+    "skycraft:glass_chestplate",
+    "skycraft:dragonscale_chestplate",
+    "skycraft:steel_chestplate",
+    "skycraft:dwarven_chestplate",
+    "skycraft:orcish_chestplate",
+    "skycraft:ebony_chestplate",
+    "skycraft:daedric_chestplate",
+    "skycraft:dragonplate_chestplate"
+  ]
+}

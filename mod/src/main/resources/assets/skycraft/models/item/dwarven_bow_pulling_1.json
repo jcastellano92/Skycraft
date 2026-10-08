@@ -1,0 +1,6 @@
+{
+  "parent": "skycraft:item/dwarven_bow",
+  "textures": {
+    "layer0": "skycraft:item/dwarven_bow_pulling_1"
+  }
+}

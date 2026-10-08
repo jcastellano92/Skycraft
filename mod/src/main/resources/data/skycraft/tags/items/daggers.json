@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:iron_dagger",
+    "skycraft:steel_dagger",
+    "skycraft:orcish_dagger",
+    "skycraft:dwarven_dagger",
+    "skycraft:elven_dagger",
+    "skycraft:glass_dagger",
+    "skycraft:ebony_dagger",
+    "skycraft:daedric_dagger",
+    "skycraft:dragonbone_dagger"
+  ]
+}
