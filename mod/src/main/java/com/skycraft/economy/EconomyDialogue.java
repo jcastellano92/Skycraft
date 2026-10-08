@@ -52,6 +52,25 @@ public final class EconomyDialogue {
             out.add(new DialogueOption("economy.train", Component.translatable("dialogue.skycraft.economy.train", skill.displayName(), cost), 200,
                     Trainers::train));
         }
+
+        // Town steward / official house options
+        String hold = com.skycraft.core.Holds.holdAt(player.level(), npc.blockPosition());
+        Houses.HouseDef house = Houses.houseForHold(hold);
+        if (house != null && (npc.getType().getDescriptionId().contains("villager") || npc.getType().getDescriptionId().contains("guard") || npc.getType().getDescriptionId().contains("humanoid"))) {
+            if (!Houses.isHouseOwner(player, house)) {
+                out.add(new DialogueOption("economy.buy_house", Component.translatable("dialogue.skycraft.economy.house.buy", house.cost()), 250,
+                        (p, n) -> Houses.purchaseHouse(p, p.serverLevel(), house, null)));
+            } else {
+                Houses.HousesData data = Houses.HousesData.get(player.server.overworld().getServer());
+                for (Houses.Furnishing furn : Houses.UPGRADES) {
+                    if (!data.hasFurnishing(house.id(), furn.id())) {
+                        out.add(new DialogueOption("economy.furnish." + furn.id(),
+                                Component.translatable("dialogue.skycraft.economy.house.furnish_option", furn.name(), furn.cost()), 260,
+                                (p, n) -> Houses.purchaseFurnishing(p, p.serverLevel(), house, furn)));
+                    }
+                }
+            }
+        }
     }
 
     private static void invest(ServerPlayer player, LivingEntity npc) {

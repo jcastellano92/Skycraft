@@ -18,13 +18,12 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Skyrim barter menu: the merchant's goods on the left, the player's sellable inventory on the right, category
- * tabs on top, gold totals in the header. Click trades one item, shift-click the whole stack. All prices are the
- * server's; every click is a request the server validates before answering with a fresh state.
+ * Skyrim barter menu: Buy and Sell tabs at top, category tabs below, active catalog centered,
+ * merchant and player gold in the header. Click trades one item, shift-click trades the stack.
  */
 public class BarterScreen extends Screen {
-    private static final int ROW = 18;
-    private static final int TOP = 70;
+    private static final int ROW = 20;
+    private static final int TOP = 80;
     private static final int GOLD = 0xFFE8C060;
     private static final int TEXT = 0xFFE8E0C8;
     private static final int DIM = 0xFF77736A;
@@ -32,6 +31,7 @@ public class BarterScreen extends Screen {
     private static final int LINE = 0xFFC8BC9A;
 
     private EconomyPackets.BarterState state;
+    private boolean sellMode = false;
     private ItemCategory tab = ItemCategory.ALL;
     private List<EconomyPackets.Entry> left = List.of();
     private List<EconomyPackets.Entry> right = List.of();
@@ -44,6 +44,7 @@ public class BarterScreen extends Screen {
     private EconomyPackets.Entry hoveredEntry;
     private boolean hoveredBuy;
     private int hoveredTab = -1;
+    private int hoveredMode = -1; // 0 = buy, 1 = sell
 
     public BarterScreen(EconomyPackets.BarterState state) {
         super(state.merchantName());
@@ -88,16 +89,12 @@ public class BarterScreen extends Screen {
 
     // ------------------------------------------------------------------ layout
 
-    private int colWidth() {
-        return Math.max(120, Math.min(230, (width - 48) / 2));
+    private int tableWidth() {
+        return Math.max(260, Math.min(380, width - 48));
     }
 
-    private int leftX() {
-        return width / 2 - 8 - colWidth();
-    }
-
-    private int rightX() {
-        return width / 2 + 8;
+    private int tableX() {
+        return width / 2 - tableWidth() / 2;
     }
 
     private int listBottom() {
@@ -126,15 +123,42 @@ public class BarterScreen extends Screen {
 
         // header: merchant name and gold
         g.pose().pushPose();
-        g.pose().translate(width / 2f, 8, 0);
-        g.pose().scale(1.3f, 1.3f, 1f);
+        g.pose().translate(width / 2f, 6, 0);
+        g.pose().scale(1.2f, 1.2f, 1f);
         g.drawCenteredString(font, state.merchantName(), 0, 0, 0xFFF5EBC8);
         g.pose().popPose();
+
         Component gold = Component.translatable("barter.skycraft.your_gold", state.playerGold())
                 .append(Component.literal("   |   "))
                 .append(Component.translatable("barter.skycraft.merchant_gold", state.merchantGold()));
-        g.drawCenteredString(font, gold, width / 2, 25, GOLD);
-        g.fill(width / 2 - 160, 37, width / 2 + 160, 38, 0x80C8BC9A);
+        g.drawCenteredString(font, gold, width / 2, 22, GOLD);
+
+        // BUY / SELL Mode Buttons
+        hoveredMode = -1;
+        int modeW = 70;
+        int modeH = 14;
+        int modeY = 36;
+        int buyX = width / 2 - modeW - 6;
+        int sellX = width / 2 + 6;
+
+        boolean hovBuy = mouseX >= buyX && mouseX < buyX + modeW && mouseY >= modeY && mouseY < modeY + modeH;
+        boolean hovSell = mouseX >= sellX && mouseX < sellX + modeW && mouseY >= modeY && mouseY < modeY + modeH;
+        if (hovBuy) hoveredMode = 0;
+        else if (hovSell) hoveredMode = 1;
+
+        // BUY button
+        g.fill(buyX, modeY, buyX + modeW, modeY + modeH, !sellMode ? 0x50FFFFFF : hovBuy ? 0x28FFFFFF : 0x18000000);
+        if (!sellMode) g.fill(buyX, modeY + modeH - 1, buyX + modeW, modeY + modeH, LINE);
+        g.drawCenteredString(font, Component.translatable("barter.skycraft.mode.buy"), buyX + modeW / 2, modeY + 3,
+                !sellMode ? 0xFFFFFFFF : hovBuy ? TEXT : 0xFFA8A090);
+
+        // SELL button
+        g.fill(sellX, modeY, sellX + modeW, modeY + modeH, sellMode ? 0x50FFFFFF : hovSell ? 0x28FFFFFF : 0x18000000);
+        if (sellMode) g.fill(sellX, modeY + modeH - 1, sellX + modeW, modeY + modeH, LINE);
+        g.drawCenteredString(font, Component.translatable("barter.skycraft.mode.sell"), sellX + modeW / 2, modeY + 3,
+                sellMode ? 0xFFFFFFFF : hovSell ? TEXT : 0xFFA8A090);
+
+        g.fill(width / 2 - 160, 52, width / 2 + 160, 53, 0x60C8BC9A);
 
         // category tabs
         hoveredTab = -1;
@@ -142,31 +166,34 @@ public class BarterScreen extends Screen {
         for (ItemCategory c : ItemCategory.VALUES) {
             int w = font.width(c.displayName()) + 14;
             boolean sel = c == tab;
-            boolean hov = mouseX >= tx && mouseX < tx + w && mouseY >= 41 && mouseY < 55;
+            boolean hov = mouseX >= tx && mouseX < tx + w && mouseY >= 56 && mouseY < 70;
             if (hov) hoveredTab = c.ordinal();
             if (sel) {
-                g.fill(tx, 41, tx + w, 55, 0x50FFFFFF);
-                g.fill(tx, 54, tx + w, 55, LINE);
+                g.fill(tx, 56, tx + w, 70, 0x50FFFFFF);
+                g.fill(tx, 69, tx + w, 70, LINE);
             } else if (hov) {
-                g.fill(tx, 41, tx + w, 55, 0x28FFFFFF);
+                g.fill(tx, 56, tx + w, 70, 0x28FFFFFF);
             }
-            g.drawString(font, c.displayName(), tx + 7, 44, sel ? 0xFFFFFFFF : hov ? TEXT : 0xFFA8A090, false);
+            g.drawString(font, c.displayName(), tx + 7, 59, sel ? 0xFFFFFFFF : hov ? TEXT : 0xFFA8A090, false);
             tx += w;
         }
 
-        // columns
+        // Active table (BUY: merchant goods, SELL: player inventory)
         hoveredEntry = null;
-        int lx = leftX(), rx = rightX(), cw = colWidth();
-        drawColumn(g, lx, cw, state.merchantName(), left, scrollLeft, true, mouseX, mouseY);
-        drawColumn(g, rx, cw, Component.translatable("barter.skycraft.inventory"), right, scrollRight, false, mouseX, mouseY);
+        int txPos = tableX(), tw = tableWidth();
+        if (!sellMode) {
+            drawCatalog(g, txPos, tw, state.merchantName(), left, scrollLeft, true, mouseX, mouseY);
+        } else {
+            drawCatalog(g, txPos, tw, Component.translatable("barter.skycraft.inventory"), right, scrollRight, false, mouseX, mouseY);
+        }
 
         // footer: last message (fades) and controls hint
         long age = Util.getMillis() - messageAt;
         if (!message.getString().isEmpty() && age < 5000) {
             int alpha = age < 4000 ? 0xFF : (int) (0xFF * (5000 - age) / 1000f);
-            g.drawCenteredString(font, message, width / 2, height - 28, (Math.max(8, alpha) << 24) | 0xF0E6C8);
+            g.drawCenteredString(font, message, width / 2, height - 26, (Math.max(8, alpha) << 24) | 0xF0E6C8);
         }
-        g.drawCenteredString(font, Component.translatable("barter.skycraft.hint"), width / 2, height - 14, 0xFF8A8478);
+        g.drawCenteredString(font, Component.translatable("barter.skycraft.hint"), width / 2, height - 12, 0xFF8A8478);
 
         super.render(g, mouseX, mouseY, partialTick);
 
@@ -183,45 +210,45 @@ public class BarterScreen extends Screen {
         }
     }
 
-    private void drawColumn(GuiGraphics g, int x, int w, Component title, List<EconomyPackets.Entry> entries, int scroll,
-                            boolean buy, int mouseX, int mouseY) {
+    private void drawCatalog(GuiGraphics g, int x, int w, Component title, List<EconomyPackets.Entry> entries, int scroll,
+                             boolean buy, int mouseX, int mouseY) {
         int bottom = listBottom();
-        g.fill(x, TOP - 12, x + w, bottom + 2, 0x70000000);
-        g.drawString(font, font.plainSubstrByWidth(title.getString(), w - 60), x + 4, TOP - 10, LINE, false);
+        g.fill(x, TOP - 10, x + w, bottom + 2, 0x70000000);
+        g.drawString(font, font.plainSubstrByWidth(title.getString(), w - 70), x + 6, TOP - 8, LINE, false);
         Component priceHeader = Component.translatable("barter.skycraft.price");
-        g.drawString(font, priceHeader, x + w - 6 - font.width(priceHeader), TOP - 10, LINE, false);
+        g.drawString(font, priceHeader, x + w - 8 - font.width(priceHeader), TOP - 8, LINE, false);
         g.fill(x, TOP - 1, x + w, TOP, 0x80C8BC9A);
 
         if (entries.isEmpty()) {
-            g.drawCenteredString(font, Component.translatable("barter.skycraft.empty"), x + w / 2, TOP + 8, DIM);
+            g.drawCenteredString(font, Component.translatable("barter.skycraft.empty"), x + w / 2, TOP + 12, DIM);
             return;
         }
         int rows = visibleRows();
         for (int i = 0; i < rows && scroll + i < entries.size(); i++) {
             EconomyPackets.Entry e = entries.get(scroll + i);
-            int y = TOP + 1 + i * ROW;
+            int y = TOP + 2 + i * ROW;
             boolean hov = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + ROW;
             if (hov) {
                 hoveredEntry = e;
                 hoveredBuy = buy;
                 g.fill(x, y, x + w, y + ROW, 0x38FFFFFF);
-                g.fill(x, y, x + 1, y + ROW, LINE);
+                g.fill(x, y, x + 2, y + ROW, LINE);
             }
             ItemStack stack = e.stack();
-            g.renderItem(stack, x + 3, y + 1);
+            g.renderItem(stack, x + 4, y + 2);
 
-            String price = String.valueOf(e.price());
+            String price = e.price() + "g";
             int priceW = font.width(price);
             boolean ok = e.status() == Barter.STATUS_OK;
             boolean affordable = !buy || state.playerGold() >= e.price();
             int nameColor = e.status() == Barter.STATUS_STOLEN ? STOLEN : ok ? (hov ? 0xFFFFFFFF : TEXT) : DIM;
 
             String count = stack.getCount() > 1 ? " (" + stack.getCount() + ")" : "";
-            int nameSpace = w - 26 - priceW - 10 - font.width(count);
+            int nameSpace = w - 30 - priceW - 12 - font.width(count);
             String name = font.plainSubstrByWidth(stack.getHoverName().getString(), Math.max(10, nameSpace));
-            g.drawString(font, name, x + 23, y + 5, nameColor, false);
-            if (!count.isEmpty()) g.drawString(font, count, x + 23 + font.width(name), y + 5, DIM, false);
-            g.drawString(font, price, x + w - 6 - priceW, y + 5, !ok ? DIM : affordable ? GOLD : 0xFFC04040, false);
+            g.drawString(font, name, x + 26, y + 6, nameColor, false);
+            if (!count.isEmpty()) g.drawString(font, count, x + 26 + font.width(name), y + 6, DIM, false);
+            g.drawString(font, price, x + w - 8 - priceW, y + 6, !ok ? DIM : affordable ? GOLD : 0xFFC04040, false);
         }
 
         // scrollbar
@@ -238,6 +265,13 @@ public class BarterScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        if (hoveredMode == 0) {
+            sellMode = false;
+            return true;
+        } else if (hoveredMode == 1) {
+            sellMode = true;
+            return true;
+        }
         if (hoveredTab >= 0) {
             setTab(ItemCategory.byOrdinal(hoveredTab));
             return true;
@@ -254,13 +288,20 @@ public class BarterScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
         int step = delta > 0 ? -1 : delta < 0 ? 1 : 0;
-        if (mx < width / 2.0) scrollLeft = clampScroll(scrollLeft + step, left.size());
-        else scrollRight = clampScroll(scrollRight + step, right.size());
+        if (!sellMode) {
+            scrollLeft = clampScroll(scrollLeft + step, left.size());
+        } else {
+            scrollRight = clampScroll(scrollRight + step, right.size());
+        }
         return true;
     }
 
     @Override
     public boolean keyPressed(int key, int scan, int mods) {
+        if (key == GLFW.GLFW_KEY_TAB) {
+            sellMode = !sellMode;
+            return true;
+        }
         int n = ItemCategory.VALUES.length;
         if (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_A) {
             setTab(ItemCategory.byOrdinal((tab.ordinal() + n - 1) % n));

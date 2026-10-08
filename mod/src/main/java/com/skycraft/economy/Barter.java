@@ -38,6 +38,10 @@ public final class Barter {
     /** Opens the barter menu with a merchant. */
     public static void open(ServerPlayer player, LivingEntity npc) {
         if (!Merchants.isMerchant(npc)) return;
+        if (!Shop.isOpen(player.level())) {
+            Dialogue.open(player, npc, Component.translatable("dialogue.skycraft.economy.closed"));
+            return;
+        }
         Shop shop = Shop.of(npc);
         sendState(player, npc, shop, Merchants.greeting(npc), true);
     }
@@ -52,6 +56,13 @@ public final class Barter {
         Shop shop = Shop.of(npc);
         Component msg = buy ? buy(player, shop, index, all, itemId) : sell(player, shop, index, all, itemId);
         sendState(player, npc, shop, msg, false);
+
+        // Sync stock & gold to all players viewing this merchant
+        for (ServerPlayer other : player.serverLevel().players()) {
+            if (other != player && canReach(other, npc)) {
+                sendState(other, npc, shop, Component.empty(), false);
+            }
+        }
     }
 
     private static boolean matches(ItemStack stack, ResourceLocation itemId) {
@@ -151,8 +162,10 @@ public final class Barter {
             int price = Pricing.sellPrice(player, s);
             if (price <= 0) continue;
             byte status = STATUS_OK;
-            if (!Merchants.buysFrom(player, npc, s)) status = STATUS_NOT_DEALT;
-            else if (Merchants.isStolen(s) && !fence) status = STATUS_STOLEN;
+            if (!Merchants.buysFrom(player, npc, s)) {
+                if (!com.skycraft.perk.Perks.has(player, "speech.merchant")) continue;
+            }
+            if (Merchants.isStolen(s) && !fence) status = STATUS_STOLEN;
             mine.add(new EconomyPackets.Entry(slot, s.copy(), price, (byte) ItemCategory.of(s).ordinal(), status));
         }
         SkyNetwork.sendToPlayer(player, new EconomyPackets.BarterState(npc.getId(), npc.getDisplayName(), open,
