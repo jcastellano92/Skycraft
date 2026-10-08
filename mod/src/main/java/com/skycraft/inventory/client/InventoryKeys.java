@@ -12,7 +12,7 @@ import org.lwjgl.glfw.GLFW;
  */
 public final class InventoryKeys {
     public static final KeyMapping FAVORITES = new KeyMapping("key.skycraft.favorites", KeyConflictContext.IN_GAME,
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_X, SkyKeys.CATEGORY);
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_Q, SkyKeys.CATEGORY);
 
     private InventoryKeys() {}
 }

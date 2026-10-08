@@ -60,14 +60,18 @@ public final class InventoryClientEvents {
         if (player == null || next == null) return;
 
         if (next.getClass() == InventoryScreen.class) {
-            if (vanillaOnce) {
-                vanillaOnce = false;
-                return;
-            }
-            if (replaceInventory() && !player.isCreative() && !player.isSpectator()) {
+            if (!player.isCreative() && !player.isSpectator()) {
                 event.setNewScreen(new SkyrimInventoryScreen());
             }
             return;
+        }
+
+        if (next instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> acs
+                && acs.getMenu() instanceof net.minecraft.world.inventory.ChestMenu cm) {
+            if (!player.isCreative() && !player.isSpectator()) {
+                event.setNewScreen(new SkyrimContainerScreen(cm, player.getInventory(), acs.getTitle()));
+                return;
+            }
         }
 
         // The world map is where fast travel happens: remind an over-encumbered player they can't.
@@ -98,6 +102,13 @@ public final class InventoryClientEvents {
 
         while (InventoryKeys.FAVORITES.consumeClick()) {
             if (mc.screen == null && !player.isSpectator()) mc.setScreen(new FavoritesScreen());
+        }
+
+        // Consume vanilla hotbar slot clicks so hotbar numbers 1-8 are reserved for favorites
+        if (mc.options != null && mc.options.keyHotbarSlots != null && !player.isCreative()) {
+            for (var key : mc.options.keyHotbarSlots) {
+                while (key.consumeClick()) {}
+            }
         }
 
         // Over-encumbered: no running.

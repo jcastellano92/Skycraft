@@ -84,7 +84,9 @@ public final class ClientInventoryHandlers {
             send(InventoryPackets.InvAction.READ, entry);
             return true;
         }
-        send(InventoryPackets.InvAction.EQUIP, entry);
+        if (entry.equipped() || entry.isUsableEquipment()) {
+            send(InventoryPackets.InvAction.EQUIP, entry);
+        }
         return false;
     }
 

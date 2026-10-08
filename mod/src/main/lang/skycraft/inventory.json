@@ -70,6 +70,9 @@
   "inventory.skycraft.hint.sort": "Sort",
   "inventory.skycraft.hint.crafting": "Crafting",
   "inventory.skycraft.hint.close": "Close",
+  "inventory.skycraft.hint.inspect": "Inspect",
+  "inventory.skycraft.my_items": "My Items",
+  "inventory.skycraft.empty_container": "Container is empty",
 
   "inventory.skycraft.favorites": "Favorites",
   "inventory.skycraft.favorites.spell_right": "Right",

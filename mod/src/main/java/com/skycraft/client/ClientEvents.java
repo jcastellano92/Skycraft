@@ -69,7 +69,8 @@ public final class ClientEvents {
     public static void hideVanillaBars(RenderGuiOverlayEvent.Pre event) {
         var id = event.getOverlay().id();
         if (id.equals(VanillaGuiOverlay.PLAYER_HEALTH.id()) || id.equals(VanillaGuiOverlay.FOOD_LEVEL.id())
-                || id.equals(VanillaGuiOverlay.ARMOR_LEVEL.id()) || id.equals(VanillaGuiOverlay.EXPERIENCE_BAR.id())) {
+                || id.equals(VanillaGuiOverlay.ARMOR_LEVEL.id()) || id.equals(VanillaGuiOverlay.EXPERIENCE_BAR.id())
+                || id.equals(VanillaGuiOverlay.HOTBAR.id())) {
             event.setCanceled(true);
         }
     }

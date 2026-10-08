@@ -115,11 +115,25 @@ public final class InventoryActions {
 
     // ------------------------------------------------------------------ equip
 
+    private static boolean isUsableEquipment(ItemStack stack) {
+        EquipmentSlot slot = equipSlotFor(stack);
+        if (slot != null && slot.getType() == EquipmentSlot.Type.ARMOR) return true;
+        net.minecraft.world.item.Item it = stack.getItem();
+        if (it instanceof net.minecraft.world.item.SwordItem || it instanceof net.minecraft.world.item.DiggerItem
+                || it instanceof net.minecraft.world.item.ProjectileWeaponItem || it instanceof net.minecraft.world.item.ShieldItem
+                || it instanceof net.minecraft.world.item.TridentItem || it instanceof net.minecraft.world.item.FishingRodItem
+                || it instanceof net.minecraft.world.item.ShearsItem) {
+            return true;
+        }
+        return it == net.minecraft.world.item.Items.TORCH || it == net.minecraft.world.item.Items.SOUL_TORCH;
+    }
+
     private static void equip(ServerPlayer player, Inventory inv, int slot, ItemStack stack) {
         if (isArmorSlot(slot) || slot == OFFHAND) {
             unequip(player, inv, slot, stack);
             return;
         }
+        if (!isUsableEquipment(stack)) return;
         EquipmentSlot target = equipSlotFor(stack);
         if (target != null && target.getType() == EquipmentSlot.Type.ARMOR) {
             wear(player, inv, slot, stack, target);

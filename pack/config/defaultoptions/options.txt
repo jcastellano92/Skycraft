@@ -11,3 +11,4 @@ key_key.hotbar.6:key.keyboard.unknown
 key_key.hotbar.7:key.keyboard.unknown
 key_key.hotbar.8:key.keyboard.unknown
 key_key.hotbar.9:key.keyboard.unknown
+

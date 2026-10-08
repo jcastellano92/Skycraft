@@ -137,3 +137,4 @@ public class CharacterStatusScreen extends Screen {
         return super.keyPressed(key, scan, mods);
     }
 }
+
