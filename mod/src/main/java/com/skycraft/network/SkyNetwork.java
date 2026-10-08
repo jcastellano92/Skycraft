@@ -51,6 +51,14 @@ public final class SkyNetwork {
         com.skycraft.crafting.CraftingModule.registerPackets();
         com.skycraft.world.WorldModule.registerPackets();
         com.skycraft.roads.RoadsModule.registerPackets();
+        com.skycraft.inventory.InventoryModule.registerPackets();
+        com.skycraft.survival.SurvivalModule.registerPackets();
+        com.skycraft.lore.LoreModule.registerPackets();
+        com.skycraft.fauna.FaunaModule.registerPackets();
+        com.skycraft.dungeons.DungeonsModule.registerPackets();
+        com.skycraft.society.SocietyModule.registerPackets();
+        com.skycraft.arsenal.ArsenalModule.registerPackets();
+        com.skycraft.atmosphere.AtmosphereModule.registerPackets();
     }
 
     public static void sendToPlayer(ServerPlayer player, Object msg) {

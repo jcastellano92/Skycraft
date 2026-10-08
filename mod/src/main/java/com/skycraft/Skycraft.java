@@ -45,6 +45,14 @@ public class Skycraft {
         com.skycraft.crafting.CraftingModule.init(modBus);
         com.skycraft.world.WorldModule.init(modBus);
         com.skycraft.roads.RoadsModule.init(modBus);
+        com.skycraft.inventory.InventoryModule.init(modBus);
+        com.skycraft.survival.SurvivalModule.init(modBus);
+        com.skycraft.lore.LoreModule.init(modBus);
+        com.skycraft.fauna.FaunaModule.init(modBus);
+        com.skycraft.dungeons.DungeonsModule.init(modBus);
+        com.skycraft.society.SocietyModule.init(modBus);
+        com.skycraft.arsenal.ArsenalModule.init(modBus);
+        com.skycraft.atmosphere.AtmosphereModule.init(modBus);
 
         modBus.addListener(this::registerCapabilities);
         modBus.addListener(this::commonSetup);
