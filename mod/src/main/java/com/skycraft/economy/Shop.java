@@ -59,6 +59,15 @@ public final class Shop {
         }
     }
 
+    /**
+     * Contract 10 (docs/PLAYTEST-1.md): shops are open from 8:00 to 20:00 in-game, so NPC routines and Open/Closed
+     * signs agree. Works on both sides.
+     */
+    public static boolean isOpen(net.minecraft.world.level.Level level) {
+        long t = level.getDayTime() % 24000L;
+        return t >= 2000L && t < 14000L;
+    }
+
     /** Loads (and restocks if due) the shop of a merchant. Server side only. */
     public static Shop of(LivingEntity npc) {
         CompoundTag root = npc.getPersistentData();

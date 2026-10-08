@@ -35,6 +35,16 @@ public final class Leveling {
 
     private Leveling() {}
 
+    /**
+     * Contract 3 (docs/PLAYTEST-1.md): the difficulty level of a place, 1..60. Low near the world spawn and rising
+     * with distance. Workstream E may refine the formula; the signature is fixed.
+     */
+    public static int regionLevel(net.minecraft.server.level.ServerLevel level, net.minecraft.core.BlockPos pos) {
+        net.minecraft.core.BlockPos spawn = level.getSharedSpawnPos();
+        double dist = Math.sqrt(spawn.distSqr(new net.minecraft.core.BlockPos(pos.getX(), spawn.getY(), pos.getZ())));
+        return Math.max(1, Math.min(60, 1 + (int) (dist / 150.0)));
+    }
+
     /** The creature's level, or 0 if it isn't leveled. */
     public static int levelOf(Entity entity) {
         return entity.getPersistentData().getInt(LEVEL_KEY);

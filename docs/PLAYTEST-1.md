@@ -9,12 +9,18 @@ implements or calls.
 
 * **Build target:** Forge 1.20.1 (compiled against 47.3.0, the pack runs 47.4.10), official Mojang mappings,
   Java 17.
-* **There is no local compiler.** The sandbox can't reach the Forge maven, so CI is the first compile, and every
-  compile error costs a full round-trip. Write each line as if it must compile first time:
-  * Only call methods you are sure exist in 1.20.1 with Mojang names. Grep the codebase for an existing call
-    before relying on a method.
-  * Copy import lines from files that already compile.
-* **No mixins, no access transformers.** We can't look up SRG names. Use Forge events, public API, and
+* **Compile locally before reporting.** Each workstream works in its own git worktree
+  (`F:\Projects\Personal\Skycraft\wt\<letter>`, branch `pt1/<letter>`). From `<worktree>\mod` run
+  `.\gradlew.bat compileJava --console=plain -Dorg.gradle.jvmargs=-Xmx2G` (PowerShell flags Gradle's stderr as
+  an error; trust the `BUILD SUCCESSFUL` / `BUILD FAILED` line). Fourteen workstreams share one PC, so compile
+  when a chunk of work is done, not after every edit. Finish with `.\gradlew.bat build` passing.
+  * To check real 1.20.1 Mojang-named signatures, run `javap -cp <jar> <class>` against
+    `C:\Users\Jeremy\.gradle\caches\forge_gradle\minecraft_user_repo\net\minecraftforge\forge\1.20.1-47.3.0_mapped_official_1.20.1\forge-1.20.1-47.3.0_mapped_official_1.20.1.jar`
+    (e.g. `javap -cp <jar> net.minecraft.world.entity.player.Player`), or just compile.
+  * Contract classes already exist as stubs with fixed signatures (`crime/Ownership`, `combat/Sheathe`,
+    `combat/RespawnPoints`, `society/Followers`, `Leveling.regionLevel`, `Discovery.revealNear`,
+    `Shop.isOpen`, the contract-7 `*Client` classes). Call them freely; only the owner changes the bodies.
+* **No mixins, no access transformers.** Use Forge events, public API, and
   replacing screens through `ScreenEvent.Opening`. Reflection is only allowed by name on non-Minecraft
   classes.
 * **Never reference client classes from common code.** Client classes include `Minecraft`, `Screen`,
@@ -43,7 +49,10 @@ implements or calls.
   * Make only small, surgical `Edit` insertions to them, and re-read the file right before editing because
     other agents edit concurrently.
   * Never rewrite a shared file wholesale, and never reformat it.
-* **No git:** don't commit, push, stash, reset or check out. The lead integrates.
+* **Git:** commit to your own branch `pt1/<letter>` in your own worktree, in logical commits. Never push, merge,
+  rebase, reset, or touch other branches or the main checkout. The lead merges the branches.
+* **Shared files:** because branches are merged later, keep edits to shared files small and additive (new
+  lines in registration lists, new methods) so merges stay clean.
 * **Steam Deck and controller support:**
   * Every screen must fit and work at **427×267 scaled pixels** (1280×800 at GUI scale 3).
   * Long content scrolls with the mouse wheel and with click-drag on a scrollbar.

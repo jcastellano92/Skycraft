@@ -48,6 +48,17 @@ public final class Discovery {
 
     private Discovery() {}
 
+    /**
+     * Contract 6 (docs/PLAYTEST-1.md): marks the nearest location this player hasn't discovered as known (shown
+     * with its name on the map and compass, but not discovered). Returns its name, or null if there is none.
+     *
+     * <p>STUB: workstream C replaces the body; the signature is fixed.
+     */
+    @javax.annotation.Nullable
+    public static Component revealNear(ServerPlayer player, BlockPos center, int radius) {
+        return null;
+    }
+
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END || !(event.player instanceof ServerPlayer player)) return;
