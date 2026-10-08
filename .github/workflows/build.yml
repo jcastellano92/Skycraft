@@ -5,9 +5,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   mod:
-    name: Build Skycraft Core mod
+    name: Skycraft Core mod
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,3 +28,60 @@ jobs:
         with:
           name: skycraft-core-jar
           path: mod/build/libs/*.jar
+
+  pack:
+    name: Modpack (resolve, export, client & server packs)
+    needs: mod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install packwiz
+        run: go install github.com/packwiz/packwiz@latest && echo "$HOME/go/bin" >> "$GITHUB_PATH"
+      - uses: actions/download-artifact@v4
+        with:
+          name: skycraft-core-jar
+          path: mod-jar
+      - name: Resolve mods
+        run: |
+          JAR="$(ls mod-jar/*.jar | grep -v -- '-sources' | head -n1)"
+          tools/build-pack.sh "$JAR"
+      - name: Commit resolved pack
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "skycraft-ci"
+          git config user.email "skycraft-ci@users.noreply.github.com"
+          git add pack
+          if ! git diff --cached --quiet; then
+            git commit -m "[ci] Resolve modpack"
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" || echo "Could not push resolved pack (branch moved); next run will retry."
+          fi
+      - name: Export Modrinth & CurseForge packs
+        working-directory: pack
+        run: |
+          mkdir -p ../dist
+          packwiz modrinth export -o ../dist/Skycraft.mrpack || true
+          packwiz curseforge export -o ../dist/Skycraft-curseforge.zip || true
+      - name: Build client instance and server
+        run: tools/make-instances.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Skycraft-client-instance
+          path: dist/Skycraft-client-instance.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Skycraft-server
+          path: dist/Skycraft-server.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Skycraft-exports
+          path: |
+            dist/Skycraft.mrpack
+            dist/Skycraft-curseforge.zip
+            pack/RESOLVE_REPORT.md

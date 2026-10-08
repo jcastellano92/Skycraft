@@ -1,0 +1,70 @@
+# Skycraft mod list for Minecraft 1.20.1 / Forge 47.3.x
+# Format: <source>:<slug> [| <fallback source>:<slug>]   # comment
+# Sources: mr = Modrinth, cf = CurseForge. tools/build-pack.sh resolves each entry with packwiz
+# (dependencies are added automatically) and reports anything it cannot resolve.
+
+# --- Performance (runs efficiently, even with huge view distances) ---
+mr:embeddium                     # Sodium-based renderer for Forge
+mr:oculus                        # shader support (works with Distant Horizons)
+mr:distanthorizons               # Distant Horizons: LOD terrain to the horizon
+mr:modernfix                     # faster launch, lower memory
+mr:ferrite-core                  # memory usage
+mr:entityculling                 # skip rendering hidden entities
+mr:immediatelyfast               # faster immediate-mode rendering (HUD, text)
+mr:canary                        # Lithium port: server tick optimisations
+mr:memoryleakfix
+mr:chunky                        # world pre-generation (recommended with Distant Horizons)
+mr:spark                         # profiler for diagnosing lag
+
+# --- Core RPG behaviour (Skycraft Core is added from mod/build/libs) ---
+mr:lootr                         # per-player loot chests: every player gets their own dungeon loot
+mr:better-combat                 # directional combos and weapon swings
+mr:corpse                        # player corpses keep your gear when you die
+mr:waystones                     # Skyrim-style wayshrines for fast travel
+mr:xaeros-minimap
+mr:xaeros-world-map              # terrain world map (Skycraft adds the Skyrim fast-travel map on N)
+mr:dynamiclights-reforged        # torches light up the world in your hand
+mr:jade                          # look-at info
+mr:jei                           # recipe viewer
+mr:mouse-tweaks
+mr:default-options               # ships default keybinds for new players
+
+# --- NPCs, companions, factions ---
+cf:minecraft-comes-alive-reborn  # named villagers with dialogue, relationships, marriage
+cf:villager-recruits | mr:villager-recruits   # hire companions and followers that travel and fight with you
+mr:guard-villagers               # more village guards
+mr:easy-npc                      # admins can place custom quest NPCs with dialogue
+
+# --- Vampires, werewolves ---
+mr:vampirism                     # vampirism: become a vampire (or hunter)
+mr:werewolves | cf:werewolves-become-a-beast   # werewolf transformation
+
+# --- Towns, cities, dungeons, roads and secrets ---
+mr:terralith                     # Skyrim-like mountains and biomes
+mr:tectonic                      # dramatic terrain
+mr:ctov                          # overhauled villages: towns and cities
+mr:towns-and-towers              # more settlements, castles and towers
+mr:dungeons-and-taverns          # taverns (inns), dungeons
+mr:when-dungeons-arise           # huge dungeons and fortresses
+mr:moogs-voyager-structures      # lots of hidden structures
+mr:explorify                     # small hidden ruins and secrets
+mr:yungs-better-dungeons
+mr:yungs-better-mineshafts
+mr:yungs-better-strongholds
+mr:yungs-better-desert-temples
+mr:yungs-better-jungle-temples
+mr:yungs-better-ocean-monuments
+mr:yungs-better-witch-huts
+mr:yungs-better-nether-fortresses   # Oblivion citadels
+mr:yungs-bridges                    # bridges for the road network
+mr:yungs-extras
+
+# --- Survival: fishing, cooking, gear, backpacks, sleeping ---
+cf:aquaculture | mr:aquaculture     # fishing overhaul (feeds the Fishing skill)
+mr:farmers-delight                  # cooking pots and meals
+cf:epic-knights-shields-armor-and-weapons   # medieval armor and weapons
+mr:sophisticated-backpacks | cf:sophisticated-backpacks
+mr:comforts                         # sleeping bags and hammocks for camping
+
+# --- Shaders (optional, client) ---
+mr:complementary-reimagined         # shader pack with Distant Horizons support

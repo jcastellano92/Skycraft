@@ -21,13 +21,13 @@ public final class SkyKeys {
 
     public static final KeyMapping SKILLS = key("skills", GLFW.GLFW_KEY_K);
     public static final KeyMapping JOURNAL = key("journal", GLFW.GLFW_KEY_J);
-    public static final KeyMapping MAGIC_MENU = key("magic_menu", GLFW.GLFW_KEY_B);
+    public static final KeyMapping MAGIC_MENU = key("magic_menu", GLFW.GLFW_KEY_G);
     public static final KeyMapping CAST = key("cast", GLFW.GLFW_KEY_R);
     public static final KeyMapping SHOUT = key("shout", GLFW.GLFW_KEY_Z);
     public static final KeyMapping POWER_ATTACK = key("power_attack", GLFW.GLFW_KEY_LEFT_ALT);
     public static final KeyMapping BLOCK = key("block", GLFW.GLFW_KEY_V);
     public static final KeyMapping RACIAL_POWER = key("racial_power", GLFW.GLFW_KEY_H);
-    public static final KeyMapping WAIT = key("wait", GLFW.GLFW_KEY_T);
+    public static final KeyMapping WAIT = key("wait", GLFW.GLFW_KEY_I);
     public static final KeyMapping PARTY = key("party", GLFW.GLFW_KEY_U);
     public static final KeyMapping MAP = key("map", GLFW.GLFW_KEY_N);
 

@@ -105,10 +105,12 @@ tasks.named('jar', Jar).configure {
                 'Specification-Version'   : '1',
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : mod_authors,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                'Implementation-Vendor'   : mod_authors
         ])
     }
+    // reproducible jars: the modpack only changes when the code does
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
     finalizedBy 'reobfJar'
 }
 
