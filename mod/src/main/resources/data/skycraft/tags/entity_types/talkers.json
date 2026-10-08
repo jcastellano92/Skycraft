@@ -5,6 +5,10 @@
     {
       "id": "guardvillagers:guard",
       "required": false
+    },
+    {
+      "id": "#skycraft:society_talkers",
+      "required": false
     }
   ]
 }
