@@ -41,8 +41,8 @@ tools/                     generators (core lang, textures)
 * No mixins, no access transformers, no third-party compile dependencies. Optional integrations go through tags
   with `{"id": "othermod:thing", "required": false}` entries.
 * `data/forge/loot_modifiers/global_loot_modifiers.json` is owned by the core. Its entries are
-  `skycraft:gold` (core), `skycraft:spell_tomes` (magic), , `skycraft:soul_gems`, `skycraft:alchemy_ingredients`
-  (crafting/arcane), `skycraft:lockpicks` (crime), `skycraft:skill_books` (economy). Each owner writes
+  `skycraft:gold` (core), `skycraft:spell_tomes` (magic), `skycraft:skyrim_gear`, `skycraft:smithing_materials`
+  (crafting), `skycraft:soul_gems`, `skycraft:alchemy_ingredients` (crafting/arcane), `skycraft:lockpicks` (crime), `skycraft:skill_books` (economy). Each owner writes
   `data/skycraft/loot_modifiers/<name>.json` (type `skycraft:add_table`, see `loot/AddTableModifier.java`) and the
   referenced loot table.
 
