@@ -21,9 +21,9 @@
 - [x] `mr:jei` (pinned)
 - [x] `mr:mouse-tweaks` (pinned)
 - [x] `mr:default-options` (pinned)
-- [x] `mr:essential`
-- [x] `mr:itemphysic-lite`
-- [x] `mr:physicsmod`
+- [x] `mr:essential` (pinned)
+- [x] `mr:itemphysic-lite` (pinned)
+- [x] `mr:physicsmod` (pinned)
 - [x] `cf:minecraft-comes-alive-reborn` (pinned)
 - [x] `mr:villager-recruits` (pinned)
 - [x] `mr:easy-npc` (pinned)
