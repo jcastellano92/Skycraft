@@ -1,0 +1,17 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:iron_arrow",
+    "skycraft:steel_arrow",
+    "skycraft:orcish_arrow",
+    "skycraft:dwarven_arrow",
+    "skycraft:elven_arrow",
+    "skycraft:glass_arrow",
+    "skycraft:ebony_arrow",
+    "skycraft:daedric_arrow",
+    "skycraft:dragonbone_arrow",
+    "skycraft:fire_arrow",
+    "skycraft:frost_arrow",
+    "skycraft:shock_arrow"
+  ]
+}

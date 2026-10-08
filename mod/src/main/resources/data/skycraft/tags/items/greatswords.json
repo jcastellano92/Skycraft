@@ -9,6 +9,10 @@
     "skycraft:glass_greatsword",
     "skycraft:ebony_greatsword",
     "skycraft:daedric_greatsword",
-    "skycraft:dragonbone_greatsword"
+    "skycraft:dragonbone_greatsword",
+    {
+      "id": "#skycraft:arsenal/greatswords",
+      "required": false
+    }
   ]
 }

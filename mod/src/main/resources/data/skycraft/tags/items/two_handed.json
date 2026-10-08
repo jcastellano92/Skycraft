@@ -28,6 +28,10 @@
     "skycraft:ebony_warhammer",
     "skycraft:daedric_warhammer",
     "skycraft:dragonbone_warhammer",
-    "skycraft:bound_battleaxe"
+    "skycraft:bound_battleaxe",
+    {
+      "id": "#skycraft:arsenal/two_handed",
+      "required": false
+    }
   ]
 }

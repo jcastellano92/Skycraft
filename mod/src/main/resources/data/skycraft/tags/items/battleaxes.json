@@ -10,6 +10,10 @@
     "skycraft:ebony_battleaxe",
     "skycraft:daedric_battleaxe",
     "skycraft:dragonbone_battleaxe",
-    "skycraft:bound_battleaxe"
+    "skycraft:bound_battleaxe",
+    {
+      "id": "#skycraft:arsenal/battleaxes",
+      "required": false
+    }
   ]
 }

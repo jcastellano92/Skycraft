@@ -9,6 +9,10 @@
     "skycraft:glass_dagger",
     "skycraft:ebony_dagger",
     "skycraft:daedric_dagger",
-    "skycraft:dragonbone_dagger"
+    "skycraft:dragonbone_dagger",
+    {
+      "id": "#skycraft:arsenal/daggers",
+      "required": false
+    }
   ]
 }
