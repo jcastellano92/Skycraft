@@ -50,4 +50,4 @@
 - [x] `mr:complementary-reimagined` (pinned)
 - [x] Skycraft Core (local jar)
 
-Resolved: 49, unresolved: 0
+Resolved: 48, unresolved: 0
