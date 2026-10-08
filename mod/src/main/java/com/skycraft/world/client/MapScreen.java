@@ -202,7 +202,7 @@ public class MapScreen extends Screen {
             if (dragDistance < 4 && hoveredMember != null) {
                 pendingMember = hoveredMember;
                 updateButtons();
-            } else if (dragDistance < 4 && hoveredLocation != null) {
+            } else if (dragDistance < 4 && hoveredLocation != null && !hoveredLocation.getBoolean("known")) {
                 pendingTravel = hoveredLocation;
                 updateButtons();
             }
@@ -278,6 +278,7 @@ public class MapScreen extends Screen {
         g.enableScissor(left, top, right, bottom);
         drawHolds(g, level);
         drawGrid(g);
+        drawFog(g, level, player);
         drawLocations(g, level, player, mouseX, mouseY);
         drawQuestMarkers(g, level, mouseX, mouseY);
         drawPlayers(g, level, player, partialTick, mouseX, mouseY);
@@ -404,7 +405,9 @@ public class MapScreen extends Screen {
             int sy = (int) Math.round(screenY(loc.getInt("z") + 0.5));
             if (sx < left - 10 || sx > right + 10 || sy < top - 10 || sy > bottom + 10) continue;
             LocationKind kind = LocationKind.byId(loc.getString("type"));
-            drawIcon(g, kind.icon, sx, sy);
+            boolean knownOnly = loc.getBoolean("known");
+            int iconIdx = knownOnly ? LocationKind.UNKNOWN_ICON : kind.icon;
+            drawIcon(g, iconIdx, sx, sy);
             double d = (mouseX - sx) * (double) (mouseX - sx) + (mouseY - sy) * (double) (mouseY - sy);
             if (d < best && onMap(mouseX, mouseY)) {
                 best = d;
@@ -425,8 +428,46 @@ public class MapScreen extends Screen {
             double dx = hovered.getInt("x") - player.getX();
             double dz = hovered.getInt("z") - player.getZ();
             lines.add(Component.translatable("world.skycraft.map.distance", (int) Math.sqrt(dx * dx + dz * dz)).withStyle(ChatFormatting.DARK_GRAY));
-            lines.add(Component.translatable("world.skycraft.map.click_travel").withStyle(ChatFormatting.YELLOW));
+            if (hovered.getBoolean("known")) {
+                lines.add(Component.translatable("world.skycraft.map.undiscovered").withStyle(ChatFormatting.DARK_GRAY));
+            } else {
+                lines.add(Component.translatable("world.skycraft.map.click_travel").withStyle(ChatFormatting.YELLOW));
+            }
             tooltip = lines;
+        }
+    }
+
+    private void drawFog(GuiGraphics g, Level level, Player player) {
+        if (level.dimension() != Level.OVERWORLD) return;
+        ListTag list = SkyData.get(player).module(WorldData.MODULE).getList("discovered", Tag.TAG_COMPOUND);
+        String dim = level.dimension().location().toString();
+        int step = 20;
+        int fogColor = 0x70302214;
+
+        for (int y = top; y < bottom; y += step) {
+            for (int x = left; x < right; x += step) {
+                double wx = worldX(x + step / 2.0);
+                double wz = worldZ(y + step / 2.0);
+
+                double pDx = wx - player.getX();
+                double pDz = wz - player.getZ();
+                if (pDx * pDx + pDz * pDz < 350.0 * 350.0) continue;
+
+                boolean explored = false;
+                for (int i = 0; i < list.size(); i++) {
+                    CompoundTag loc = list.getCompound(i);
+                    if (!loc.getString("dim").equals(dim) || loc.getBoolean("known")) continue;
+                    double lDx = wx - loc.getInt("x");
+                    double lDz = wz - loc.getInt("z");
+                    if (lDx * lDx + lDz * lDz < 250.0 * 250.0) {
+                        explored = true;
+                        break;
+                    }
+                }
+                if (!explored) {
+                    g.fill(x, y, Math.min(right, x + step), Math.min(bottom, y + step), fogColor);
+                }
+            }
         }
     }
 

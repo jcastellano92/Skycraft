@@ -56,6 +56,73 @@ public final class Discovery {
      */
     @javax.annotation.Nullable
     public static Component revealNear(ServerPlayer player, BlockPos center, int radius) {
+        ServerLevel level = player.serverLevel();
+        PlayerData data = SkyData.get(player);
+        Registry<Structure> registry = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
+
+        int chunkRadius = Math.max(1, radius / 16);
+        int cx = center.getX() >> 4;
+        int cz = center.getZ() >> 4;
+
+        StructureStart nearest = null;
+        double nearestDistSq = Double.MAX_VALUE;
+        ResourceLocation nearestKey = null;
+        LocationKind nearestKind = null;
+
+        for (int dx = -chunkRadius; dx <= chunkRadius; dx += 2) {
+            for (int dz = -chunkRadius; dz <= chunkRadius; dz += 2) {
+                var chunk = level.getChunkSource().getChunkNow(cx + dx, cz + dz);
+                if (chunk == null) continue;
+                for (var entry : chunk.getAllStarts().entrySet()) {
+                    Structure s = entry.getKey();
+                    StructureStart start = entry.getValue();
+                    if (start == null || !start.isValid()) continue;
+                    ResourceLocation key = registry.getKey(s);
+                    if (key == null) continue;
+                    LocationKind kind = LocationKind.classify(key, level.dimension());
+                    if (kind == null) continue;
+                    String id = level.dimension().location() + "|" + key + "|" + start.getChunkPos().x + "," + start.getChunkPos().z;
+                    if (WorldData.find(data, id) != null) continue;
+
+                    BlockPos sCenter = start.getBoundingBox().getCenter();
+                    double distSq = sCenter.distSqr(center);
+                    if (distSq < nearestDistSq && distSq <= (double) radius * radius) {
+                        nearestDistSq = distSq;
+                        nearest = start;
+                        nearestKey = key;
+                        nearestKind = kind;
+                    }
+                }
+            }
+        }
+
+        if (nearest != null && nearestKey != null && nearestKind != null) {
+            String id = level.dimension().location() + "|" + nearestKey + "|" + nearest.getChunkPos().x + "," + nearest.getChunkPos().z;
+            String name = LocationNames.generate(id, nearestKind, nearestKey.getPath());
+            BlockPos sCenter = nearest.getBoundingBox().getCenter();
+            BoundingBox box = nearest.getBoundingBox();
+
+            CompoundTag loc = new CompoundTag();
+            loc.putString("id", id);
+            loc.putString("name", name);
+            loc.putString("type", nearestKind.id);
+            loc.putInt("x", sCenter.getX());
+            loc.putInt("y", nearestKind.underground() ? sCenter.getY() : sCenter.getY());
+            loc.putInt("z", sCenter.getZ());
+            loc.putString("dim", level.dimension().location().toString());
+            loc.putLong("t", level.getGameTime());
+            loc.putInt("ax", sCenter.getX());
+            loc.putInt("ay", sCenter.getY());
+            loc.putInt("az", sCenter.getZ());
+            loc.putIntArray("box", new int[]{box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ()});
+            loc.putString("structure", nearestKey.toString());
+            loc.putBoolean("known", true);
+
+            ListTag list = WorldData.discovered(data);
+            list.add(loc);
+            data.markDirty();
+            return Component.literal(name);
+        }
         return null;
     }
 
@@ -94,7 +161,18 @@ public final class Discovery {
                     : structures.getStructureAt(pos, structure);
             if (start == null || !start.isValid()) continue;
             String id = level.dimension().location() + "|" + key + "|" + start.getChunkPos().x + "," + start.getChunkPos().z;
-            if (WorldData.find(data, id) != null) continue;
+            CompoundTag existing = WorldData.find(data, id);
+            if (existing != null) {
+                if (existing.getBoolean("known")) {
+                    existing.remove("known");
+                    data.addStat("locations_discovered", 1);
+                    data.markDirty();
+                    String name = existing.getString("name");
+                    Notifier.send(player, NotifyKind.LOCATION_DISCOVERED, Component.literal(name), kind.displayName());
+                    SkyNetwork.sendToPlayer(player, new WorldPackets.Cue(WorldPackets.Cue.DISCOVERY));
+                }
+                continue;
+            }
             discover(player, data, id, kind, key, start.getBoundingBox());
         }
     }

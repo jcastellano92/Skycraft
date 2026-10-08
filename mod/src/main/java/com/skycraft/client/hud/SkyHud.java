@@ -49,6 +49,25 @@ public final class SkyHud {
             Component hint = Component.translatable("hud.skycraft.perks_available", data.getPerkPoints());
             g.drawString(font, hint, width - font.width(hint) - 6, 6, 0xFFE8D9A0, true);
         }
+
+        // Daily racial power recharge indicator
+        com.skycraft.core.Race race = data.getRace();
+        if (race != null && !race.power.isEmpty() && mc.level != null) {
+            long readyAt = data.getPowerReadyAt();
+            long now = mc.level.getGameTime();
+            long diff = readyAt - now;
+            String text;
+            int col;
+            if (diff <= 0) {
+                text = "[Z] " + race.powerName().getString();
+                col = 0xFFE0C060;
+            } else {
+                long sec = diff / 20;
+                text = race.powerName().getString() + " (" + (sec >= 60 ? (sec / 60) + "m" : sec + "s") + ")";
+                col = 0xFFA09888;
+            }
+            g.drawString(mc.font, text, 12, height - 26, col, true);
+        }
     }
 
     private static float approach(float current, float target) {

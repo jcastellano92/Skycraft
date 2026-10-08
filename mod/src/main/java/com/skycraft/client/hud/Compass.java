@@ -50,7 +50,20 @@ public final class Compass {
 
         // markers
         Vec3 eye = mc.player.position();
-        for (CompassMarkers.Marker m : CompassMarkers.all()) {
+        java.util.List<CompassMarkers.Marker> allMarkers = CompassMarkers.all();
+        java.util.List<CompassMarkers.Marker> deduplicated = new java.util.ArrayList<>();
+        for (CompassMarkers.Marker m : allMarkers) {
+            boolean exists = false;
+            for (CompassMarkers.Marker ex : deduplicated) {
+                if (ex.pos().distanceToSqr(m.pos()) < 16.0) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) deduplicated.add(m);
+        }
+
+        for (CompassMarkers.Marker m : deduplicated) {
             double dx = m.pos().x - eye.x;
             double dz = m.pos().z - eye.z;
             double dist = Math.sqrt(dx * dx + dz * dz);
@@ -64,8 +77,11 @@ public final class Compass {
             int x = cx + (int) (rel / 90f * half);
             drawMarker(g, x, y + 6, m);
             if (Math.abs(rel) < 4 && !m.label().isEmpty()) {
-                String label = m.label() + "  " + (int) dist + "m";
-                g.drawCenteredString(font, label, cx, y + 16, 0xFFE8E2D0);
+                // Undiscovered locations (LOCATION) show only their icon without a name
+                if (m.shape() != CompassMarkers.Shape.LOCATION) {
+                    String label = m.label() + "  " + (int) dist + "m";
+                    g.drawCenteredString(font, label, cx, y + 16, 0xFFE8E2D0);
+                }
             }
         }
     }
