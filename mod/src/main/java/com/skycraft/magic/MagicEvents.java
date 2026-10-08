@@ -1,0 +1,337 @@
+package com.skycraft.magic;
+
+import com.skycraft.Skycraft;
+import com.skycraft.combat.CombatHandler;
+import com.skycraft.core.Notifier;
+import com.skycraft.core.PlayerData;
+import com.skycraft.core.Race;
+import com.skycraft.core.SkyData;
+import com.skycraft.magic.bound.BoundWeapons;
+import com.skycraft.magic.shout.DragonSouls;
+import com.skycraft.magic.shout.Shouting;
+import com.skycraft.magic.spell.Candlelight;
+import com.skycraft.magic.spell.Element;
+import com.skycraft.magic.spell.Illusion;
+import com.skycraft.magic.spell.SpellCasting;
+import com.skycraft.magic.spell.SpellEffects;
+import com.skycraft.magic.spell.SpellMath;
+import com.skycraft.magic.spell.Summons;
+import com.skycraft.perk.Perks;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.item.ItemTossEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
+import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
+import net.minecraftforge.event.entity.living.LivingFallEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.server.ServerLifecycleHooks;
+
+import java.util.UUID;
+
+/** Forge-bus server logic of the magic module: ticking, damage rules, summons, souls, bound weapons, cleanup. */
+@Mod.EventBusSubscriber(modid = Skycraft.MODID)
+public final class MagicEvents {
+    private static final int DAY = 24000;
+
+    private MagicEvents() {}
+
+    // ------------------------------------------------------------------ ticking
+
+    @SubscribeEvent
+    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END || !(event.player instanceof ServerPlayer p)) return;
+        SpellCasting.tick(p);
+        Shouting.tick(p);
+        if (p.tickCount % 2 == 0) Candlelight.tick(p);
+        if (p.tickCount % 5 == 0 && p.containerMenu != p.inventoryMenu) {
+            // Bound weapons can't be stored in containers.
+            for (Slot slot : p.containerMenu.slots) {
+                if (!(slot.container instanceof Inventory) && BoundWeapons.isBound(slot.getItem())) slot.set(ItemStack.EMPTY);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server != null) MagicScheduler.tick(server);
+    }
+
+    @SubscribeEvent
+    public static void onLivingTick(LivingEvent.LivingTickEvent event) {
+        LivingEntity e = event.getEntity();
+        if (e.level().isClientSide || !(e instanceof Mob mob)) return;
+        if (mob.tickCount % 10 == 0 && (Summons.isSummon(mob) || Summons.isAlly(mob))) {
+            Summons.tick(mob);
+            if (!mob.isAlive()) return;
+        }
+        if (mob.tickCount % 5 == 0 && (mob.hasEffect(MagicRegistry.CALM.get()) || mob.hasEffect(MagicRegistry.FEAR.get())
+                || mob.hasEffect(MagicRegistry.FRENZY.get()))) {
+            Illusion.tickMob(mob);
+        }
+    }
+
+    // ------------------------------------------------------------------ targeting
+
+    @SubscribeEvent
+    public static void onChangeTarget(LivingChangeTargetEvent event) {
+        LivingEntity entity = event.getEntity();
+        LivingEntity target = event.getNewTarget();
+        if (target == null || entity.level().isClientSide) return;
+        if (entity.hasEffect(MagicRegistry.CALM.get()) || entity.hasEffect(MagicRegistry.FEAR.get())) {
+            event.setCanceled(true);
+            return;
+        }
+        UUID owner = Summons.ownerOf(entity);
+        if (owner != null && entity instanceof Mob mob) {
+            ServerPlayer op = entity.getServer() == null ? null : entity.getServer().getPlayerList().getPlayer(owner);
+            if (!Summons.mayTarget(mob, owner, target, op)) event.setCanceled(true);
+        }
+    }
+
+    // ------------------------------------------------------------------ damage
+
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onAttack(LivingAttackEvent event) {
+        LivingEntity victim = event.getEntity();
+        if (victim.level().isClientSide) return;
+        DamageSource source = event.getSource();
+        Entity attacker = source.getEntity();
+        // Become Ethereal: you can't be harmed, and you can't harm.
+        if (victim.hasEffect(MagicRegistry.ETHEREAL.get()) && !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+            event.setCanceled(true);
+            return;
+        }
+        if (attacker instanceof LivingEntity living && living != victim && living.hasEffect(MagicRegistry.ETHEREAL.get())) {
+            event.setCanceled(true);
+            return;
+        }
+        // Summons never hurt their owner or the owner's other allies.
+        if (attacker != null) {
+            UUID owner = Summons.ownerOf(attacker);
+            if (owner != null && (victim.getUUID().equals(owner) || owner.equals(Summons.ownerOf(victim)))) {
+                event.setCanceled(true);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onHurt(LivingHurtEvent event) {
+        LivingEntity victim = event.getEntity();
+        if (victim.level().isClientSide) return;
+        DamageSource source = event.getSource();
+        float amount = event.getAmount();
+
+        if (victim instanceof ServerPlayer p) {
+            amount = SpellCasting.absorbWithWard(p, source, amount);
+            boolean spell = MagicDamage.isOurSpell(source) || source.is(DamageTypes.MAGIC) || source.is(DamageTypes.INDIRECT_MAGIC);
+            if (spell && MagicDamage.isOurSpell(source)) {
+                // Core applies these for vanilla magic; we apply them to spell damage types.
+                amount *= 1f - 0.1f * Perks.rank(p, "alteration.magic_resistance");
+                Race race = SkyData.get(p).getRace();
+                if (race != null) amount *= 1f - race.resistance("magic");
+            }
+            if (spell && amount > 0 && Perks.has(p, "alteration.atronach")) {
+                float absorbed = amount * 0.3f;
+                amount -= absorbed;
+                PlayerData data = SkyData.get(p);
+                data.setMagicka(data.getMagicka() + absorbed * CombatHandler.SKYRIM_SCALE);
+            }
+            if (amount <= 0) {
+                event.setCanceled(true);
+                return;
+            }
+        }
+
+        Entity attacker = source.getEntity();
+        if (attacker instanceof ServerPlayer p && attacker != victim) {
+            // Illusion spells break when you attack.
+            if (p.getPersistentData().getBoolean(Illusion.INVIS_FLAG)) {
+                p.removeEffect(MobEffects.INVISIBILITY);
+                p.getPersistentData().remove(Illusion.INVIS_FLAG);
+            }
+            victim.removeEffect(MagicRegistry.CALM.get());
+
+            boolean boundHit = source.getDirectEntity() == p && BoundWeapons.isBound(p.getMainHandItem())
+                    || source.getDirectEntity() instanceof AbstractArrow arrow && arrow.getPersistentData().getBoolean(BoundWeapons.ARROW_TAG);
+            if (boundHit) {
+                if (Perks.has(p, "conjuration.mystic_binding")) amount *= 1.4f;
+                if (Perks.has(p, "conjuration.soul_stealer")) SpellEffects.soulTrap(p, victim, 100);
+                if (Perks.has(p, "conjuration.oblivion_binding") && victim instanceof Mob mob && Summons.isSummon(mob)
+                        && !p.getUUID().equals(Summons.ownerOf(mob))) {
+                    Summons.dismiss(mob);
+                    Notifier.message(p, Component.translatable("message.skycraft.banished"));
+                    event.setCanceled(true);
+                    return;
+                }
+            }
+        }
+
+        // Atronach summons hit with their element.
+        if (attacker instanceof Mob summon && Summons.isSummon(summon)) {
+            String kind = summon.getPersistentData().getString(Summons.KIND);
+            switch (kind) {
+                case "frost_atronach" -> {
+                    victim.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 1));
+                    victim.setTicksFrozen(Math.min(victim.getTicksRequiredToFreeze() - 2, victim.getTicksFrozen() + 40));
+                }
+                case "storm_atronach" -> {
+                    MagicFx.send(victim, MagicFx.ARC, Element.SHOCK, summon.position().add(0, summon.getBbHeight() * 0.7, 0),
+                            victim.position().add(0, victim.getBbHeight() * 0.5, 0), -1, 0);
+                    if (victim instanceof ServerPlayer tp) {
+                        PlayerData data = SkyData.get(tp);
+                        data.setMagicka(data.getMagicka() - amount * CombatHandler.SKYRIM_SCALE * 0.5f);
+                    }
+                }
+                default -> {
+                }
+            }
+        }
+        event.setAmount(amount);
+    }
+
+    /** Restoration "Avoid Death": once a day, heal when about to fall below 10% health. */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onDamage(LivingDamageEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer p) || !Perks.has(p, "restoration.avoid_death")) return;
+        float after = p.getHealth() - event.getAmount();
+        if (after > p.getMaxHealth() * 0.1f) return;
+        CompoundTag tag = MagicData.tag(p);
+        long now = p.level().getGameTime();
+        if (tag.getLong("avoid_death") > now) return;
+        tag.putLong("avoid_death", now + DAY);
+        SkyData.get(p).markDirty();
+        p.heal(50f * SpellMath.healMult(p));
+        MagicFx.send(p, MagicFx.TOTEM, Element.HOLY, p.position(), p.position(), p.getId(), 0);
+        p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 0.7f, 1.3f);
+        Notifier.message(p, Component.translatable("message.skycraft.avoid_death"));
+    }
+
+    @SubscribeEvent
+    public static void onFall(LivingFallEvent event) {
+        if (event.getEntity() instanceof Player p && p.getPersistentData().getLong(Shouting.NO_FALL) > p.level().getGameTime()) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onVisibility(LivingEvent.LivingVisibilityEvent event) {
+        if (event.getEntity().hasEffect(MagicRegistry.MUFFLE.get())) {
+            event.modifyVisibility(event.getEntity().isCrouching() ? 0.5 : 0.7);
+        }
+    }
+
+    // ------------------------------------------------------------------ death & drops
+
+    @SubscribeEvent
+    public static void onDeath(LivingDeathEvent event) {
+        LivingEntity dead = event.getEntity();
+        if (dead.level().isClientSide) return;
+
+        if (dead.getType().is(MagicRegistry.DRAGONS)) DragonSouls.onDragonDeath(dead);
+
+        if (dead.hasEffect(MagicRegistry.SOUL_TRAP.get()) && dead.getPersistentData().hasUUID(SpellEffects.SOUL_TRAPPER) && dead.getServer() != null) {
+            ServerPlayer trapper = dead.getServer().getPlayerList().getPlayer(dead.getPersistentData().getUUID(SpellEffects.SOUL_TRAPPER));
+            if (trapper != null && trapper.level() == dead.level() && trapper.distanceToSqr(dead) < 128 * 128) {
+                boolean captured = com.skycraft.crafting.SoulGems.tryCaptureSoul(trapper, dead);
+                if (captured) {
+                    var c = dead.position().add(0, dead.getBbHeight() / 2, 0);
+                    MagicFx.sendNear(trapper.serverLevel(), c, 64, MagicFx.STREAM, Element.SOUL, c, c, trapper.getId(), 30);
+                    dead.level().playSound(null, c.x, c.y, c.z, SoundEvents.SOUL_ESCAPE, SoundSource.PLAYERS, 1.5f, 1f);
+                    trapper.playNotifySound(SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1f, 0.6f);
+                    Notifier.message(trapper, Component.translatable("message.skycraft.soul_captured"));
+                }
+            }
+        }
+
+        if (dead instanceof ServerPlayer p) {
+            Candlelight.end(p);
+            SpellCasting.stop(p);
+            Summons.summonsOf(p).forEach(Summons::dismiss);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onDrops(LivingDropsEvent event) {
+        LivingEntity e = event.getEntity();
+        if (Summons.isSummon(e)) {
+            event.setCanceled(true);
+        } else if (e instanceof Player) {
+            event.getDrops().removeIf(item -> BoundWeapons.isBound(item.getItem()));
+        }
+    }
+
+    @SubscribeEvent
+    public static void onExperience(LivingExperienceDropEvent event) {
+        if (Summons.isSummon(event.getEntity())) event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public static void onToss(ItemTossEvent event) {
+        if (BoundWeapons.isBound(event.getEntity().getItem())) {
+            Player p = event.getPlayer();
+            p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ILLUSIONER_MIRROR_MOVE, SoundSource.PLAYERS, 0.7f, 1.6f);
+            event.setCanceled(true);
+        }
+    }
+
+    // ------------------------------------------------------------------ lifecycle
+
+    @SubscribeEvent
+    public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer p) Candlelight.remove(p);
+    }
+
+    @SubscribeEvent
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer p)) return;
+        Candlelight.remove(p);
+        SpellCasting.forget(p.getUUID());
+        Shouting.forget(p.getUUID());
+        Summons.summonsOf(p).forEach(Summons::dismiss);
+    }
+
+    @SubscribeEvent
+    public static void onChangeDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer p) {
+            Candlelight.remove(p);
+            SpellCasting.stop(p);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        for (ServerPlayer p : event.getServer().getPlayerList().getPlayers()) Candlelight.remove(p);
+        MagicScheduler.clear();
+        SpellCasting.clear();
+    }
+}

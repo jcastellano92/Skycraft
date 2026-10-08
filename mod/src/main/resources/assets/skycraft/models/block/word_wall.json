@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "top": "skycraft:block/word_wall_top",
+    "front": "skycraft:block/word_wall_front",
+    "side": "skycraft:block/word_wall_side"
+  }
+}

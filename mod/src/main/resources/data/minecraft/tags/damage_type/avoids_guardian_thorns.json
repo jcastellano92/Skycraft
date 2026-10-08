@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:fire_spell",
+    "skycraft:frost_spell",
+    "skycraft:shock_spell",
+    "skycraft:spell"
+  ]
+}

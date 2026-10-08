@@ -1,0 +1,146 @@
+package com.skycraft.magic;
+
+import com.skycraft.magic.spell.Summons;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Predicate;
+
+/** Aiming, friend-or-foe checks and area queries shared by spells and shouts. */
+public final class Targeting {
+    private Targeting() {}
+
+    /** Result of a beam/aim ray: where it ends, and the creature hit (if any). */
+    public record Ray(Vec3 start, Vec3 end, @Nullable LivingEntity entity, boolean hitBlock) {}
+
+    /** Approximate position of the casting hand (right hand, slightly below the eyes). */
+    public static Vec3 handPos(Player player) {
+        float yaw = player.getYRot() * ((float) Math.PI / 180f);
+        Vec3 right = new Vec3(-Math.cos(yaw), 0, -Math.sin(yaw));
+        Vec3 look = player.getViewVector(1f);
+        return player.getEyePosition().add(look.scale(0.55)).add(right.scale(0.32)).add(0, -0.28, 0);
+    }
+
+    /** Casts a ray from the eyes; the first living entity matching {@code filter} (with a little aim assist) is hit. */
+    public static Ray ray(Player player, double range, Predicate<LivingEntity> filter) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getViewVector(1f);
+        Vec3 end = eye.add(look.scale(range));
+        BlockHitResult block = player.level().clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        boolean hitBlock = block.getType() != HitResult.Type.MISS;
+        Vec3 limit = hitBlock ? block.getLocation() : end;
+
+        LivingEntity best = null;
+        Vec3 bestPos = null;
+        double bestDist = Double.MAX_VALUE;
+        AABB area = new AABB(eye, limit).inflate(1.5);
+        for (LivingEntity e : player.level().getEntitiesOfClass(LivingEntity.class, area,
+                e -> e != player && e.isAlive() && !e.isSpectator() && !(e instanceof ArmorStand) && filter.test(e))) {
+            AABB bb = e.getBoundingBox().inflate(0.3);
+            if (bb.contains(eye)) {
+                best = e;
+                bestPos = eye;
+                bestDist = 0;
+                continue;
+            }
+            Optional<Vec3> clip = bb.clip(eye, limit);
+            if (clip.isPresent()) {
+                double d = eye.distanceToSqr(clip.get());
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = e;
+                    bestPos = clip.get();
+                }
+            }
+        }
+        if (best != null) return new Ray(eye, bestPos, best, false);
+        return new Ray(eye, limit, null, hitBlock);
+    }
+
+    /** The caster itself, its summons and allies, its tamed animals and team mates. */
+    public static boolean isFriendly(Player caster, @Nullable Entity e) {
+        if (e == null) return false;
+        if (e == caster) return true;
+        UUID owner = Summons.ownerOf(e);
+        if (owner != null && owner.equals(caster.getUUID())) return true;
+        if (e instanceof TamableAnimal tame && tame.isOwnedBy(caster)) return true;
+        return caster.isAlliedTo(e);
+    }
+
+    /** Whether an offensive spell or shout from {@code caster} may affect {@code e} (PvP rules, allies, invulnerability). */
+    public static boolean canHarm(ServerPlayer caster, @Nullable Entity e) {
+        if (!(e instanceof LivingEntity living) || !living.isAlive() || living.isSpectator() || living instanceof ArmorStand) return false;
+        if (isFriendly(caster, living) || living.isInvulnerable()) return false;
+        if (living instanceof Player other) {
+            if (other.isCreative() || !caster.canHarmPlayer(other)) return false;
+        }
+        return true;
+    }
+
+    /** Whether a helpful spell (Heal Other, Courage) should treat {@code e} as an ally. */
+    public static boolean isHelpable(Player caster, LivingEntity e) {
+        if (isFriendly(caster, e)) return true;
+        if (e instanceof Player) return true;
+        if (e instanceof Enemy) return false;
+        return !(e instanceof Mob mob) || mob.getTarget() != caster;
+    }
+
+    public static List<LivingEntity> around(Entity center, Vec3 pos, double radius, Predicate<LivingEntity> filter) {
+        return around(center.level(), pos, radius, filter);
+    }
+
+    /** Living entities whose center is within {@code radius} of {@code pos}. */
+    public static List<LivingEntity> around(Level level, Vec3 pos, double radius, Predicate<LivingEntity> filter) {
+        List<LivingEntity> out = new ArrayList<>();
+        double r2 = radius * radius;
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(pos, pos).inflate(radius),
+                e -> e.isAlive() && filter.test(e))) {
+            if (e.position().add(0, e.getBbHeight() / 2, 0).distanceToSqr(pos) <= r2) out.add(e);
+        }
+        return out;
+    }
+
+    /** Creatures in a cone in front of the player that it can see. */
+    public static List<LivingEntity> cone(Player player, double range, double minDot, Predicate<LivingEntity> filter) {
+        List<LivingEntity> out = new ArrayList<>();
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getViewVector(1f);
+        for (LivingEntity e : player.level().getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(range),
+                e -> e != player && e.isAlive() && filter.test(e))) {
+            Vec3 to = e.position().add(0, e.getBbHeight() * 0.5, 0).subtract(eye);
+            double dist = to.length();
+            if (dist > range || dist < 1e-4) continue;
+            if (to.scale(1 / dist).dot(look) < minDot && dist > 1.5) continue;
+            if (!player.hasLineOfSight(e)) continue;
+            out.add(e);
+        }
+        return out;
+    }
+
+    /** Hurts without vanilla knockback (beams and auras shouldn't shove things around 4 times a second). */
+    public static boolean hurtNoKnockback(LivingEntity target, DamageSource source, float amount) {
+        Vec3 motion = target.getDeltaMovement();
+        target.invulnerableTime = 0;
+        boolean hurt = target.hurt(source, amount);
+        target.setDeltaMovement(motion);
+        return hurt;
+    }
+}
