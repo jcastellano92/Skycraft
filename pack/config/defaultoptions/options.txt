@@ -1,0 +1,13 @@
+tutorialStep:none
+key_key.playerlist:key.keyboard.grave.accent
+key_key.drop:key.keyboard.unknown
+key_key.swapOffhand:key.keyboard.unknown
+key_key.hotbar.1:key.keyboard.unknown
+key_key.hotbar.2:key.keyboard.unknown
+key_key.hotbar.3:key.keyboard.unknown
+key_key.hotbar.4:key.keyboard.unknown
+key_key.hotbar.5:key.keyboard.unknown
+key_key.hotbar.6:key.keyboard.unknown
+key_key.hotbar.7:key.keyboard.unknown
+key_key.hotbar.8:key.keyboard.unknown
+key_key.hotbar.9:key.keyboard.unknown

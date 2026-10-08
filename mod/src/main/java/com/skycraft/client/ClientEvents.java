@@ -31,11 +31,14 @@ public final class ClientEvents {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
+        while (SkyKeys.HUB.consumeClick()) {
+            if (mc.screen == null) mc.setScreen(new com.skycraft.client.screen.HubScreen());
+        }
         while (SkyKeys.SKILLS.consumeClick()) {
             if (SkyData.get(mc.player).getRace() == null) mc.setScreen(new RaceScreen());
             else mc.setScreen(new SkillsScreen());
         }
-        while (SkyKeys.RACIAL_POWER.consumeClick()) {
+        while (SkyKeys.SHOUT.consumeClick()) {
             SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.USE_POWER, 0));
         }
 
@@ -78,6 +81,26 @@ public final class ClientEvents {
         if (player.isUsingItem() && player.getUseItem().getItem() instanceof BowItem && player.isCrouching()
                 && Perks.has(player, "archery.eagle_eye")) {
             event.setNewFovModifier(event.getNewFovModifier() * 0.6f);
+        }
+    }
+
+    /** No vanilla tutorials/toasts: clear toasts on every HUD render. */
+    @SubscribeEvent
+    public static void clearToasts(net.minecraftforge.client.event.RenderGuiEvent.Post event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getToasts() != null) {
+            mc.getToasts().clear();
+        }
+    }
+
+    /** Intercept screens: prevent MCA destiny/editor screen, redirect death and title screen if desired. */
+    @SubscribeEvent
+    public static void onScreenOpen(net.minecraftforge.client.event.ScreenEvent.Opening event) {
+        net.minecraft.client.gui.screens.Screen screen = event.getNewScreen();
+        if (screen == null) return;
+        String name = screen.getClass().getName().toLowerCase(java.util.Locale.ROOT);
+        if (name.contains("destiny") || name.contains("editor") && name.contains("mca")) {
+            event.setCanceled(true);
         }
     }
 }

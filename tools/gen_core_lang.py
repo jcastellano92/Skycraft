@@ -27,6 +27,8 @@ skills = {
  "woodcutting": ("Woodcutting", "Chopping wood with an axe, and the carpentry of Hearthfire homesteads."),
  "fishing": ("Fishing", "Catching fish, treasure and legendary catches from Skyrim's rivers and seas."),
  "hunting": ("Hunting", "Tracking, killing and skinning beasts, and hunting the monsters of the wilds."),
+ "unarmed": ("Unarmed", "Hand-to-hand combat using fists and claws."),
+ "athletics": ("Athletics", "Running, climbing, swimming, and dodging agility.")
 }
 for k, (n, d) in skills.items():
     t(f"skill.skycraft.{k}", n); t(f"skill.skycraft.{k}.desc", d)
@@ -267,7 +269,19 @@ t("screen.skycraft.legendary_count", "Legendary x%s")
 t("screen.skycraft.race", "Choose your race")
 t("screen.skycraft.race_header", "Who are you?")
 t("screen.skycraft.race_confirm", "This is who I am")
-t("screen.skycraft.race_later", "Decide later")
+t("screen.skycraft.hub", "Menu")
+t("screen.skycraft.hub_skills", "Skills")
+t("screen.skycraft.hub_items", "Items")
+t("screen.skycraft.hub_magic", "Magic")
+t("screen.skycraft.hub_map", "Map")
+t("screen.skycraft.hub_character", "Character")
+t("screen.skycraft.hub_hint", "W/A/S/D or Mouse to navigate | Esc or Tab to close")
+t("screen.skycraft.character_status", "Character & Status")
+t("screen.skycraft.character_status_header", "CHARACTER STATUS")
+t("screen.skycraft.power_ready", "Ready to use")
+t("screen.skycraft.active_effects", "Active Effects")
+t("screen.skycraft.no_active_effects", "None")
+t("key.skycraft.hub", "Menu Hub")
 t("screen.skycraft.race_skills", "Skill bonuses")
 t("screen.skycraft.race_power", "Greater Power (H)")
 t("hud.skycraft.hidden", "HIDDEN"); t("hud.skycraft.detected", "DETECTED")

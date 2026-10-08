@@ -318,6 +318,22 @@ public final class Perks {
         p(s, "beast_lore", 0.5f, 0.45f, lv(60), "tracker");
         p(s, "monster_hunter", 0.4f, 0.75f, lv(70), "beast_lore");
         p(s, "apex_predator", 0f, 1f, lv(100), "monster_hunter", "field_dresser");
+
+        // ---------------------------------------------------------------- Unarmed (custom)
+        s = Skill.UNARMED;
+        p(s, "pugilist", 0f, 0f, FIVE);
+        p(s, "iron_fist", -0.45f, 0.35f, lv(25), "pugilist");
+        p(s, "heavy_strikes", 0.45f, 0.35f, lv(40), "pugilist");
+        p(s, "haymaker", -0.3f, 0.7f, lv(60), "iron_fist");
+        p(s, "grandmaster", 0f, 1f, lv(100), "haymaker", "heavy_strikes");
+
+        // ---------------------------------------------------------------- Athletics (custom)
+        s = Skill.ATHLETICS;
+        p(s, "runner", 0f, 0f, FIVE);
+        p(s, "sprinter", -0.5f, 0.35f, lv(25), "runner");
+        p(s, "climber", 0.5f, 0.35f, lv(35), "runner");
+        p(s, "dodge_roll", -0.35f, 0.7f, lv(50), "sprinter");
+        p(s, "wind_walker", 0f, 1f, lv(100), "dodge_roll", "climber");
     }
 
     /** Debug helper used by the /skycraft perks command. */

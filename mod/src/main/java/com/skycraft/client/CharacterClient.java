@@ -13,5 +13,6 @@ public final class CharacterClient {
     private CharacterClient() {}
 
     public static void open() {
+        net.minecraft.client.Minecraft.getInstance().setScreen(new com.skycraft.client.screen.CharacterStatusScreen());
     }
 }
