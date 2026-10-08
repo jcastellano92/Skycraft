@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   mod:
     name: Skycraft Core mod
@@ -60,7 +64,12 @@ jobs:
           git add pack
           if ! git diff --cached --quiet; then
             git commit -m "[ci] Resolve modpack"
-            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" || echo "Could not push resolved pack (branch moved); next run will retry."
+            if git pull --rebase origin "${GITHUB_REF_NAME}"; then
+              git push origin "HEAD:${GITHUB_REF_NAME}" || echo "Could not push resolved pack; next run will retry."
+            else
+              git rebase --abort || true
+              echo "Branch moved; resolved pack not pushed (next run will retry)."
+            fi
           fi
       - name: Export Modrinth & CurseForge packs
         working-directory: pack
