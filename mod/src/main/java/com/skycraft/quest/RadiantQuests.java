@@ -87,7 +87,8 @@ public final class RadiantQuests {
 
     /** Gold scaled with the player's level, clamped. */
     static long scale(int base, int lvl, int min, int max) {
-        return Mth.clamp(Math.round(base * (1 + lvl / 20.0)), min, max);
+        long v = Math.round(base * (1 + lvl / 20.0));
+        return Math.max(min, Math.min(max, v));
     }
 
     private static String itemId(Item item) {
