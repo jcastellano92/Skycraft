@@ -1,7 +1,10 @@
 {
   "variants": {
-    "": {
+    "harvested=false": {
       "model": "skycraft:block/deathbell"
+    },
+    "harvested=true": {
+      "model": "skycraft:block/deathbell_harvested"
     }
   }
 }

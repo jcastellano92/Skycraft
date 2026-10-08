@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:deer",
+    "skycraft:elk",
+    "skycraft:sabre_cat",
+    "skycraft:horker",
+    "skycraft:mudcrab",
+    "skycraft:mammoth",
+    "skycraft:bear",
+    "skycraft:slaughterfish",
+    "minecraft:wolf",
+    "minecraft:polar_bear"
+  ]
+}

@@ -116,6 +116,17 @@ public final class Ingredients {
         add("skycraft:skeever_tail", DAMAGE_STAMINA_REGEN, DAMAGE_HEALTH, FORTIFY_LIGHT_ARMOR, LINGERING_DAMAGE_HEALTH);
         add("skycraft:bone_meal_draugr", DAMAGE_STAMINA, RESIST_FIRE, FORTIFY_CONJURATION, RAVAGE_STAMINA);
         add("skycraft:daedra_heart", RESTORE_HEALTH, DAMAGE_STAMINA_REGEN, DAMAGE_MAGICKA, FEAR);
+        // ------------------------------------------------------------ wildlife & insects (fauna module)
+        add("skycraft:small_antlers", WEAKNESS_TO_POISON, FORTIFY_RESTORATION, RAVAGE_STAMINA, DAMAGE_HEALTH);
+        add("skycraft:large_antlers", RESTORE_STAMINA, REGENERATE_STAMINA, SLOW, DAMAGE_STAMINA_REGEN);
+        add("skycraft:sabre_cat_tooth", RESTORE_STAMINA, FORTIFY_HEAVY_ARMOR, FORTIFY_SMITHING, WEAKNESS_TO_POISON);
+        add("skycraft:mudcrab_chitin", RESTORE_STAMINA, CURE_DISEASE, RESIST_POISON, RESIST_FIRE);
+        add("skycraft:slaughterfish_scales", RESIST_FROST, LINGERING_DAMAGE_HEALTH, FORTIFY_HEAVY_ARMOR, FORTIFY_BLOCK);
+        add("skycraft:monarch_wing", RESTORE_HEALTH, FORTIFY_BARTER, RAVAGE_STAMINA, DAMAGE_MAGICKA);
+        add("skycraft:blue_butterfly_wing", DAMAGE_STAMINA, FORTIFY_CONJURATION, DAMAGE_MAGICKA_REGEN, FORTIFY_ENCHANTING);
+        add("skycraft:blue_dartwing", RESIST_SHOCK, FORTIFY_PICKPOCKET, RESTORE_HEALTH, FEAR);
+        add("skycraft:torchbug_thorax", RESTORE_STAMINA, RAVAGE_MAGICKA, WEAKNESS_TO_MAGIC, REGENERATE_STAMINA);
+        add("skycraft:luna_moth_wing", DAMAGE_MAGICKA, FORTIFY_LIGHT_ARMOR, REGENERATE_HEALTH, INVISIBILITY);
     }
 
     private Ingredients() {}

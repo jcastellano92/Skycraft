@@ -1,0 +1,109 @@
+package com.skycraft.fauna.entity;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.DifficultyInstance;
+import net.minecraft.world.entity.AgeableMob;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.SpawnGroupData;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ServerLevelAccessor;
+import org.jetbrains.annotations.Nullable;
+
+/**
+ * Base class of Skyrim wildlife. Wild beasts are {@link Animal}s (so the core's Hunting skill and Beast Lore apply)
+ * but can't be fed or bred, and never spawn as babies. Each carries a synced variant number and sex; the loot tables
+ * read them through the NBT keys {@code Variant} and {@code Male}.
+ */
+public abstract class FaunaAnimal extends Animal {
+    protected static final EntityDataAccessor<Integer> VARIANT = SynchedEntityData.defineId(FaunaAnimal.class, EntityDataSerializers.INT);
+    protected static final EntityDataAccessor<Boolean> MALE = SynchedEntityData.defineId(FaunaAnimal.class, EntityDataSerializers.BOOLEAN);
+
+    protected FaunaAnimal(EntityType<? extends Animal> type, Level level) {
+        super(type, level);
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(VARIANT, 0);
+        this.entityData.define(MALE, false);
+    }
+
+    public int getVariant() {
+        return this.entityData.get(VARIANT);
+    }
+
+    public void setVariant(int variant) {
+        this.entityData.set(VARIANT, variant);
+    }
+
+    public boolean isMale() {
+        return this.entityData.get(MALE);
+    }
+
+    public void setMale(boolean male) {
+        this.entityData.set(MALE, male);
+    }
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putInt("Variant", getVariant());
+        tag.putBoolean("Male", isMale());
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setVariant(tag.getInt("Variant"));
+        setMale(tag.getBoolean("Male"));
+    }
+
+    /** Picks the variant for a freshly spawned animal (e.g. snowy sabre cat in cold biomes). */
+    protected int chooseVariant(ServerLevelAccessor level, BlockPos pos) {
+        return 0;
+    }
+
+    /** True in cold, snowy places. */
+    protected static boolean isCold(ServerLevelAccessor level, BlockPos pos) {
+        return level.getBiome(pos).value().getBaseTemperature() < 0.15f;
+    }
+
+    @Override
+    @Nullable
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, MobSpawnType reason,
+                                        @Nullable SpawnGroupData data, @Nullable CompoundTag tag) {
+        setMale(this.random.nextBoolean());
+        setVariant(chooseVariant(level, blockPosition()));
+        if (data == null) data = new AgeableMob.AgeableMobGroupData(false); // wild beasts never spawn as babies
+        return super.finalizeSpawn(level, difficulty, reason, data, tag);
+    }
+
+    /** Predators and territorial beasts leave players alone on Peaceful (and in creative/spectator). */
+    protected boolean canAttackPlayers(LivingEntity target) {
+        return this.level().getDifficulty() != Difficulty.PEACEFUL
+                && !(target instanceof Player p && (p.isCreative() || p.isSpectator()));
+    }
+
+    @Override
+    public boolean isFood(ItemStack stack) {
+        return false;
+    }
+
+    @Override
+    @Nullable
+    public AgeableMob getBreedOffspring(ServerLevel level, AgeableMob partner) {
+        return null;
+    }
+}

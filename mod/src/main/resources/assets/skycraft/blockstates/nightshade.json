@@ -1,7 +1,10 @@
 {
   "variants": {
-    "": {
+    "harvested=false": {
       "model": "skycraft:block/nightshade"
+    },
+    "harvested=true": {
+      "model": "skycraft:block/nightshade_harvested"
     }
   }
 }

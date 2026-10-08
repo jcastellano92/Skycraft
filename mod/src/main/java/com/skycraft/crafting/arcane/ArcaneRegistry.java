@@ -43,7 +43,8 @@ public final class ArcaneRegistry {
     public static final RegistryObject<Block> DEATHBELL = BLOCKS.register("deathbell",
             () -> new IngredientPlantBlock(MobEffects.WITHER, 6, false, BlockBehaviour.Properties.copy(Blocks.POPPY)));
     public static final RegistryObject<Block> NIRNROOT = BLOCKS.register("nirnroot",
-            () -> new IngredientPlantBlock(MobEffects.INVISIBILITY, 8, true, BlockBehaviour.Properties.copy(Blocks.POPPY).lightLevel(s -> 6)));
+            () -> new IngredientPlantBlock(MobEffects.INVISIBILITY, 8, true, BlockBehaviour.Properties.copy(Blocks.POPPY)
+                    .lightLevel(s -> s.getValue(IngredientPlantBlock.HARVESTED) ? 0 : 6)));
     public static final RegistryObject<Block> FROST_MIRRIAM = BLOCKS.register("frost_mirriam",
             () -> new IngredientPlantBlock(MobEffects.FIRE_RESISTANCE, 8, false, BlockBehaviour.Properties.copy(Blocks.POPPY)));
 
