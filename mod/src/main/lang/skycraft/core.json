@@ -1,6 +1,8 @@
 {
   "command.skycraft.gold": "You have %s Septims",
   "command.skycraft.paid": "Paid %s Septims to %s",
+  "dialogue.skycraft.chat": "Let's talk.",
+  "dialogue.skycraft.goodbye": "Goodbye.",
   "effect.skycraft.bleeding": "Bleeding",
   "effect.skycraft.lovers_comfort": "Lover's Comfort",
   "effect.skycraft.paralysis": "Paralysis",

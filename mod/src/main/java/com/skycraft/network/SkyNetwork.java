@@ -42,6 +42,7 @@ public final class SkyNetwork {
 
     public static void init() {
         CorePackets.register();
+        com.skycraft.dialogue.DialoguePackets.register();
         com.skycraft.magic.MagicModule.registerPackets();
         com.skycraft.creatures.CreaturesModule.registerPackets();
         com.skycraft.economy.EconomyModule.registerPackets();

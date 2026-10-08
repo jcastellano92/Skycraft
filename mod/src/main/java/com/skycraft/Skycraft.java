@@ -35,6 +35,7 @@ public class Skycraft {
         ModItems.init(modBus);
         ModEffects.init(modBus);
         ModCreativeTab.init(modBus);
+        com.skycraft.loot.AddTableModifier.init(modBus);
 
         com.skycraft.magic.MagicModule.init(modBus);
         com.skycraft.creatures.CreaturesModule.init(modBus);

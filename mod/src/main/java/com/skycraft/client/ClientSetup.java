@@ -24,6 +24,7 @@ public final class ClientSetup {
     public static void overlays(RegisterGuiOverlaysEvent event) {
         event.registerAbove(VanillaGuiOverlay.HOTBAR.id(), "vitals", SkyHud::renderVitals);
         event.registerAbove(VanillaGuiOverlay.HOTBAR.id(), "sneak_eye", SkyHud::renderSneakEye);
+        event.registerAboveAll("compass", com.skycraft.client.hud.Compass::render);
         event.registerAboveAll("notifications", SkyHud::renderNotifications);
     }
 }

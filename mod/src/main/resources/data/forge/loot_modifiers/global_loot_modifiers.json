@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "entries": [
+    "skycraft:gold",
+    "skycraft:spell_tomes",
+    "skycraft:soul_gems",
+    "skycraft:smithing_materials",
+    "skycraft:alchemy_ingredients",
+    "skycraft:skyrim_gear",
+    "skycraft:lockpicks"
+  ]
+}

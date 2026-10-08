@@ -296,6 +296,8 @@ t("message.skycraft.need_stonebreaker", "This rock is too hard for you. (Mining 
 t("message.skycraft.need_deep_delver", "This rock is beyond your skill. (Mining perk: Deep Delver)")
 t("message.skycraft.legendary_fish", "You caught a legendary fish!")
 t("command.skycraft.gold", "You have %s Septims")
+t("dialogue.skycraft.chat", "Let's talk.")
+t("dialogue.skycraft.goodbye", "Goodbye.")
 t("command.skycraft.paid", "Paid %s Septims to %s")
 for h, n in {"whiterun": "Whiterun Hold", "the_rift": "The Rift", "eastmarch": "Eastmarch", "the_pale": "The Pale",
              "winterhold": "Winterhold", "haafingar": "Haafingar", "hjaalmarch": "Hjaalmarch", "the_reach": "The Reach",
