@@ -1,0 +1,142 @@
+package com.skycraft.inventory;
+
+import com.skycraft.inventory.client.ClientInventoryHandlers;
+import com.skycraft.network.SkyNetwork;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
+import net.minecraftforge.network.NetworkDirection;
+import net.minecraftforge.network.NetworkEvent;
+
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.Supplier;
+
+/** Network messages of the inventory module (registered in this fixed order by {@link InventoryModule#registerPackets()}). */
+public final class InventoryPackets {
+    private InventoryPackets() {}
+
+    static void register() {
+        SkyNetwork.register(SyncWeights.class, NetworkDirection.PLAY_TO_CLIENT, SyncWeights::encode, SyncWeights::decode, SyncWeights::handle);
+        SkyNetwork.register(CarryState.class, NetworkDirection.PLAY_TO_CLIENT, CarryState::encode, CarryState::decode, CarryState::handle);
+        SkyNetwork.register(InvAction.class, NetworkDirection.PLAY_TO_SERVER, InvAction::encode, InvAction::decode, InvAction::handle);
+        SkyNetwork.register(UseHeld.class, NetworkDirection.PLAY_TO_CLIENT, UseHeld::encode, UseHeld::decode, UseHeld::handle);
+    }
+
+    // ------------------------------------------------------------------ S2C
+
+    /** The server's item weight table (item ids and tag ids, tags in priority order). */
+    public record SyncWeights(Map<ResourceLocation, Float> items, Map<ResourceLocation, Float> tags) {
+        public static SyncWeights current() {
+            return new SyncWeights(ItemWeights.itemTable(), ItemWeights.tagTable());
+        }
+
+        static void encode(SyncWeights m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.items.size());
+            m.items.forEach((k, v) -> {
+                buf.writeResourceLocation(k);
+                buf.writeFloat(v);
+            });
+            buf.writeVarInt(m.tags.size());
+            m.tags.forEach((k, v) -> {
+                buf.writeResourceLocation(k);
+                buf.writeFloat(v);
+            });
+        }
+
+        static SyncWeights decode(FriendlyByteBuf buf) {
+            int n = buf.readVarInt();
+            Map<ResourceLocation, Float> items = new HashMap<>();
+            for (int i = 0; i < n; i++) items.put(buf.readResourceLocation(), buf.readFloat());
+            int t = buf.readVarInt();
+            Map<ResourceLocation, Float> tags = new LinkedHashMap<>();
+            for (int i = 0; i < t; i++) tags.put(buf.readResourceLocation(), buf.readFloat());
+            return new SyncWeights(items, tags);
+        }
+
+        static void handle(SyncWeights m, Supplier<NetworkEvent.Context> ctx) {
+            // common code; on an integrated server the table is shared and identical anyway
+            ItemWeights.setTable(m.items, m.tags);
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** The player's carry weight as the server sees it. */
+    public record CarryState(float current, float capacity, boolean enabled, boolean over) {
+        static void encode(CarryState m, FriendlyByteBuf buf) {
+            buf.writeFloat(m.current);
+            buf.writeFloat(m.capacity);
+            buf.writeByte((m.enabled ? 1 : 0) | (m.over ? 2 : 0));
+        }
+
+        static CarryState decode(FriendlyByteBuf buf) {
+            float cur = buf.readFloat();
+            float cap = buf.readFloat();
+            byte flags = buf.readByte();
+            return new CarryState(cur, cap, (flags & 1) != 0, (flags & 2) != 0);
+        }
+
+        static void handle(CarryState m, Supplier<NetworkEvent.Context> ctx) {
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientInventoryHandlers.carryState(m.current, m.capacity, m.enabled, m.over));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /**
+     * After a "Read" action moved a book into the main hand, asks the client to use it the vanilla way (so written books,
+     * spell tomes, skill books and modded books open their screens / run their logic normally).
+     */
+    public record UseHeld(ResourceLocation item) {
+        static void encode(UseHeld m, FriendlyByteBuf buf) {
+            buf.writeResourceLocation(m.item);
+        }
+
+        static UseHeld decode(FriendlyByteBuf buf) {
+            return new UseHeld(buf.readResourceLocation());
+        }
+
+        static void handle(UseHeld m, Supplier<NetworkEvent.Context> ctx) {
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientInventoryHandlers.useHeld(m.item));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    // ------------------------------------------------------------------ C2S
+
+    /**
+     * An inventory screen action on one slot ({@link net.minecraft.world.entity.player.Inventory#getItem(int)} index:
+     * 0-35 main, 36-39 armor, 40 offhand). {@code item} must match the slot's current item or the request is ignored.
+     */
+    public record InvAction(int action, int slot, ResourceLocation item) {
+        /** Toggle: equip to the right hand / armor slot, or unequip if already equipped. */
+        public static final int EQUIP = 0;
+        /** Toggle: equip to / unequip from the left hand (offhand). */
+        public static final int EQUIP_LEFT = 1;
+        /** Eat / drink (food, potions, milk...). */
+        public static final int USE = 2;
+        public static final int DROP_ONE = 3;
+        public static final int DROP_ALL = 4;
+        public static final int FAVORITE = 5;
+        /** Books, spell tomes: move to the right hand and use it there. */
+        public static final int READ = 6;
+
+        static void encode(InvAction m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.action);
+            buf.writeVarInt(m.slot);
+            buf.writeResourceLocation(m.item);
+        }
+
+        static InvAction decode(FriendlyByteBuf buf) {
+            return new InvAction(buf.readVarInt(), buf.readVarInt(), buf.readResourceLocation());
+        }
+
+        static void handle(InvAction m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            if (player != null) InventoryActions.handle(player, m.action, m.slot, m.item);
+            ctx.get().setPacketHandled(true);
+        }
+    }
+}

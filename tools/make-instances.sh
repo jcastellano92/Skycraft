@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist"
 WORK="$(mktemp -d)"
 MC=1.20.1
-FORGE=47.3.0
+FORGE=47.4.10
 mkdir -p "$DIST"
 
 # Serve the pack over HTTP for packwiz-installer.

@@ -52,7 +52,7 @@ public final class SpellEffects {
     // ================================================================== shared helpers
 
     public static void xp(ServerPlayer player, Spell spell) {
-        Progression.addSkillXp(player, spell.school.skill, spell.cost);
+        Progression.addSkillXp(player, spell.school.skill, spell.cost * (spell.dual ? Spell.DUAL_COST : 1f));
     }
 
     /** The cast sound of a spell (respects Quiet Casting). */
@@ -98,7 +98,8 @@ public final class SpellEffects {
         if (!hurt) return false;
         Vitals.markInCombat(caster);
         applyElement(caster, spell.element, target, dmg, beam);
-        if (!beam && spell.school == School.DESTRUCTION && Perks.has(caster, "destruction.impact") && target.isAlive()) {
+        // Impact: dual-cast destruction spells stagger.
+        if (!beam && spell.dual && spell.school == School.DESTRUCTION && Perks.has(caster, "destruction.impact") && target.isAlive()) {
             CombatHandler.stagger(caster, target, 20);
         }
         lowHealthPerks(caster, spell.element, target, source);
@@ -296,7 +297,12 @@ public final class SpellEffects {
             }
         }
         if (ray.entity() != null && tick % 5 == 0) {
-            if (hit(p, spell, ray.entity(), spell.magnitude / 4f, null, true, false)) return Spell.Result.EFFECT;
+            if (hit(p, spell, ray.entity(), spell.magnitude / 4f, null, true, false)) {
+                if (spell.dual && tick % 20 == 0 && Perks.has(p, "destruction.impact") && ray.entity().isAlive()) {
+                    CombatHandler.stagger(p, ray.entity(), 15);
+                }
+                return Spell.Result.EFFECT;
+            }
         }
         return Spell.Result.CAST;
     }
@@ -548,7 +554,7 @@ public final class SpellEffects {
 
     private static boolean paralyze(ServerPlayer caster, Spell spell, LivingEntity target) {
         if (!Targeting.canHarm(caster, target) || target.getType().is(CombatHandler.BOSSES)) return false;
-        target.addEffect(new MobEffectInstance(ModEffects.PARALYSIS.get(), SpellMath.alterationDuration(caster, spell), 0));
+        target.addEffect(new MobEffectInstance(ModEffects.PARALYSIS.get(), SpellMath.alterationDuration(caster, spell) * (spell.dual ? 3 : 2) / 2, 0));
         if (target instanceof net.minecraft.world.entity.Mob mob) mob.setTarget(null);
         target.setDeltaMovement(0, Math.min(0, target.getDeltaMovement().y), 0);
         MagicFx.send(target, MagicFx.AURA, Element.ARCANE, target.position(), target.position(), target.getId(), 0);

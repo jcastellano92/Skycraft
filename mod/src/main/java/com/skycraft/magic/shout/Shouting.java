@@ -79,7 +79,7 @@ public final class Shouting {
         long now = p.level().getGameTime();
         if (!p.isCreative() && now < MagicData.shoutReadyAt(p)) {
             Notifier.message(p, Component.translatable("message.skycraft.voice_not_ready"));
-            p.playNotifySound(SoundEvents.PLAYER_BREATH, SoundSource.PLAYERS, 0.8f, 0.7f);
+            p.playNotifySound(SoundEvents.PLAYER_ATTACK_NODAMAGE, SoundSource.PLAYERS, 0.8f, 0.6f);
             return;
         }
         if (!perform(p, shout, words)) return;
@@ -103,7 +103,10 @@ public final class Shouting {
             case FROST_BREATH -> breath(p, w, Element.FROST);
             case WHIRLWIND_SPRINT -> {
                 Vec3 dir = p.getViewVector(1f).multiply(1, 0, 1);
-                if (dir.lengthSqr() < 1e-4) dir = Vec3.directionFromRotation(0, p.getYRot());
+                if (dir.lengthSqr() < 1e-4) {
+                    double yaw = Math.toRadians(p.getYRot());
+                    dir = new Vec3(-Math.sin(yaw), 0, Math.cos(yaw));
+                }
                 SPRINTS.put(p.getUUID(), new Sprint(dir.normalize(), new int[]{4, 7, 11}[w - 1]));
                 p.getPersistentData().putLong(NO_FALL, now + 80);
                 level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ELYTRA_FLYING, SoundSource.PLAYERS, 0.5f, 1.8f);

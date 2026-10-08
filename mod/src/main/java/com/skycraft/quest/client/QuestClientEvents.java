@@ -26,7 +26,11 @@ public final class QuestClientEvents {
         while (SkyKeys.JOURNAL.consumeClick()) mc.setScreen(new JournalScreen());
         while (SkyKeys.PARTY.consumeClick()) mc.setScreen(new PartyScreen());
         // the tracked quest lives in synced player data and the dimension can change: refresh twice a second
-        if (++ticks % 10 == 0) ClientQuestData.refreshCompass();
+        if (++ticks % 10 == 0) {
+            ClientQuestData.refreshCompass();
+            ClientQuestData.refreshPartyCompass();
+        }
+        ClientQuestData.showPendingPrompt();
     }
 
     @SubscribeEvent

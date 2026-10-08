@@ -135,11 +135,14 @@ public final class MagicEvents {
             event.setCanceled(true);
             return;
         }
-        // Summons never hurt their owner or the owner's other allies.
+        // Summons never hurt their owner, the owner's other allies or party members.
         if (attacker != null) {
             UUID owner = Summons.ownerOf(attacker);
-            if (owner != null && (victim.getUUID().equals(owner) || owner.equals(Summons.ownerOf(victim)))) {
-                event.setCanceled(true);
+            if (owner != null) {
+                ServerPlayer op = victim.getServer() == null ? null : victim.getServer().getPlayerList().getPlayer(owner);
+                if (victim.getUUID().equals(owner) || owner.equals(Summons.ownerOf(victim)) || op != null && Targeting.isFriendly(op, victim)) {
+                    event.setCanceled(true);
+                }
             }
         }
     }

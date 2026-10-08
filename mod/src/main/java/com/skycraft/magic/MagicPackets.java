@@ -30,21 +30,25 @@ public final class MagicPackets {
 
     // ------------------------------------------------------------------ C2S
 
-    /** Cast key (or empty-hand right click) pressed ({@code start}) or released. */
-    public record Cast(boolean start) {
+    /**
+     * A hand's cast key went down ({@code start}) or up. {@code hand}: {@link SpellCasting#RIGHT} (R) or
+     * {@link SpellCasting#LEFT} (use key with an empty off hand).
+     */
+    public record Cast(int hand, boolean start) {
         static void encode(Cast m, FriendlyByteBuf buf) {
+            buf.writeByte(m.hand);
             buf.writeBoolean(m.start);
         }
 
         static Cast decode(FriendlyByteBuf buf) {
-            return new Cast(buf.readBoolean());
+            return new Cast(buf.readByte(), buf.readBoolean());
         }
 
         static void handle(Cast m, Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer player = ctx.get().getSender();
-            if (player != null) {
-                if (m.start) SpellCasting.start(player);
-                else SpellCasting.stop(player);
+            if (player != null && (m.hand == SpellCasting.RIGHT || m.hand == SpellCasting.LEFT)) {
+                if (m.start) SpellCasting.start(player, m.hand);
+                else SpellCasting.stop(player, m.hand);
             }
             ctx.get().setPacketHandled(true);
         }
@@ -73,6 +77,8 @@ public final class MagicPackets {
         public static final int SELECT_SHOUT = 1;
         public static final int UNLOCK_WORD = 2;
         public static final int TOGGLE_FAVORITE = 3;
+        /** Equip a spell in the left hand ({@link #SELECT_SPELL} is the right hand). */
+        public static final int SELECT_LEFT = 4;
 
         static void encode(MenuAction m, FriendlyByteBuf buf) {
             buf.writeVarInt(m.action);
@@ -87,10 +93,15 @@ public final class MagicPackets {
             ServerPlayer player = ctx.get().getSender();
             if (player != null) {
                 switch (m.action) {
-                    case SELECT_SPELL -> {
+                    case SELECT_SPELL, SELECT_LEFT -> {
                         if (Spells.byId(m.id) != null && (MagicData.knows(player, m.id) || player.isCreative())) {
-                            SpellCasting.stop(player);
-                            MagicData.setSelectedSpell(player, m.id);
+                            if (m.action == SELECT_LEFT) {
+                                SpellCasting.stop(player, SpellCasting.LEFT);
+                                MagicData.setLeftSpell(player, m.id);
+                            } else {
+                                SpellCasting.stop(player, SpellCasting.RIGHT);
+                                MagicData.setSelectedSpell(player, m.id);
+                            }
                         }
                     }
                     case SELECT_SHOUT -> {

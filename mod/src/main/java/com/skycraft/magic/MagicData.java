@@ -17,7 +17,7 @@ import java.util.List;
  * client reads the same keys for the HUD and the magic menu.
  *
  * <p>Cross-module contract keys: {@code spells} (list of spell ids), {@code words} (shout id -> words learned),
- * {@code dragon_souls}. Our own keys: {@code selected_spell}, {@code selected_shout}, {@code unlocked} (shout id ->
+ * {@code dragon_souls}. Our own keys: {@code right_spell} (alias {@code selected_spell}), {@code left_spell}, {@code selected_shout}, {@code unlocked} (shout id ->
  * words unlocked with dragon souls), {@code walls} (word walls already read), {@code favorites},
  * {@code shout_ready}/{@code shout_total} (voice cooldown), {@code dragonborn}, {@code avoid_death}.</p>
  */
@@ -58,17 +58,39 @@ public final class MagicData {
         ListTag list = tag.getList("spells", Tag.TAG_STRING);
         list.add(StringTag.valueOf(spellId));
         tag.put("spells", list);
-        if (tag.getString("selected_spell").isEmpty()) tag.putString("selected_spell", spellId);
+        // New spells fill an empty hand: right first, then left.
+        if (selectedSpell(player).isEmpty()) {
+            tag.putString("right_spell", spellId);
+            tag.putString("selected_spell", spellId);
+        } else if (tag.getString("left_spell").isEmpty()) {
+            tag.putString("left_spell", spellId);
+        }
         dirty(player);
         return true;
     }
 
+    /** The right-hand spell ({@code right_spell}; {@code selected_spell} is kept as an alias for older data). */
     public static String selectedSpell(Player player) {
-        return tag(player).getString("selected_spell");
+        CompoundTag tag = tag(player);
+        String right = tag.getString("right_spell");
+        return right.isEmpty() ? tag.getString("selected_spell") : right;
     }
 
+    /** Equips the right-hand spell. */
     public static void setSelectedSpell(Player player, String spellId) {
-        tag(player).putString("selected_spell", spellId);
+        CompoundTag tag = tag(player);
+        tag.putString("right_spell", spellId);
+        tag.putString("selected_spell", spellId);
+        dirty(player);
+    }
+
+    /** The left-hand spell, or "" (casting with an empty left hand then uses the right-hand spell). */
+    public static String leftSpell(Player player) {
+        return tag(player).getString("left_spell");
+    }
+
+    public static void setLeftSpell(Player player, String spellId) {
+        tag(player).putString("left_spell", spellId);
         dirty(player);
     }
 

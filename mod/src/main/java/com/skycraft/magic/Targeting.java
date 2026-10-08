@@ -1,5 +1,7 @@
 package com.skycraft.magic;
 
+import com.skycraft.magic.spell.SpellCasting;
+import com.skycraft.quest.party.Parties;
 import com.skycraft.magic.spell.Summons;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
@@ -31,12 +33,17 @@ public final class Targeting {
     /** Result of a beam/aim ray: where it ends, and the creature hit (if any). */
     public record Ray(Vec3 start, Vec3 end, @Nullable LivingEntity entity, boolean hitBlock) {}
 
-    /** Approximate position of the casting hand (right hand, slightly below the eyes). */
+    /** Approximate position of the hand casting the current spell (see {@link SpellCasting#castingSide()}). */
     public static Vec3 handPos(Player player) {
+        return handPos(player, SpellCasting.castingSide());
+    }
+
+    /** Approximate position of a casting hand: side 1 = right, -1 = left, 0 = both (in front of the chest). */
+    public static Vec3 handPos(Player player, int side) {
         float yaw = player.getYRot() * ((float) Math.PI / 180f);
         Vec3 right = new Vec3(-Math.cos(yaw), 0, -Math.sin(yaw));
         Vec3 look = player.getViewVector(1f);
-        return player.getEyePosition().add(look.scale(0.55)).add(right.scale(0.32)).add(0, -0.28, 0);
+        return player.getEyePosition().add(look.scale(0.55)).add(right.scale(0.32 * side)).add(0, -0.28, 0);
     }
 
     /** Casts a ray from the eyes; the first living entity matching {@code filter} (with a little aim assist) is hit. */
@@ -75,14 +82,35 @@ public final class Targeting {
         return new Ray(eye, limit, null, hitBlock);
     }
 
-    /** The caster itself, its summons and allies, its tamed animals and team mates. */
+    /**
+     * The caster itself, its summons and allies, its tamed animals, team mates, members of its party (quest module)
+     * and their summons.
+     */
     public static boolean isFriendly(Player caster, @Nullable Entity e) {
         if (e == null) return false;
         if (e == caster) return true;
         UUID owner = Summons.ownerOf(e);
         if (owner != null && owner.equals(caster.getUUID())) return true;
-        if (e instanceof TamableAnimal tame && tame.isOwnedBy(caster)) return true;
-        return caster.isAlliedTo(e);
+        if (e instanceof TamableAnimal tame && caster.getUUID().equals(tame.getOwnerUUID())) return true;
+        if (caster.isAlliedTo(e)) return true;
+        if (caster instanceof ServerPlayer sp) {
+            if (e instanceof ServerPlayer other && sameParty(sp, other)) return true;
+            if (owner != null) {
+                ServerPlayer ownerPlayer = sp.server.getPlayerList().getPlayer(owner);
+                if (ownerPlayer != null && sameParty(sp, ownerPlayer)) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Party check through the quest module; never throws (no party data means no party). */
+    public static boolean sameParty(ServerPlayer a, ServerPlayer b) {
+        if (a == b) return true;
+        try {
+            return Parties.sameParty(a.server, a, b);
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /** Whether an offensive spell or shout from {@code caster} may affect {@code e} (PvP rules, allies, invulnerability). */
@@ -90,7 +118,8 @@ public final class Targeting {
         if (!(e instanceof LivingEntity living) || !living.isAlive() || living.isSpectator() || living instanceof ArmorStand) return false;
         if (isFriendly(caster, living) || living.isInvulnerable()) return false;
         if (living instanceof Player other) {
-            if (other.isCreative() || !caster.canHarmPlayer(other)) return false;
+            // PvP: only when the server allows it (and teams permit); party members are friendly (above).
+            if (other.isCreative() || !caster.server.isPvpAllowed() || !caster.canHarmPlayer(other)) return false;
         }
         return true;
     }

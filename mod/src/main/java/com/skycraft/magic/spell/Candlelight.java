@@ -91,7 +91,7 @@ public final class Candlelight {
     }
 
     private static boolean canHold(ServerLevel level, BlockPos pos) {
-        if (!level.isInWorldBounds(pos)) return false;
+        if (level.isOutsideBuildHeight(pos)) return false;
         BlockState state = level.getBlockState(pos);
         if (state.isAir()) return true;
         return state.is(Blocks.WATER) && state.getFluidState().isSource();

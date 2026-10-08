@@ -120,7 +120,7 @@ public class WordWallShrineFeature extends Feature<NoneFeatureConfiguration> {
         int side = random.nextBoolean() ? 2 : -2;
         BlockPos chest = at(origin, right, back, side, 1, 2);
         set(level, chest, Blocks.CHEST.defaultBlockState().setValue(ChestBlock.FACING, front));
-        RandomizableContainerBlockEntity.setLootTable(level, random, chest, LOOT);
+        if (level.getBlockEntity(chest) instanceof RandomizableContainerBlockEntity container) container.setLootTable(LOOT, random.nextLong());
 
         // Cold braziers at the foot of the steps.
         for (int lx : new int[]{-3, 3}) {

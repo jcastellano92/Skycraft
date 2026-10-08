@@ -28,6 +28,8 @@ public final class QuestPackets {
         SkyNetwork.register(SyncParty.class, NetworkDirection.PLAY_TO_CLIENT, SyncParty::encode, SyncParty::decode, SyncParty::handle);
         SkyNetwork.register(PartyAction.class, NetworkDirection.PLAY_TO_SERVER, PartyAction::encode, PartyAction::decode, PartyAction::handle);
         SkyNetwork.register(QuestAction.class, NetworkDirection.PLAY_TO_SERVER, QuestAction::encode, QuestAction::decode, QuestAction::handle);
+        SkyNetwork.register(PartyTravelPrompt.class, NetworkDirection.PLAY_TO_CLIENT, PartyTravelPrompt::encode, PartyTravelPrompt::decode, PartyTravelPrompt::handle);
+        SkyNetwork.register(PartyTravel.class, NetworkDirection.PLAY_TO_SERVER, PartyTravel::encode, PartyTravel::decode, PartyTravel::handle);
     }
 
     // ------------------------------------------------------------------ S2C
@@ -66,7 +68,42 @@ public final class QuestPackets {
         }
     }
 
+    /** "Fast travel to {@code name} (party leader)?" shown on join / when joining a party. */
+    public record PartyTravelPrompt(UUID target, String name, boolean leader) {
+        static void encode(PartyTravelPrompt m, FriendlyByteBuf buf) {
+            buf.writeUUID(m.target);
+            buf.writeUtf(m.name, 64);
+            buf.writeBoolean(m.leader);
+        }
+
+        static PartyTravelPrompt decode(FriendlyByteBuf buf) {
+            return new PartyTravelPrompt(buf.readUUID(), buf.readUtf(64), buf.readBoolean());
+        }
+
+        static void handle(PartyTravelPrompt m, Supplier<NetworkEvent.Context> ctx) {
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientQuestData.onTravelPrompt(m.target, m.name, m.leader));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
     // ------------------------------------------------------------------ C2S
+
+    /** Fast travel to a party member (validated on the server). */
+    public record PartyTravel(UUID target) {
+        static void encode(PartyTravel m, FriendlyByteBuf buf) {
+            buf.writeUUID(m.target);
+        }
+
+        static PartyTravel decode(FriendlyByteBuf buf) {
+            return new PartyTravel(buf.readUUID());
+        }
+
+        static void handle(PartyTravel m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            if (player != null) com.skycraft.quest.party.PartyTravel.travel(player, m.target);
+            ctx.get().setPacketHandled(true);
+        }
+    }
 
     public record PartyAction(int action, UUID target) {
         public static final int CREATE = 0;

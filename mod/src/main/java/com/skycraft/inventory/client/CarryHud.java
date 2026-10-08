@@ -1,0 +1,58 @@
+package com.skycraft.inventory.client;
+
+import com.skycraft.core.SkyData;
+import com.skycraft.inventory.InventoryConfig;
+import com.skycraft.inventory.ItemWeights;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraftforge.client.gui.overlay.ForgeGui;
+
+/**
+ * "Carry 312/300" above the stamina bar (bottom right), only while close to or over the carry capacity. Sits above
+ * the magic module's bottom-right elements (shout words, right-hand spell) when those are shown.
+ */
+public final class CarryHud {
+    private CarryHud() {}
+
+    public static void render(ForgeGui gui, GuiGraphics g, float partialTick, int width, int height) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.options.hideGui || !gui.shouldDrawSurvivalElements() || player.isCreative() || player.isSpectator()) return;
+        if (!ClientInventoryHandlers.received || !ClientInventoryHandlers.enabled) return;
+        boolean show;
+        double threshold;
+        try {
+            show = InventoryConfig.CARRY_HUD.get();
+            threshold = InventoryConfig.CARRY_HUD_THRESHOLD.get();
+        } catch (IllegalStateException e) {
+            show = true;
+            threshold = 0.9;
+        }
+        if (!show) return;
+        float cur = ClientInventoryHandlers.current;
+        float cap = ClientInventoryHandlers.capacity;
+        boolean over = ClientInventoryHandlers.over;
+        if (!over && cur < cap * threshold) return;
+
+        Font font = mc.font;
+        Component text = Component.translatable("inventory.skycraft.hud.carry", ItemWeights.format(cur), ItemWeights.format(cap));
+        // stack above the magic HUD's bottom-right elements: shout words (-29) and the right-hand spell (-42)
+        var magic = SkyData.get(player).module("magic");
+        int y = height - 27;
+        if (!magic.getString("selected_shout").isEmpty()) y = height - 42;
+        if (!magic.getString("selected_spell").isEmpty()) y = height - 55;
+        int x = width - 12 - font.width(text);
+        int color;
+        if (over) {
+            float pulse = 0.75f + 0.25f * (float) Math.sin(System.currentTimeMillis() / 300.0);
+            int r = (int) (0xE0 * pulse), gg = (int) (0x50 * pulse), b = (int) (0x50 * pulse);
+            color = 0xFF000000 | r << 16 | gg << 8 | b;
+        } else {
+            color = 0xFFE8D9A0;
+        }
+        g.drawString(font, text, x, y, color, true);
+    }
+}

@@ -80,15 +80,20 @@ public final class Illusion {
         return t;
     }
 
-    /** Whether an illusion spell of the given level and kind works on the target. */
-    public static boolean affects(ServerPlayer caster, Tier tier, LivingEntity target, String kind, boolean feedback) {
+    /**
+     * Whether an illusion spell works on a creature. Dual casting raises the level limit by half. Players are handled
+     * by {@link #onPlayer} instead.
+     */
+    public static boolean affects(ServerPlayer caster, Spell spell, LivingEntity target, String kind, boolean feedback) {
         if (!(target instanceof Mob) || target instanceof ArmorStand || target.getType().is(CombatHandler.BOSSES)) return false;
+        Tier tier = spell.tier;
+        float dualMult = spell.dual ? 1.5f : 1f;
         boolean resistant = target.getMobType() == MobType.UNDEAD || target instanceof AbstractGolem;
         if (resistant && !Perks.has(caster, "illusion.master_of_the_mind")) {
             if (feedback) Notifier.message(caster, Component.translatable("message.skycraft.illusion_immune", target.getDisplayName()));
             return false;
         }
-        if (target.getMaxHealth() > threshold(caster, tier, target, kind)) {
+        if (target.getMaxHealth() > threshold(caster, tier, target, kind) * dualMult) {
             if (feedback) Notifier.message(caster, Component.translatable("message.skycraft.illusion_too_strong", target.getDisplayName()));
             return false;
         }
@@ -172,6 +177,37 @@ public final class Illusion {
         }
     }
 
+    /**
+     * PvP: illusion magic only briefly hinders other players (when the server allows PvP and they aren't in the
+     * caster's party): Fear slows and weakens, Calm leaves them too weak to hurt anyone, Fury/Frenzy disorients.
+     *
+     * @return -1 if the target isn't a player (use the creature rules), 0 if it is one that can't be affected,
+     *         1 if it was affected
+     */
+    public static int onPlayer(ServerPlayer caster, LivingEntity target, String kind) {
+        if (!(target instanceof ServerPlayer tp)) return -1;
+        if (tp == caster || !Targeting.canHarm(caster, tp)) return 0;
+        switch (kind) {
+            case "fear" -> {
+                tp.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 1));
+                tp.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 100, 0));
+                Notifier.message(tp, Component.translatable("message.skycraft.pvp_feared", caster.getDisplayName()));
+            }
+            case "calm" -> {
+                tp.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 60, 4));
+                Notifier.message(tp, Component.translatable("message.skycraft.pvp_calmed", caster.getDisplayName()));
+            }
+            default -> {
+                tp.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 100, 0));
+                Notifier.message(tp, Component.translatable("message.skycraft.pvp_frenzied", caster.getDisplayName()));
+            }
+        }
+        mindFx(tp.serverLevel(), tp);
+        Vitals.markInCombat(caster);
+        Vitals.markInCombat(tp);
+        return 1;
+    }
+
     // ------------------------------------------------------------------ spells
 
     private static void mindFx(ServerLevel level, LivingEntity target) {
@@ -181,7 +217,13 @@ public final class Illusion {
 
     public static void furyHit(SpellProjectile proj, ServerPlayer caster, Spell spell, @Nullable LivingEntity target, Vec3 pos) {
         MagicFx.burst((ServerLevel) proj.level(), pos, Element.MIND, 0.6f);
-        if (target == null || !affects(caster, spell.tier, target, "frenzy", true)) return;
+        if (target == null) return;
+        int pvp = onPlayer(caster, target, "frenzy");
+        if (pvp >= 0) {
+            if (pvp > 0) SpellEffects.xp(caster, spell);
+            return;
+        }
+        if (!affects(caster, spell, target, "frenzy", true)) return;
         applyFrenzy(target, spell.duration);
         mindFx((ServerLevel) proj.level(), target);
         SpellEffects.xp(caster, spell);
@@ -189,7 +231,13 @@ public final class Illusion {
 
     public static void calmHit(SpellProjectile proj, ServerPlayer caster, Spell spell, @Nullable LivingEntity target, Vec3 pos) {
         MagicFx.burst((ServerLevel) proj.level(), pos, Element.MIND, 0.6f);
-        if (target == null || !affects(caster, spell.tier, target, "calm", true)) return;
+        if (target == null) return;
+        int pvp = onPlayer(caster, target, "calm");
+        if (pvp >= 0) {
+            if (pvp > 0) SpellEffects.xp(caster, spell);
+            return;
+        }
+        if (!affects(caster, spell, target, "calm", true)) return;
         applyCalm(target, spell.duration);
         mindFx((ServerLevel) proj.level(), target);
         SpellEffects.xp(caster, spell);
@@ -197,7 +245,13 @@ public final class Illusion {
 
     public static void fearHit(SpellProjectile proj, ServerPlayer caster, Spell spell, @Nullable LivingEntity target, Vec3 pos) {
         MagicFx.burst((ServerLevel) proj.level(), pos, Element.MIND, 0.6f);
-        if (target == null || !affects(caster, spell.tier, target, "fear", true)) return;
+        if (target == null) return;
+        int pvp = onPlayer(caster, target, "fear");
+        if (pvp >= 0) {
+            if (pvp > 0) SpellEffects.xp(caster, spell);
+            return;
+        }
+        if (!affects(caster, spell, target, "fear", true)) return;
         applyFear(caster.position(), target, spell.duration);
         mindFx((ServerLevel) proj.level(), target);
         SpellEffects.xp(caster, spell);
@@ -222,7 +276,12 @@ public final class Illusion {
         int n = 0;
         List<LivingEntity> targets = Targeting.around(caster, pos, spell.radius, e -> e != caster && !Targeting.isFriendly(caster, e));
         for (LivingEntity e : targets) {
-            if (!affects(caster, spell.tier, e, kind, false)) continue;
+            int pvp = onPlayer(caster, e, kind);
+            if (pvp >= 0) {
+                n += pvp;
+                continue;
+            }
+            if (!affects(caster, spell, e, kind, false)) continue;
             switch (kind) {
                 case "calm" -> applyCalm(e, spell.duration);
                 case "fear" -> applyFear(pos, e, spell.duration);

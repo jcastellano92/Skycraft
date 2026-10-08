@@ -40,6 +40,10 @@ public final class FastTravelHandler {
             fail(player, "disabled");
             return;
         }
+        if (com.skycraft.inventory.CarryWeight.isOverencumbered(player)) {
+            fail(player, "encumbered");
+            return;
+        }
         CompoundTag loc = WorldData.find(SkyData.get(player), id);
         if (loc == null) {
             fail(player, "unknown");
@@ -118,7 +122,7 @@ public final class FastTravelHandler {
     // ------------------------------------------------------------------ followers
 
     /** Tamed pets that aren't told to sit, leashed animals, horses and modded followers (any {@code getOwnerUUID()}). */
-    static boolean isFollower(Mob mob, ServerPlayer player) {
+    public static boolean isFollower(Mob mob, ServerPlayer player) {
         if (mob.isLeashed() && mob.getLeashHolder() == player) return true;
         if (mob instanceof TamableAnimal pet) return pet.isTame() && pet.isOwnedBy(player) && !pet.isOrderedToSit();
         if (mob instanceof OwnableEntity owned) {
@@ -187,7 +191,7 @@ public final class FastTravelHandler {
         return null;
     }
 
-    static boolean isSafe(ServerLevel level, BlockPos pos) {
+    public static boolean isSafe(ServerLevel level, BlockPos pos) {
         if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight() - 2) return false;
         if (!level.getWorldBorder().isWithinBounds(pos)) return false;
         BlockPos below = pos.below();

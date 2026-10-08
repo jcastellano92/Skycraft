@@ -20,35 +20,57 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Server-side casting state. Clients send "cast key down/up" ({@link com.skycraft.magic.MagicPackets.Cast});
- * fire-and-forget spells are released on key down (master spells after a 2 second charge while the key is held),
- * concentration spells run every tick until key up or until magicka runs out.
+ * Server-side casting state, Skyrim style: each hand holds a spell. Clients send "hand key down/up"
+ * ({@link com.skycraft.magic.MagicPackets.Cast}); R is the right hand, the use key (empty off hand) the left.
+ *
+ * <ul>
+ *     <li>Fire-and-forget spells are released a few ticks after the press (master spells after a 2 second charge
+ *     while held). If the other hand presses the same spell within that window, it is a <b>dual cast</b>:
+ *     {@link Spell#DUAL_COST} times the magicka for {@link Spell#DUAL_MAGNITUDE} times the effect.</li>
+ *     <li>Concentration spells run every tick while held; the same spell held in both hands is dual cast.</li>
+ * </ul>
  */
 public final class SpellCasting {
-    /** Global cooldown between fire-and-forget casts (Skyrim's cast animation). */
+    public static final int RIGHT = 0;
+    public static final int LEFT = 1;
+    /** Global cooldown between fire-and-forget casts of one hand (Skyrim's cast animation). */
     private static final int CAST_COOLDOWN = 10;
+    /** Ticks a fire-and-forget cast waits for the other hand to join in for a dual cast. */
+    private static final int DUAL_WINDOW = 3;
 
-    private static final Map<UUID, Active> ACTIVE = new HashMap<>();
-    private static final Map<UUID, Long> NEXT_CAST = new HashMap<>();
+    private static final Map<UUID, Active[]> ACTIVE = new HashMap<>();
+    private static final Map<UUID, long[]> NEXT_CAST = new HashMap<>();
     private static final Map<UUID, Long> LAST_FAIL = new HashMap<>();
     private static final Map<UUID, Float> WARD = new HashMap<>();
+
+    /** Which side the spell being executed right now comes from: -1 left, 0 both (dual), 1 right. */
+    private static int castingSide = 1;
 
     private SpellCasting() {}
 
     private static final class Active {
         final Spell spell;
+        final int hand;
         int ticks;
+        boolean held = true;
         boolean hadEffect;
 
-        Active(Spell spell) {
+        Active(Spell spell, int hand) {
             this.spell = spell;
+            this.hand = hand;
         }
+    }
+
+    /** For actions that draw from the casting hand (beams, projectiles): -1 left, 0 dual, 1 right. */
+    public static int castingSide() {
+        return castingSide;
     }
 
     private static boolean hasMagicka(ServerPlayer p, float amount) {
@@ -64,11 +86,25 @@ public final class SpellCasting {
         p.playNotifySound(SoundEvents.FIRE_EXTINGUISH, SoundSource.PLAYERS, 0.4f, 1.8f);
     }
 
-    /** Cast key pressed. */
-    public static void start(ServerPlayer p) {
-        if (!p.isAlive() || p.isSpectator() || ACTIVE.containsKey(p.getUUID())) return;
-        if (p.hasEffect(ModEffects.PARALYSIS.get())) return;
-        Spell spell = Spells.byId(MagicData.selectedSpell(p));
+    /** The spell equipped in a hand; an empty left hand falls back to the right hand's spell. */
+    @Nullable
+    public static Spell spellFor(ServerPlayer p, int hand) {
+        String id = hand == LEFT ? MagicData.leftSpell(p) : "";
+        if (id.isEmpty()) id = MagicData.selectedSpell(p);
+        return Spells.byId(id);
+    }
+
+    private static Active[] hands(ServerPlayer p) {
+        return ACTIVE.computeIfAbsent(p.getUUID(), k -> new Active[2]);
+    }
+
+    /** A hand's cast key was pressed. */
+    public static void start(ServerPlayer p, int hand) {
+        if (hand != LEFT && hand != RIGHT) return;
+        if (!p.isAlive() || p.isSpectator() || p.hasEffect(ModEffects.PARALYSIS.get())) return;
+        Active[] hands = hands(p);
+        if (hands[hand] != null) return;
+        Spell spell = spellFor(p, hand);
         if (spell == null || !MagicData.knows(p, spell.id) && !p.isCreative()) {
             Notifier.message(p, Component.translatable("message.skycraft.no_spell", Component.keybind("key.skycraft.magic_menu")));
             return;
@@ -83,92 +119,156 @@ public final class SpellCasting {
                 fail(p);
                 return;
             }
-            ACTIVE.put(p.getUUID(), new Active(spell));
+            hands[hand] = new Active(spell, hand);
             return;
         }
         long now = p.level().getGameTime();
-        if (NEXT_CAST.getOrDefault(p.getUUID(), 0L) > now) return;
+        long[] next = NEXT_CAST.computeIfAbsent(p.getUUID(), k -> new long[2]);
+        if (next[hand] > now) return;
         if (!hasMagicka(p, cost)) {
             fail(p);
             return;
         }
-        if (spell.chargeTicks > 0) {
-            ACTIVE.put(p.getUUID(), new Active(spell));
-            MagicFx.sound(p, SoundEvents.BEACON_POWER_SELECT, 0.8f, 0.6f);
-            return;
-        }
-        release(p, spell, cost);
+        hands[hand] = new Active(spell, hand);
+        if (spell.chargeTicks > 0) MagicFx.sound(p, SoundEvents.BEACON_POWER_SELECT, 0.8f, 0.6f);
     }
 
-    /** Cast key released. */
-    public static void stop(ServerPlayer p) {
-        Active a = ACTIVE.remove(p.getUUID());
-        WARD.remove(p.getUUID());
-        if (a != null && a.spell.isConcentration() && a.ticks > 4 && a.spell.element == Element.FIRE) {
+    /** A hand's cast key was released. */
+    public static void stop(ServerPlayer p, int hand) {
+        Active[] hands = ACTIVE.get(p.getUUID());
+        if (hands == null || hand < 0 || hand > 1 || hands[hand] == null) return;
+        Active a = hands[hand];
+        if (!a.spell.isConcentration() && a.spell.chargeTicks <= 0) {
+            a.held = false; // a quick tap still casts once the dual-cast window closes
+            return;
+        }
+        end(p, hands, hand);
+        if (a.spell.isConcentration() && a.ticks > 4 && a.spell.element == Element.FIRE) {
             MagicFx.sound(p, SoundEvents.FIRE_EXTINGUISH, 0.3f, 1.6f);
         }
     }
 
-    private static void release(ServerPlayer p, Spell spell, float cost) {
-        Spell.Result result = spell.action.cast(p, spell, 0);
-        if (result == Spell.Result.FAILED) return;
-        Vitals.consumeMagicka(p, cost);
-        NEXT_CAST.put(p.getUUID(), p.level().getGameTime() + CAST_COOLDOWN);
-        if (result == Spell.Result.EFFECT) SpellEffects.xp(p, spell);
-        p.swing(InteractionHand.MAIN_HAND, true);
-        SkyData.get(p).addStat("spells_cast", 1);
+    /** Stops everything this player is casting (death, dimension change, menu re-equip). */
+    public static void stop(ServerPlayer p) {
+        ACTIVE.remove(p.getUUID());
+        WARD.remove(p.getUUID());
+    }
+
+    private static void end(ServerPlayer p, Active[] hands, int hand) {
+        hands[hand] = null;
+        if (!isCasting(p, "lesser_ward")) WARD.remove(p.getUUID());
     }
 
     /** Called every tick for every server player. */
     public static void tick(ServerPlayer p) {
-        Active a = ACTIVE.get(p.getUUID());
-        if (a == null) return;
+        Active[] hands = ACTIVE.get(p.getUUID());
+        if (hands == null || hands[0] == null && hands[1] == null) return;
         if (!p.isAlive() || p.isSpectator() || p.hasEffect(ModEffects.PARALYSIS.get())) {
             stop(p);
             return;
         }
-        Spell spell = a.spell;
-        if (spell.isConcentration()) {
-            float perTick = SpellMath.cost(p, spell) / 20f;
-            if (!Vitals.consumeMagicka(p, perTick)) {
-                stop(p);
-                fail(p);
-                return;
+        Active right = hands[RIGHT];
+        Active left = hands[LEFT];
+        boolean dualConcentration = right != null && left != null && right.spell.isConcentration()
+                && right.spell == left.spell && right.spell.dualCastable;
+        if (dualConcentration) {
+            tickConcentration(p, hands, right, true);
+            if (hands[LEFT] != null) hands[LEFT].ticks++;
+        } else {
+            for (int h = 0; h < 2; h++) {
+                Active a = hands[h];
+                if (a != null && a.spell.isConcentration()) tickConcentration(p, hands, a, false);
             }
-            Spell.Result result = spell.action.cast(p, spell, a.ticks);
-            if (result == Spell.Result.FAILED) {
-                stop(p);
-                return;
-            }
-            if (result == Spell.Result.EFFECT) a.hadEffect = true;
-            if (a.ticks % 20 == 19) {
-                if (a.hadEffect) Progression.addSkillXp(p, spell.school.skill, spell.cost);
-                a.hadEffect = false;
-            }
-            if (spell.hostile && a.ticks % 20 == 0) Vitals.markInCombat(p);
+        }
+        for (int h = 0; h < 2; h++) {
+            Active a = hands[h];
+            if (a == null || a.spell.isConcentration()) continue;
             a.ticks++;
-            return;
-        }
-        // Charging a master spell.
-        a.ticks++;
-        if (a.ticks % 3 == 0) {
-            MagicFx.send(p, MagicFx.CHARGE, spell.element, p.position(), p.position(), p.getId(), Math.min(100, a.ticks * 100 / Math.max(1, spell.chargeTicks)));
-        }
-        if (a.ticks % 10 == 0) MagicFx.sound(p, SoundEvents.BEACON_AMBIENT, 1f, 0.8f + a.ticks / (float) spell.chargeTicks);
-        if (a.ticks >= spell.chargeTicks) {
-            ACTIVE.remove(p.getUUID());
-            float cost = SpellMath.cost(p, spell);
-            if (!hasMagicka(p, cost)) {
-                fail(p);
-                return;
+            Spell spell = a.spell;
+            if (spell.chargeTicks > 0) {
+                if (a.ticks % 3 == 0) {
+                    MagicFx.send(p, MagicFx.CHARGE, spell.element, p.position(), p.position(), p.getId(),
+                            Math.min(100, a.ticks * 100 / Math.max(1, spell.chargeTicks)));
+                }
+                if (a.ticks % 10 == 0) MagicFx.sound(p, SoundEvents.BEACON_AMBIENT, 1f, 0.8f + a.ticks / (float) spell.chargeTicks);
+                if (a.ticks >= spell.chargeTicks) release(p, hands, a);
+            } else if (a.ticks >= DUAL_WINDOW) {
+                release(p, hands, a);
             }
-            release(p, spell, cost);
         }
     }
 
+    private static void tickConcentration(ServerPlayer p, Active[] hands, Active a, boolean dual) {
+        Spell spell = dual ? a.spell.dualCast() : a.spell;
+        float perTick = SpellMath.cost(p, a.spell) * (dual ? Spell.DUAL_COST : 1f) / 20f;
+        if (!Vitals.consumeMagicka(p, perTick)) {
+            end(p, hands, a.hand);
+            if (dual) end(p, hands, 1 - a.hand);
+            fail(p);
+            return;
+        }
+        castingSide = dual ? 0 : a.hand == LEFT ? -1 : 1;
+        Spell.Result result;
+        try {
+            result = spell.action.cast(p, spell, a.ticks);
+        } finally {
+            castingSide = 1;
+        }
+        if (result == Spell.Result.FAILED) {
+            end(p, hands, a.hand);
+            return;
+        }
+        if (result == Spell.Result.EFFECT) a.hadEffect = true;
+        if (a.ticks % 20 == 19) {
+            if (a.hadEffect) Progression.addSkillXp(p, spell.school.skill, spell.cost * (dual ? Spell.DUAL_COST : 1f));
+            a.hadEffect = false;
+        }
+        if (spell.hostile && a.ticks % 20 == 0) Vitals.markInCombat(p);
+        a.ticks++;
+    }
+
+    private static void release(ServerPlayer p, Active[] hands, Active a) {
+        int other = 1 - a.hand;
+        Active partner = hands[other];
+        boolean dual = a.spell.dualCastable && partner != null && partner.spell == a.spell && !partner.spell.isConcentration()
+                && (a.spell.chargeTicks <= 0 || partner.held);
+        hands[a.hand] = null;
+        if (dual) hands[other] = null;
+        if (a.spell.chargeTicks > 0 && !a.held) return; // released before fully charged
+        float cost = SpellMath.cost(p, a.spell) * (dual ? Spell.DUAL_COST : 1f);
+        if (!hasMagicka(p, cost)) {
+            fail(p);
+            return;
+        }
+        Spell spell = dual ? a.spell.dualCast() : a.spell;
+        castingSide = dual ? 0 : a.hand == LEFT ? -1 : 1;
+        Spell.Result result;
+        try {
+            result = spell.action.cast(p, spell, 0);
+        } finally {
+            castingSide = 1;
+        }
+        if (result == Spell.Result.FAILED) return;
+        Vitals.consumeMagicka(p, cost);
+        long[] next = NEXT_CAST.computeIfAbsent(p.getUUID(), k -> new long[2]);
+        long now = p.level().getGameTime();
+        next[a.hand] = now + CAST_COOLDOWN;
+        if (dual) next[other] = now + CAST_COOLDOWN;
+        if (result == Spell.Result.EFFECT) SpellEffects.xp(p, spell);
+        if (dual || a.hand == RIGHT) p.swing(InteractionHand.MAIN_HAND, true);
+        if (dual || a.hand == LEFT) p.swing(InteractionHand.OFF_HAND, true);
+        if (dual) MagicFx.sound(p, SoundEvents.EVOKER_CAST_SPELL, 0.6f, 1.5f);
+        SkyData.get(p).addStat("spells_cast", 1);
+    }
+
+    /** Whether the player is holding/casting the given spell in either hand. */
     public static boolean isCasting(ServerPlayer p, String spellId) {
-        Active a = ACTIVE.get(p.getUUID());
-        return a != null && a.spell.id.equals(spellId);
+        Active[] hands = ACTIVE.get(p.getUUID());
+        if (hands == null) return false;
+        for (Active a : hands) {
+            if (a != null && a.spell.id.equals(spellId)) return true;
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------ wards
@@ -196,7 +296,13 @@ public final class SpellCasting {
         MagicFx.send(p, MagicFx.WARD, Element.HOLY, p.getEyePosition(), p.getViewVector(1f), p.getId(), 1);
         p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.AMETHYST_BLOCK_HIT, SoundSource.PLAYERS, 1.2f, 1.4f);
         if (pool <= 0.01f) {
-            stop(p);
+            Active[] hands = ACTIVE.get(p.getUUID());
+            if (hands != null) {
+                for (int h = 0; h < 2; h++) {
+                    if (hands[h] != null && hands[h].spell.id.equals("lesser_ward")) hands[h] = null;
+                }
+            }
+            WARD.remove(p.getUUID());
             p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.GLASS_BREAK, SoundSource.PLAYERS, 1f, 1.2f);
             Notifier.message(p, Component.translatable("message.skycraft.ward_broken"));
         } else {

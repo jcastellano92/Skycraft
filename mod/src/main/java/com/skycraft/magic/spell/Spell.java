@@ -62,6 +62,17 @@ public final class Spell {
     public final boolean piercing;
     /** Hostile spells mark the caster in combat and respect PvP rules. */
     public final boolean hostile;
+    /** Whether casting it with both hands at once gives a dual-cast (utility spells like summons can't). */
+    public final boolean dualCastable;
+    /**
+     * True for the dual-cast variant handed to actions/impacts by {@link #dualCast()}: its magnitude is already
+     * multiplied by {@link #DUAL_MAGNITUDE}. Illusion spells affect stronger targets and Impact staggers.
+     */
+    public final boolean dual;
+
+    /** Skyrim dual casting: 2.2x the magicka for 2.5x the effect. */
+    public static final float DUAL_COST = 2.2f;
+    public static final float DUAL_MAGNITUDE = 2.5f;
 
     private Spell(Builder b) {
         this.id = b.id;
@@ -80,6 +91,34 @@ public final class Spell {
         this.speed = b.speed;
         this.piercing = b.piercing;
         this.hostile = b.hostile;
+        this.dualCastable = b.dualCastable;
+        this.dual = false;
+    }
+
+    private Spell(Spell base, boolean dual) {
+        this.id = base.id;
+        this.school = base.school;
+        this.tier = base.tier;
+        this.type = base.type;
+        this.cost = base.cost;
+        this.magnitude = dual ? base.magnitude * DUAL_MAGNITUDE : base.magnitude;
+        this.duration = base.duration;
+        this.radius = base.radius;
+        this.chargeTicks = base.chargeTicks;
+        this.element = base.element;
+        this.action = base.action;
+        this.impact = base.impact;
+        this.flight = base.flight;
+        this.speed = base.speed;
+        this.piercing = base.piercing;
+        this.hostile = base.hostile;
+        this.dualCastable = base.dualCastable;
+        this.dual = dual;
+    }
+
+    /** The dual-cast variant of this spell (2.5x magnitude). */
+    public Spell dualCast() {
+        return dual ? this : new Spell(this, true);
     }
 
     public boolean isConcentration() {
@@ -115,6 +154,7 @@ public final class Spell {
         private float speed = 1.8f;
         private boolean piercing;
         private boolean hostile;
+        private boolean dualCastable = true;
 
         private Builder(String id, School school, Tier tier) {
             this.id = id;
@@ -181,6 +221,12 @@ public final class Spell {
 
         public Builder flight(Flight flight) {
             this.flight = flight;
+            return this;
+        }
+
+        /** Utility spells (summons, bound weapons, light...) gain nothing from dual casting. */
+        public Builder noDual() {
+            this.dualCastable = false;
             return this;
         }
 

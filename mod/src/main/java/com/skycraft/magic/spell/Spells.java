@@ -77,40 +77,40 @@ public final class Spells {
         add(s("guardian_circle", R, MAS).ff(1043).mag(4f).radius(6).seconds(30).charge(40).element(Element.HOLY).action(SpellEffects::guardianCircle));
 
         // ------------------------------------------------------------------ Alteration
-        add(s("candlelight", A, NOV).ff(21).seconds(60).element(Element.ARCANE).action(Candlelight::cast));
+        add(s("candlelight", A, NOV).ff(21).seconds(60).element(Element.ARCANE).action(Candlelight::cast).noDual());
         add(s("oakflesh", A, NOV).ff(98).mag(4).seconds(60).element(Element.NATURE).action(SpellEffects::flesh));
         add(s("stoneflesh", A, APP).ff(194).mag(6).seconds(60).element(Element.NATURE).action(SpellEffects::flesh));
-        add(s("detect_life", A, APP).ff(114).radius(48).seconds(15).element(Element.ARCANE).action(SpellEffects::detectLife));
-        add(s("waterbreathing", A, APP).ff(134).seconds(60).element(Element.ARCANE).action(SpellEffects::waterbreathing));
+        add(s("detect_life", A, APP).ff(114).radius(48).seconds(15).element(Element.ARCANE).action(SpellEffects::detectLife).noDual());
+        add(s("waterbreathing", A, APP).ff(134).seconds(60).element(Element.ARCANE).action(SpellEffects::waterbreathing).noDual());
         add(s("ironflesh", A, ADE).ff(286).mag(8).seconds(60).element(Element.NATURE).action(SpellEffects::flesh));
-        add(s("transmute", A, ADE).ff(142).element(Element.ARCANE).action(SpellEffects::transmute));
+        add(s("transmute", A, ADE).ff(142).element(Element.ARCANE).action(SpellEffects::transmute).noDual());
         add(s("ebonyflesh", A, EXP).ff(335).mag(10).seconds(60).element(Element.NATURE).action(SpellEffects::flesh));
         add(s("paralyze", A, EXP).ff(444).seconds(10).element(Element.ARCANE).hostile().projectile(2.5f, SpellEffects::paralyzeHit));
         add(s("mass_paralysis", A, MAS).ff(1100).seconds(15).radius(6).charge(40).element(Element.ARCANE).hostile()
                 .projectile(2.0f, SpellEffects::massParalysisHit));
 
         // ------------------------------------------------------------------ Conjuration
-        add(s("conjure_familiar", C, NOV).ff(105).seconds(60).element(Element.CONJURE).action(Summons::familiar));
-        add(s("bound_sword", C, NOV).ff(105).seconds(120).element(Element.CONJURE).action(BoundWeapons::sword));
-        add(s("raise_zombie", C, NOV).ff(80).seconds(60).element(Element.SOUL).action(Summons::zombie));
-        add(s("soul_trap", C, NOV).ff(98).seconds(60).element(Element.SOUL).hostile().projectile(2.0f, SpellEffects::soulTrapHit));
-        add(s("conjure_flame_atronach", C, APP).ff(122).seconds(60).element(Element.FIRE).action(Summons::flameAtronach));
-        add(s("bound_bow", C, APP).ff(145).seconds(120).element(Element.CONJURE).action(BoundWeapons::bow));
-        add(s("conjure_frost_atronach", C, ADE).ff(158).seconds(60).element(Element.FROST).action(Summons::frostAtronach));
-        add(s("bound_battleaxe", C, ADE).ff(140).seconds(120).element(Element.CONJURE).action(BoundWeapons::battleaxe));
-        add(s("conjure_storm_atronach", C, EXP).ff(223).seconds(60).element(Element.SHOCK).action(Summons::stormAtronach));
-        add(s("conjure_dremora_lord", C, MAS).ff(600).seconds(60).charge(40).element(Element.CONJURE).action(Summons::dremoraLord));
+        add(s("conjure_familiar", C, NOV).ff(105).seconds(60).element(Element.CONJURE).action(Summons::familiar).noDual());
+        add(s("bound_sword", C, NOV).ff(105).seconds(120).element(Element.CONJURE).action(BoundWeapons::sword).noDual());
+        add(s("raise_zombie", C, NOV).ff(80).seconds(60).element(Element.SOUL).action(Summons::zombie).noDual());
+        add(s("soul_trap", C, NOV).ff(98).seconds(60).element(Element.SOUL).hostile().projectile(2.0f, SpellEffects::soulTrapHit).noDual());
+        add(s("conjure_flame_atronach", C, APP).ff(122).seconds(60).element(Element.FIRE).action(Summons::flameAtronach).noDual());
+        add(s("bound_bow", C, APP).ff(145).seconds(120).element(Element.CONJURE).action(BoundWeapons::bow).noDual());
+        add(s("conjure_frost_atronach", C, ADE).ff(158).seconds(60).element(Element.FROST).action(Summons::frostAtronach).noDual());
+        add(s("bound_battleaxe", C, ADE).ff(140).seconds(120).element(Element.CONJURE).action(BoundWeapons::battleaxe).noDual());
+        add(s("conjure_storm_atronach", C, EXP).ff(223).seconds(60).element(Element.SHOCK).action(Summons::stormAtronach).noDual());
+        add(s("conjure_dremora_lord", C, MAS).ff(600).seconds(60).charge(40).element(Element.CONJURE).action(Summons::dremoraLord).noDual());
 
         // ------------------------------------------------------------------ Illusion
         add(s("fury", I, NOV).ff(47).seconds(30).element(Element.MIND).projectile(2.0f, Illusion::furyHit));
         add(s("courage", I, NOV).ff(39).seconds(60).radius(24).element(Element.MIND).action(Illusion::courage));
         add(s("calm", I, APP).ff(85).seconds(30).element(Element.MIND).projectile(2.0f, Illusion::calmHit));
         add(s("fear", I, APP).ff(95).seconds(30).element(Element.MIND).projectile(2.0f, Illusion::fearHit));
-        add(s("muffle", I, APP).ff(144).seconds(180).element(Element.MIND).action(Illusion::muffle));
+        add(s("muffle", I, APP).ff(144).seconds(180).element(Element.MIND).action(Illusion::muffle).noDual());
         add(s("pacify", I, ADE).ff(166).seconds(60).radius(7).element(Element.MIND).projectile(1.8f, Illusion::pacifyHit));
         add(s("rally", I, ADE).ff(140).seconds(60).radius(12).element(Element.MIND).action(Illusion::rally));
         add(s("frenzy", I, ADE).ff(165).seconds(60).radius(7).element(Element.MIND).projectile(1.8f, Illusion::frenzyHit));
-        add(s("invisibility", I, EXP).ff(334).seconds(30).element(Element.MIND).action(Illusion::invisibility));
+        add(s("invisibility", I, EXP).ff(334).seconds(30).element(Element.MIND).action(Illusion::invisibility).noDual());
         add(s("harmony", I, MAS).ff(1078).seconds(60).radius(24).charge(40).element(Element.MIND).action(Illusion::harmony));
         add(s("mayhem", I, MAS).ff(1146).seconds(60).radius(24).charge(40).element(Element.MIND).action(Illusion::mayhem));
     }

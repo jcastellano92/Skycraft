@@ -1,0 +1,332 @@
+package com.skycraft.inventory;
+
+import com.skycraft.combat.WeaponClass;
+import com.skycraft.core.Notifier;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetCarriedItemPacket;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.food.FoodProperties;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Equipable;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraftforge.event.ForgeEventFactory;
+import org.jetbrains.annotations.Nullable;
+
+/**
+ * Server side of the Skyrim inventory screen and the favorites menu. Every request names a slot of the player's own
+ * inventory and the item expected there; anything that doesn't match the server's state is ignored.
+ */
+public final class InventoryActions {
+    /** {@link Inventory#getItem(int)} index of the first armor slot (feet); head is {@code ARMOR_START + 3}. */
+    public static final int ARMOR_START = Inventory.INVENTORY_SIZE;
+    public static final int OFFHAND = Inventory.SLOT_OFFHAND;
+    public static final int SLOT_COUNT = OFFHAND + 1;
+
+    private InventoryActions() {}
+
+    static void handle(ServerPlayer player, int action, int slot, ResourceLocation itemId) {
+        if (!player.isAlive() || player.isSpectator()) return;
+        // only while no other container is open (the Skyrim screen is not a container screen)
+        if (player.containerMenu != player.inventoryMenu) return;
+        if (!player.inventoryMenu.getCarried().isEmpty()) return;
+        Inventory inv = player.getInventory();
+        if (slot < 0 || slot >= SLOT_COUNT || slot >= inv.getContainerSize()) return;
+        ItemStack stack = inv.getItem(slot);
+        if (stack.isEmpty() || !BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(itemId)) return;
+
+        switch (action) {
+            case InventoryPackets.InvAction.EQUIP -> equip(player, inv, slot, stack);
+            case InventoryPackets.InvAction.EQUIP_LEFT -> equipLeft(player, inv, slot, stack);
+            case InventoryPackets.InvAction.USE -> use(player, inv, slot, stack);
+            case InventoryPackets.InvAction.DROP_ONE -> drop(player, inv, slot, stack, false);
+            case InventoryPackets.InvAction.DROP_ALL -> drop(player, inv, slot, stack, true);
+            case InventoryPackets.InvAction.FAVORITE -> favorite(inv, stack);
+            case InventoryPackets.InvAction.READ -> read(player, inv, slot, stack, itemId);
+            default -> {
+                return;
+            }
+        }
+        CarryWeight.invalidate(player);
+    }
+
+    // ------------------------------------------------------------------ slot helpers
+
+    public static boolean isArmorSlot(int slot) {
+        return slot >= ARMOR_START && slot < ARMOR_START + 4;
+    }
+
+    /** Armor slot / offhand / the selected hotbar slot. */
+    public static boolean isEquipped(Inventory inv, int slot) {
+        return isArmorSlot(slot) || slot == OFFHAND || slot == inv.selected;
+    }
+
+    /** The armor or offhand slot an item goes to, or null for "hold it in the right hand". */
+    @Nullable
+    public static EquipmentSlot equipSlotFor(ItemStack stack) {
+        EquipmentSlot forge = stack.getEquipmentSlot();
+        if (forge != null && forge != EquipmentSlot.MAINHAND) return forge;
+        Equipable eq = null;
+        if (stack.getItem() instanceof Equipable e) eq = e;
+        else if (stack.getItem() instanceof BlockItem bi && bi.getBlock() instanceof Equipable e) eq = e;
+        if (eq == null) return null;
+        EquipmentSlot s = eq.getEquipmentSlot();
+        return s == EquipmentSlot.MAINHAND ? null : s;
+    }
+
+    private static int armorIndex(EquipmentSlot slot) {
+        return ARMOR_START + slot.getIndex();
+    }
+
+    /** A free slot, main inventory (9-35) first, then the hotbar. -1 if the inventory is full. */
+    private static int freeSlot(Inventory inv) {
+        for (int i = Inventory.getSelectionSize(); i < Inventory.INVENTORY_SIZE; i++) if (inv.getItem(i).isEmpty()) return i;
+        for (int i = 0; i < Inventory.getSelectionSize(); i++) if (inv.getItem(i).isEmpty()) return i;
+        return -1;
+    }
+
+    private static int freeHotbarSlot(Inventory inv) {
+        for (int i = 0; i < Inventory.getSelectionSize(); i++) if (inv.getItem(i).isEmpty()) return i;
+        return -1;
+    }
+
+    private static void select(ServerPlayer player, int hotbarSlot) {
+        if (player.getInventory().selected == hotbarSlot) return;
+        player.getInventory().selected = hotbarSlot;
+        player.connection.send(new ClientboundSetCarriedItemPacket(hotbarSlot));
+    }
+
+    private static boolean bound(ServerPlayer player, ItemStack stack) {
+        return !player.isCreative() && EnchantmentHelper.hasBindingCurse(stack);
+    }
+
+    private static void message(ServerPlayer player, String key) {
+        Notifier.message(player, Component.translatable("inventory.skycraft.msg." + key));
+    }
+
+    // ------------------------------------------------------------------ equip
+
+    private static void equip(ServerPlayer player, Inventory inv, int slot, ItemStack stack) {
+        if (isArmorSlot(slot) || slot == OFFHAND) {
+            unequip(player, inv, slot, stack);
+            return;
+        }
+        EquipmentSlot target = equipSlotFor(stack);
+        if (target != null && target.getType() == EquipmentSlot.Type.ARMOR) {
+            wear(player, inv, slot, stack, target);
+        } else if (target == EquipmentSlot.OFFHAND) {
+            equipLeft(player, inv, slot, stack);
+        } else if (slot == inv.selected) {
+            unequip(player, inv, slot, stack);
+        } else {
+            holdRight(player, inv, slot, stack);
+        }
+    }
+
+    private static void wear(ServerPlayer player, Inventory inv, int slot, ItemStack stack, EquipmentSlot target) {
+        ItemStack worn = inv.getItem(armorIndex(target));
+        if (!worn.isEmpty() && bound(player, worn)) {
+            message(player, "bound");
+            return;
+        }
+        if (stack.getCount() > 1) {
+            ItemStack one = stack.split(1);
+            player.setItemSlot(target, one);
+            if (!worn.isEmpty() && !inv.add(worn)) player.drop(worn, false);
+        } else {
+            inv.setItem(slot, ItemStack.EMPTY);
+            player.setItemSlot(target, stack);
+            inv.setItem(slot, worn);
+        }
+    }
+
+    /** Moves an item into the right hand (selected hotbar slot), keeping the hotbar tidy. */
+    private static void holdRight(ServerPlayer player, Inventory inv, int slot, ItemStack stack) {
+        if (Inventory.isHotbarSlot(slot)) {
+            select(player, slot);
+        } else {
+            int sel = inv.selected;
+            ItemStack held = inv.getItem(sel);
+            if (held.isEmpty()) {
+                inv.setItem(slot, ItemStack.EMPTY);
+                inv.setItem(sel, stack);
+            } else {
+                int free = freeHotbarSlot(inv);
+                if (free >= 0) {
+                    inv.setItem(slot, ItemStack.EMPTY);
+                    inv.setItem(free, stack);
+                    select(player, free);
+                } else {
+                    inv.setItem(slot, held);
+                    inv.setItem(sel, stack);
+                }
+            }
+        }
+        // Two-handed weapons need both hands: put away whatever is in the left hand if there's room.
+        if (WeaponClass.of(stack).twoHanded()) {
+            ItemStack off = inv.getItem(OFFHAND);
+            if (!off.isEmpty()) {
+                int free = freeSlot(inv);
+                if (free >= 0) {
+                    inv.setItem(OFFHAND, ItemStack.EMPTY);
+                    inv.setItem(free, off);
+                }
+            }
+        }
+    }
+
+    private static void equipLeft(ServerPlayer player, Inventory inv, int slot, ItemStack stack) {
+        if (slot == OFFHAND) {
+            unequip(player, inv, slot, stack);
+            return;
+        }
+        if (isArmorSlot(slot)) return;
+        EquipmentSlot target = equipSlotFor(stack);
+        if (target != null && target.getType() == EquipmentSlot.Type.ARMOR) return; // armor can't be held
+        ItemStack off = inv.getItem(OFFHAND);
+        inv.setItem(slot, ItemStack.EMPTY);
+        player.setItemSlot(EquipmentSlot.OFFHAND, stack);
+        inv.setItem(slot, off);
+    }
+
+    private static void unequip(ServerPlayer player, Inventory inv, int slot, ItemStack stack) {
+        if (isArmorSlot(slot) && bound(player, stack)) {
+            message(player, "bound");
+            return;
+        }
+        if (slot == inv.selected && Inventory.isHotbarSlot(slot)) {
+            // put the weapon away into the backpack; with a full backpack, just switch to an empty hand
+            for (int i = Inventory.getSelectionSize(); i < Inventory.INVENTORY_SIZE; i++) {
+                if (inv.getItem(i).isEmpty()) {
+                    inv.setItem(slot, ItemStack.EMPTY);
+                    inv.setItem(i, stack);
+                    return;
+                }
+            }
+            int empty = freeHotbarSlot(inv);
+            if (empty >= 0) select(player, empty);
+            else message(player, "full");
+            return;
+        }
+        int free = freeSlot(inv);
+        if (free < 0) {
+            message(player, "full");
+            return;
+        }
+        inv.setItem(slot, ItemStack.EMPTY);
+        inv.setItem(free, stack);
+    }
+
+    // ------------------------------------------------------------------ use / read
+
+    private static void use(ServerPlayer player, Inventory inv, int slot, ItemStack stack) {
+        if (!InvCategory.isConsumable(stack)) return;
+        if (stack.isEdible()) {
+            FoodProperties food = stack.getFoodProperties(player);
+            if (food != null && !player.canEat(food.canAlwaysEat())) {
+                message(player, "not_hungry");
+                return;
+            }
+        }
+        boolean drink = stack.getUseAnimation() == UseAnim.DRINK;
+        ItemStack before = stack.copy();
+        // Same sequence as LivingEntity#completeUsingItem, so food/potion effects, advancements and
+        // LivingEntityUseItemEvent.Finish listeners (Skyrim food healing) all run.
+        ItemStack result = stack.finishUsingItem(player.level(), player);
+        result = ForgeEventFactory.onItemUseFinish(player, before, 0, result);
+        if (result != stack) {
+            if (stack.isEmpty()) {
+                inv.setItem(slot, result);
+            } else if (!result.isEmpty() && !inv.add(result)) {
+                player.drop(result, false);
+            }
+        } else if (stack.isEmpty()) {
+            inv.setItem(slot, ItemStack.EMPTY);
+        }
+        if (drink) {
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.GENERIC_DRINK,
+                    SoundSource.PLAYERS, 0.5f, player.level().random.nextFloat() * 0.1f + 0.9f);
+        }
+    }
+
+    /** Puts a book in the right hand and asks the client to use it the vanilla way (opens it / learns the spell). */
+    private static void read(ServerPlayer player, Inventory inv, int slot, ItemStack stack, ResourceLocation itemId) {
+        if (!InvCategory.isReadable(stack)) return;
+        if (slot != inv.selected) {
+            if (isArmorSlot(slot)) return;
+            if (slot == OFFHAND) {
+                ItemStack held = inv.getItem(inv.selected);
+                inv.setItem(OFFHAND, held);
+                inv.setItem(inv.selected, stack);
+            } else {
+                holdRight(player, inv, slot, stack);
+            }
+        }
+        // push the slot changes now so they reach the client before the UseHeld request
+        player.inventoryMenu.broadcastChanges();
+        com.skycraft.network.SkyNetwork.sendToPlayer(player, new InventoryPackets.UseHeld(itemId));
+    }
+
+    // ------------------------------------------------------------------ drop / favorite
+
+    private static void drop(ServerPlayer player, Inventory inv, int slot, ItemStack stack, boolean all) {
+        if (isArmorSlot(slot) && bound(player, stack)) {
+            message(player, "bound");
+            return;
+        }
+        if (!all) {
+            toss(player, inv, inv.removeItem(slot, 1));
+            return;
+        }
+        if (isEquipped(inv, slot)) {
+            toss(player, inv, inv.removeItem(slot, stack.getCount()));
+            return;
+        }
+        // "drop all" drops the whole row of the list: every unequipped stack of this exact item
+        ItemStack template = stack.copy();
+        for (int i = 0; i < Inventory.INVENTORY_SIZE; i++) {
+            if (i == inv.selected) continue;
+            ItemStack s = inv.getItem(i);
+            if (!s.isEmpty() && ItemStack.isSameItemSameTags(s, template)) toss(player, inv, inv.removeItem(i, s.getCount()));
+        }
+    }
+
+    private static void toss(ServerPlayer player, Inventory inv, ItemStack stack) {
+        if (stack.isEmpty()) return;
+        ItemEntity entity = player.drop(stack, true);
+        if (entity == null) {
+            // a mod cancelled the toss: don't let the item vanish
+            if (!inv.add(stack)) player.drop(stack, false, false);
+        }
+    }
+
+    /** Toggles the favorite mark on every stack of this exact item (the whole list row). */
+    private static void favorite(Inventory inv, ItemStack stack) {
+        boolean fav = !InvCategory.isFavorite(stack);
+        ItemStack template = stack.copy();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack s = inv.getItem(i);
+            if (s.isEmpty() || !ItemStack.isSameItemSameTags(s, template)) continue;
+            setFavorite(s, fav);
+            inv.setChanged();
+        }
+    }
+
+    static void setFavorite(ItemStack stack, boolean fav) {
+        if (fav) {
+            stack.getOrCreateTag().putBoolean(InvCategory.FAVORITE_NBT, true);
+        } else {
+            CompoundTag tag = stack.getTag();
+            if (tag != null) stack.removeTagKey(InvCategory.FAVORITE_NBT);
+        }
+    }
+}

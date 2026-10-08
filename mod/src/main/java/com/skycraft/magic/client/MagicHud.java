@@ -5,6 +5,7 @@ import com.skycraft.core.SkyData;
 import com.skycraft.magic.MagicData;
 import com.skycraft.magic.shout.Shout;
 import com.skycraft.magic.spell.Spell;
+import com.skycraft.magic.spell.SpellCasting;
 import com.skycraft.magic.spell.SpellMath;
 import com.skycraft.magic.spell.Spells;
 import net.minecraft.Util;
@@ -31,20 +32,15 @@ public final class MagicHud {
         Font font = mc.font;
         PlayerData data = SkyData.get(player);
 
-        // ---------------------------------------------------------- equipped spell (bottom left)
-        Spell spell = Spells.byId(MagicData.selectedSpell(player));
-        if (spell != null) {
-            int x = 12;
-            int y = height - 27;
-            float cost = SpellMath.cost(player, spell);
-            boolean affordable = player.isCreative() || data.getMagicka() >= (spell.isConcentration() ? cost / 5f : cost);
-            boolean casting = MagicClientEvents.isCasting();
-            gem(g, x + 3, y + 3, spell.school.color, casting);
-            Component name = spell.displayName();
-            g.drawString(font, name, x + 9, y, casting ? 0xFFFFFFFF : 0xFFE8E2D0, true);
-            String costText = spell.isConcentration() ? Math.round(cost) + "/s" : String.valueOf(Math.round(cost));
-            g.drawString(font, costText, x + 13 + font.width(name), y, affordable ? 0xFF7FB2FF : 0xFFD06060, true);
-        }
+        // ---------------------------------------------------------- hand spells
+        // Left hand above the magicka bar (bottom left), right hand above the voice meter (bottom right).
+        Spell left = Spells.byId(MagicData.leftSpell(player));
+        Spell right = Spells.byId(MagicData.selectedSpell(player));
+        Spell leftCast = MagicClientEvents.spellIn(player, SpellCasting.LEFT);
+        boolean dual = MagicClientEvents.isCasting(SpellCasting.LEFT) && MagicClientEvents.isCasting(SpellCasting.RIGHT)
+                && leftCast != null && leftCast == right && right.dualCastable;
+        if (left != null) drawSpell(g, font, player, data, left, 12, height - 27, false, MagicClientEvents.isCasting(SpellCasting.LEFT), dual);
+        if (right != null) drawSpell(g, font, player, data, right, width - 12, height - 42, true, MagicClientEvents.isCasting(SpellCasting.RIGHT), dual);
 
         // ---------------------------------------------------------- equipped shout (bottom right)
         Shout shout = Shout.byId(MagicData.selectedShout(player));
@@ -57,7 +53,7 @@ public final class MagicHud {
             long total = MagicData.shoutCooldownTotal(player);
             float remaining = ready > now && total > 0 ? Mth.clamp((ready - now) / (float) total, 0, 1) : 0;
 
-            int right = width - 12;
+            int rightEdge = width - 12;
             int y = height - 29;
             int shown = Math.max(1, Math.max(learned, usable));
             int[] widths = new int[shown];
@@ -66,7 +62,7 @@ public final class MagicHud {
                 widths[i] = font.width(shout.word(i));
                 totalWidth += widths[i] + (i > 0 ? 5 : 0);
             }
-            int x = right - totalWidth;
+            int x = rightEdge - totalWidth;
             for (int i = 0; i < shown; i++) {
                 int color;
                 if (i < charging) color = 0xFFFFFFFF;
@@ -77,9 +73,9 @@ public final class MagicHud {
             }
             // Voice meter: refills while the shout recharges.
             int meterW = Math.max(40, totalWidth);
-            int mx = right - meterW;
+            int mx = rightEdge - meterW;
             int my = y + 10;
-            g.fill(mx - 1, my - 1, right + 1, my + 3, 0xB0101010);
+            g.fill(mx - 1, my - 1, rightEdge + 1, my + 3, 0xB0101010);
             int fill = (int) (meterW * (1 - remaining));
             g.fill(mx, my, mx + fill, my + 2, remaining > 0 ? 0xFF6A88A8 : 0xFFE8F4FF);
         }
@@ -114,6 +110,20 @@ public final class MagicHud {
                 }
             }
         }
+    }
+
+    /** One hand's spell: gem, name and magicka cost; right-aligned for the right hand. */
+    private static void drawSpell(GuiGraphics g, Font font, LocalPlayer player, PlayerData data, Spell spell, int anchor, int y,
+                                  boolean alignRight, boolean casting, boolean dual) {
+        float cost = SpellMath.cost(player, spell) * (dual ? Spell.DUAL_COST : 1f);
+        boolean affordable = player.isCreative() || data.getMagicka() >= (spell.isConcentration() ? cost / 5f : cost);
+        Component name = spell.displayName();
+        String costText = (spell.isConcentration() ? Math.round(cost) + "/s" : String.valueOf(Math.round(cost))) + (dual ? " x2" : "");
+        int width = 9 + font.width(name) + 4 + font.width(costText);
+        int x = alignRight ? anchor - width : anchor;
+        gem(g, x + 3, y + 3, spell.school.color, casting);
+        g.drawString(font, name, x + 9, y, casting ? 0xFFFFFFFF : 0xFFE8E2D0, true);
+        g.drawString(font, costText, x + 13 + font.width(name), y, affordable ? 0xFF7FB2FF : 0xFFD06060, true);
     }
 
     /** A small diamond "spell gem" in the school color. */

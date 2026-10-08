@@ -181,15 +181,17 @@ public class MagicMenuScreen extends Screen {
     private boolean isEquipped(Entry e) {
         LocalPlayer p = player();
         return switch (e.kind) {
-            case SPELL -> e.id.equals(MagicData.selectedSpell(p));
+            case SPELL -> e.id.equals(MagicData.selectedSpell(p)) || e.id.equals(MagicData.leftSpell(p));
             case SHOUT -> e.id.equals(MagicData.selectedShout(p));
             case POWER -> true;
         };
     }
 
-    private void equip(Entry e) {
+    /** Skyrim style: left click equips the right hand, right click the left hand. */
+    private void equip(Entry e, boolean leftHand) {
         switch (e.kind) {
-            case SPELL -> SkyNetwork.sendToServer(new MagicPackets.MenuAction(MagicPackets.MenuAction.SELECT_SPELL, e.id));
+            case SPELL -> SkyNetwork.sendToServer(new MagicPackets.MenuAction(
+                    leftHand ? MagicPackets.MenuAction.SELECT_LEFT : MagicPackets.MenuAction.SELECT_SPELL, e.id));
             case SHOUT -> SkyNetwork.sendToServer(new MagicPackets.MenuAction(MagicPackets.MenuAction.SELECT_SHOUT, e.id));
             default -> {
                 return;
@@ -244,8 +246,8 @@ public class MagicMenuScreen extends Screen {
         if (row >= 0) {
             cursor = row;
             Entry e = entries.get(row);
-            if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) favorite(e);
-            else equip(e);
+            if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) favorite(e);
+            else equip(e, button == GLFW.GLFW_MOUSE_BUTTON_RIGHT);
             return true;
         }
         return false;
@@ -297,7 +299,11 @@ public class MagicMenuScreen extends Screen {
                 return true;
             }
             case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_E -> {
-                if (cursor >= 0 && cursor < entries.size()) equip(entries.get(cursor));
+                if (cursor >= 0 && cursor < entries.size()) equip(entries.get(cursor), false);
+                return true;
+            }
+            case GLFW.GLFW_KEY_Q -> {
+                if (cursor >= 0 && cursor < entries.size()) equip(entries.get(cursor), true);
                 return true;
             }
             case GLFW.GLFW_KEY_F -> {
@@ -380,7 +386,11 @@ public class MagicMenuScreen extends Screen {
                 Spell s = Spells.byId(e.id);
                 if (s != null) {
                     String cost = costText(p, s);
-                    g.drawString(font, cost, listX + listW - 14 - font.width(cost), y + 2, 0xFF7FB2FF, false);
+                    int cx = listX + listW - 14 - font.width(cost);
+                    g.drawString(font, cost, cx, y + 2, 0xFF7FB2FF, false);
+                    // Hand markers: L / R
+                    String hands = (e.id.equals(MagicData.leftSpell(p)) ? "L" : "") + (e.id.equals(MagicData.selectedSpell(p)) ? "R" : "");
+                    if (!hands.isEmpty()) g.drawString(font, hands, cx - 6 - font.width(hands), y + 2, 0xFF000000 | e.color, false);
                 }
             } else if (e.kind == Kind.SHOUT) {
                 Shout sh = Shout.byId(e.id);
@@ -451,7 +461,18 @@ public class MagicMenuScreen extends Screen {
         Component cast = Component.translatable(s.isConcentration() ? "magic.skycraft.cast_concentration"
                 : s.chargeTicks > 0 ? "magic.skycraft.cast_charged" : "magic.skycraft.cast_fire_and_forget");
         g.drawString(font, cast, detailX, y, 0xFFA09A8A, false);
-        y += 16;
+        y += 12;
+        boolean inLeft = s.id.equals(MagicData.leftSpell(p));
+        boolean inRight = s.id.equals(MagicData.selectedSpell(p));
+        Component hands = Component.translatable(inLeft && inRight ? "magic.skycraft.equipped_both" : inLeft ? "magic.skycraft.equipped_left"
+                : inRight ? "magic.skycraft.equipped_right" : "magic.skycraft.equip_hint");
+        g.drawString(font, hands, detailX, y, inLeft || inRight ? 0xFF90D090 : 0xFF807A6A, false);
+        y += 12;
+        if (s.dualCastable) {
+            g.drawString(font, Component.translatable("magic.skycraft.dual_hint", Math.round(SpellMath.cost(p, s) * Spell.DUAL_COST)), detailX, y, 0xFF8A9AAA, false);
+            y += 12;
+        }
+        y += 4;
         paragraph(g, font, s.description(), y, 0xFFD8D2C0);
     }
 

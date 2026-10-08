@@ -104,6 +104,14 @@ public class PartyScreen extends Screen {
         membersY = y;
         if (inParty) {
             for (ClientQuestData.Member m : members) {
+                if (m.online() && !m.id().equals(self())) {
+                    UUID id = m.id();
+                    String name = m.name();
+                    boolean isLead = id.equals(ClientQuestData.leader());
+                    addRenderableWidget(Button.builder(Component.translatable("party.skycraft.button.travel"),
+                                    b -> minecraft.setScreen(new PartyTravelScreen(id, name, isLead, this)))
+                            .bounds(x1 - 148, y - 3, 44, 14).build());
+                }
                 if (leader && !m.id().equals(self())) {
                     UUID id = m.id();
                     addRenderableWidget(Button.builder(Component.translatable("party.skycraft.button.kick"), b -> send(QuestPackets.PartyAction.KICK, id))

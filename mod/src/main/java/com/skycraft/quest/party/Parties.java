@@ -32,6 +32,10 @@ public final class Parties {
     private static final Map<UUID, List<Invite>> INVITES = new HashMap<>();
     /** Players who were last sent a non-empty party state (so they get one "empty" update when it ends). */
     private static final Set<UUID> SYNCED = new HashSet<>();
+    /** Players who should be asked "fast travel to your party?" once their client has settled (server tick due). */
+    private static final Map<UUID, Integer> PROMPTS = new HashMap<>();
+    /** Delay after login before the travel prompt is shown, so it isn't swallowed by the loading screen. */
+    private static final int LOGIN_PROMPT_DELAY = 100;
 
     public record Invite(UUID partyId, UUID inviter, String inviterName, long expires) {
     }
@@ -163,6 +167,7 @@ public final class Parties {
         broadcast(server, party, msg("joined", player.getDisplayName()));
         Quests.onPartyChanged(server, player.getUUID());
         syncParty(server, party);
+        PartyTravel.sendPrompt(player);
         return true;
     }
 
@@ -278,18 +283,21 @@ public final class Parties {
             for (ServerPlayer other : onlineMembers(player.server, party)) {
                 if (other != player) other.sendSystemMessage(msg("member_online", player.getDisplayName()));
             }
+            PROMPTS.put(player.getUUID(), player.server.getTickCount() + LOGIN_PROMPT_DELAY);
         }
         sync(player);
     }
 
     public static void onLogout(ServerPlayer player) {
         SYNCED.remove(player.getUUID());
+        PROMPTS.remove(player.getUUID());
     }
 
     /** Clears transient state when the server stops (integrated servers reuse the JVM). */
     public static void reset() {
         INVITES.clear();
         SYNCED.clear();
+        PROMPTS.clear();
     }
 
     // ------------------------------------------------------------------ sync
@@ -297,6 +305,16 @@ public final class Parties {
     /** Sends the party state (members, health, invites) to everyone who needs it. Called once a second. */
     public static void tick(MinecraftServer server) {
         for (ServerPlayer p : server.getPlayerList().getPlayers()) sync(p);
+        if (PROMPTS.isEmpty()) return;
+        int now = server.getTickCount();
+        Iterator<Map.Entry<UUID, Integer>> it = PROMPTS.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, Integer> e = it.next();
+            if (e.getValue() > now) continue;
+            it.remove();
+            ServerPlayer p = server.getPlayerList().getPlayer(e.getKey());
+            if (p != null) PartyTravel.sendPrompt(p);
+        }
     }
 
     public static void syncParty(MinecraftServer server, Party party) {
@@ -333,6 +351,10 @@ public final class Parties {
                     m.putFloat("health", p.getHealth());
                     m.putFloat("max", p.getMaxHealth());
                     m.putString("dim", p.level().dimension().location().toString());
+                    // positions for the world map and compass, even far outside tracking range
+                    m.putDouble("x", p.getX());
+                    m.putDouble("y", p.getY());
+                    m.putDouble("z", p.getZ());
                 }
                 members.add(m);
             });

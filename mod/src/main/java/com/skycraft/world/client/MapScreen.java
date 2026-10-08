@@ -8,6 +8,8 @@ import com.skycraft.client.SkyKeys;
 import com.skycraft.core.Holds;
 import com.skycraft.core.SkyData;
 import com.skycraft.network.SkyNetwork;
+import com.skycraft.quest.QuestPackets;
+import com.skycraft.quest.client.ClientQuestData;
 import com.skycraft.world.LocationKind;
 import com.skycraft.world.SkyrimCalendar;
 import com.skycraft.world.WorldData;
@@ -25,6 +27,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -56,6 +59,9 @@ public class MapScreen extends Screen {
     private double dragDistance;
     private CompoundTag hoveredLocation;
     private CompoundTag pendingTravel;
+    /** Party member under the cursor / chosen for fast travel (quest module's party sync). */
+    private ClientQuestData.Member hoveredMember;
+    private ClientQuestData.Member pendingMember;
     private List<Component> tooltip;
     private Button yesButton, noButton;
 
@@ -81,7 +87,7 @@ public class MapScreen extends Screen {
         int cy = height / 2;
         yesButton = addRenderableWidget(Button.builder(Component.translatable("gui.yes"), b -> confirmTravel())
                 .bounds(cx - 62, cy + 10, 60, 20).build());
-        noButton = addRenderableWidget(Button.builder(Component.translatable("gui.no"), b -> pendingTravel = null)
+        noButton = addRenderableWidget(Button.builder(Component.translatable("gui.no"), b -> cancelTravel())
                 .bounds(cx + 2, cy + 10, 60, 20).build());
         updateButtons();
     }
@@ -92,7 +98,13 @@ public class MapScreen extends Screen {
     }
 
     private void updateButtons() {
-        if (yesButton != null) yesButton.visible = noButton.visible = pendingTravel != null;
+        if (yesButton != null) yesButton.visible = noButton.visible = pendingTravel != null || pendingMember != null;
+    }
+
+    private void cancelTravel() {
+        pendingTravel = null;
+        pendingMember = null;
+        updateButtons();
     }
 
     @Override
@@ -112,6 +124,12 @@ public class MapScreen extends Screen {
     }
 
     private void confirmTravel() {
+        if (pendingMember != null) {
+            SkyNetwork.sendToServer(new QuestPackets.PartyTravel(pendingMember.id()));
+            pendingMember = null;
+            onClose();
+            return;
+        }
         if (pendingTravel != null) {
             SkyNetwork.sendToServer(new WorldPackets.FastTravel(pendingTravel.getString("id")));
             pendingTravel = null;
@@ -154,9 +172,8 @@ public class MapScreen extends Screen {
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         if (super.mouseClicked(mx, my, button)) return true;
-        if (pendingTravel != null) {
-            pendingTravel = null;
-            updateButtons();
+        if (pendingTravel != null || pendingMember != null) {
+            cancelTravel();
             return true;
         }
         if (button == 0 && onMap(mx, my)) {
@@ -182,7 +199,10 @@ public class MapScreen extends Screen {
     public boolean mouseReleased(double mx, double my, int button) {
         if (button == 0 && pressedOnMap) {
             pressedOnMap = false;
-            if (dragDistance < 4 && hoveredLocation != null) {
+            if (dragDistance < 4 && hoveredMember != null) {
+                pendingMember = hoveredMember;
+                updateButtons();
+            } else if (dragDistance < 4 && hoveredLocation != null) {
                 pendingTravel = hoveredLocation;
                 updateButtons();
             }
@@ -208,14 +228,13 @@ public class MapScreen extends Screen {
 
     @Override
     public boolean keyPressed(int key, int scan, int mods) {
-        if (pendingTravel != null) {
+        if (pendingTravel != null || pendingMember != null) {
             if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
                 confirmTravel();
                 return true;
             }
             if (key == GLFW.GLFW_KEY_ESCAPE) {
-                pendingTravel = null;
-                updateButtons();
+                cancelTravel();
                 return true;
             }
         }
@@ -248,6 +267,7 @@ public class MapScreen extends Screen {
         Player player = minecraft.player;
         tooltip = null;
         hoveredLocation = null;
+        hoveredMember = null;
 
         // frame and paper
         g.fill(left - 5, top - 5, right + 5, bottom + 5, 0xFF1E140A);
@@ -261,15 +281,16 @@ public class MapScreen extends Screen {
         drawLocations(g, level, player, mouseX, mouseY);
         drawQuestMarkers(g, level, mouseX, mouseY);
         drawPlayers(g, level, player, partialTick, mouseX, mouseY);
+        drawPartyMembers(g, level, player, mouseX, mouseY);
         g.disableScissor();
         drawVignette(g);
 
         drawHeader(g, level, player);
         drawFooter(g, mouseX, mouseY);
 
-        if (pendingTravel != null) drawTravelDialog(g, player);
+        if (pendingTravel != null || pendingMember != null) drawTravelDialog(g, player);
         super.render(g, mouseX, mouseY, partialTick);
-        if (tooltip != null && pendingTravel == null) g.renderComponentTooltip(font, tooltip, mouseX, mouseY);
+        if (tooltip != null && pendingTravel == null && pendingMember == null) g.renderComponentTooltip(font, tooltip, mouseX, mouseY);
     }
 
     private void drawHolds(GuiGraphics g, Level level) {
@@ -437,7 +458,7 @@ public class MapScreen extends Screen {
 
     private void drawPlayers(GuiGraphics g, Level level, Player self, float partialTick, int mouseX, int mouseY) {
         for (Player other : level.players()) {
-            if (other == self || other.isSpectator()) continue;
+            if (other == self || other.isSpectator() || ClientQuestData.isMember(other.getUUID())) continue;
             int sx = (int) Math.round(screenX(other.getX()));
             int sy = (int) Math.round(screenY(other.getZ()));
             if (!onMap(sx, sy)) continue;
@@ -459,6 +480,56 @@ public class MapScreen extends Screen {
         arrow(g, 0xFF1E140A, 1);
         arrow(g, 0xFFC8282A, 0);
         g.pose().popPose();
+    }
+
+    /**
+     * Party members (synced by the server, so visible at any distance) as green diamonds with their names;
+     * members off the visible map are pinned to its edge with an arrow pointing towards them. Click to fast travel.
+     */
+    private void drawPartyMembers(GuiGraphics g, Level level, Player self, int mouseX, int mouseY) {
+        if (!ClientQuestData.inParty()) return;
+        String dim = level.dimension().location().toString();
+        int color = 0xFF000000 | ClientQuestData.PARTY_COLOR;
+        for (ClientQuestData.Member m : ClientQuestData.members()) {
+            if (!m.online() || m.id().equals(self.getUUID()) || !m.dim().equals(dim)) continue;
+            Vec3 pos = m.position();
+            double sx = screenX(pos.x);
+            double sy = screenY(pos.z);
+            int cx = (int) Math.round(Mth.clamp(sx, left + 9, right - 9));
+            int cy = (int) Math.round(Mth.clamp(sy, top + 9, bottom - 9));
+            boolean pinned = cx != (int) Math.round(sx) || cy != (int) Math.round(sy);
+            if (pinned) {
+                float angle = (float) Math.atan2(sy - cy, sx - cx);
+                g.pose().pushPose();
+                g.pose().translate(cx, cy, 0);
+                g.pose().mulPose(Axis.ZP.rotation(angle));
+                for (int i = 0; i < 4; i++) g.fill(7 + i, -3 + i, 8 + i, 4 - i, 0xFF1E140A);
+                for (int i = 0; i < 3; i++) g.fill(7 + i, -2 + i, 8 + i, 3 - i, color);
+                g.pose().popPose();
+            }
+            diamond(g, cx, cy, 5, 0xFF1E140A);
+            diamond(g, cx, cy, 4, color);
+            diamond(g, cx, cy, 1, 0xFFF5EBC8);
+            drawSmall(g, m.name(), cx - (int) (font.width(m.name()) * 0.3f), cy - 12, 0xFF000000 | INK);
+            if (Math.abs(mouseX - cx) <= 6 && Math.abs(mouseY - cy) <= 6 && onMap(mouseX, mouseY)) {
+                hoveredMember = m;
+                hoveredLocation = null;
+                List<Component> lines = new ArrayList<>();
+                lines.add(Component.literal(m.name()).withStyle(ChatFormatting.GREEN));
+                lines.add(Component.translatable("party.skycraft.map.member").withStyle(ChatFormatting.GRAY));
+                lines.add(Component.literal((int) (m.health() * 5) + " / " + (int) (m.maxHealth() * 5) + " HP").withStyle(ChatFormatting.RED));
+                lines.add(Component.translatable("world.skycraft.map.distance", (int) Math.sqrt(self.distanceToSqr(pos))).withStyle(ChatFormatting.DARK_GRAY));
+                lines.add(Component.translatable("world.skycraft.map.click_travel").withStyle(ChatFormatting.YELLOW));
+                tooltip = lines;
+            }
+        }
+    }
+
+    private static void diamond(GuiGraphics g, int cx, int cy, int r, int color) {
+        for (int dy = -r; dy <= r; dy++) {
+            int w = r - Math.abs(dy);
+            g.fill(cx - w, cy + dy, cx + w + 1, cy + dy + 1, color);
+        }
     }
 
     /** Upward arrow with a notched tail (tip at y = -7), {@code grow} pixels bigger for the outline. */
@@ -530,10 +601,20 @@ public class MapScreen extends Screen {
         int cy = height / 2;
         g.fill(cx - 120, cy - 34, cx + 120, cy + 38, 0xE0100C08);
         outline(g, cx - 120, cy - 34, cx + 120, cy + 38, 0xFF8A7F66);
-        Component q = Component.translatable("world.skycraft.map.travel_confirm", pendingTravel.getString("name"));
+        String name;
+        double dx, dz;
+        if (pendingMember != null) {
+            name = pendingMember.name();
+            Vec3 pos = pendingMember.position();
+            dx = pos.x - player.getX();
+            dz = pos.z - player.getZ();
+        } else {
+            name = pendingTravel.getString("name");
+            dx = pendingTravel.getInt("x") - player.getX();
+            dz = pendingTravel.getInt("z") - player.getZ();
+        }
+        Component q = Component.translatable("world.skycraft.map.travel_confirm", name);
         g.drawCenteredString(font, q, cx, cy - 22, 0xFFF5EBC8);
-        double dx = pendingTravel.getInt("x") - player.getX();
-        double dz = pendingTravel.getInt("z") - player.getZ();
         g.drawCenteredString(font, Component.translatable("world.skycraft.map.distance", (int) Math.sqrt(dx * dx + dz * dz)),
                 cx, cy - 8, 0xFFA89F86);
     }

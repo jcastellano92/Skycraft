@@ -32,6 +32,7 @@ import org.joml.Vector3f;
  */
 public class SpellProjectile extends ThrowableProjectile {
     private static final EntityDataAccessor<String> SPELL = SynchedEntityData.defineId(SpellProjectile.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<Boolean> DUAL = SynchedEntityData.defineId(SpellProjectile.class, EntityDataSerializers.BOOLEAN);
     private static final int MAX_LIFE = 100;
 
     private int life;
@@ -43,16 +44,20 @@ public class SpellProjectile extends ThrowableProjectile {
     public SpellProjectile(Level level, LivingEntity owner, Spell spell) {
         super(MagicRegistry.SPELL_PROJECTILE.get(), owner, level);
         this.entityData.set(SPELL, spell.id);
+        this.entityData.set(DUAL, spell.dual);
     }
 
     @Override
     protected void defineSynchedData() {
         this.entityData.define(SPELL, "");
+        this.entityData.define(DUAL, false);
     }
 
+    /** The spell this projectile carries (the dual-cast variant if it was dual cast). */
     @Nullable
     public Spell spell() {
-        return Spells.byId(this.entityData.get(SPELL));
+        Spell spell = Spells.byId(this.entityData.get(SPELL));
+        return spell != null && this.entityData.get(DUAL) ? spell.dualCast() : spell;
     }
 
     @Override
@@ -141,6 +146,7 @@ public class SpellProjectile extends ThrowableProjectile {
     protected void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putString("spell", this.entityData.get(SPELL));
+        tag.putBoolean("dual", this.entityData.get(DUAL));
         tag.putInt("life", life);
     }
 
@@ -148,6 +154,7 @@ public class SpellProjectile extends ThrowableProjectile {
     protected void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         this.entityData.set(SPELL, tag.getString("spell"));
+        this.entityData.set(DUAL, tag.getBoolean("dual"));
         this.life = tag.getInt("life");
     }
 
@@ -158,7 +165,7 @@ public class SpellProjectile extends ThrowableProjectile {
         RandomSource r = random;
         Vec3 motion = getDeltaMovement();
         double x = getX(), y = getY() + getBbHeight() / 2, z = getZ();
-        int steps = Math.max(1, (int) Math.ceil(motion.length() / 0.5));
+        int steps = Math.max(1, (int) Math.ceil(motion.length() / (spell.dual ? 0.3 : 0.5)));
         for (int i = 0; i < steps; i++) {
             double f = i / (double) steps;
             double px = x - motion.x * f, py = y - motion.y * f, pz = z - motion.z * f;
