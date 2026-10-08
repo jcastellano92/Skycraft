@@ -20,7 +20,6 @@ mr:lootr                         # per-player loot chests: every player gets the
 mr:better-combat                 # directional combos and weapon swings
 mr:corpse                        # player corpses keep your gear when you die
 mr:waystones                     # Skyrim-style wayshrines for fast travel
-mr:xaeros-minimap
 mr:xaeros-world-map              # terrain world map (Skycraft adds the Skyrim fast-travel map on N)
 cf:dynamiclights-reforged | mr:dynamic-lights-reforged   # torches light up the world in your hand
 mr:jade                          # look-at info
@@ -62,7 +61,6 @@ mr:yungs-extras
 
 # --- Survival: fishing, cooking, gear, backpacks, sleeping ---
 cf:aquaculture | mr:aquaculture     # fishing overhaul (feeds the Fishing skill)
-mr:farmers-delight                  # cooking pots and meals
 mr:comforts                         # sleeping bags and hammocks for camping
 
 # --- Shaders (optional, client) ---
