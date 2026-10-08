@@ -23,6 +23,10 @@
     "minecraft:heart_of_the_sea",
     "minecraft:golden_apple",
     "minecraft:potion",
-    "minecraft:ghast_tear"
+    "minecraft:ghast_tear",
+    {
+      "id": "#skycraft:exotic_goods",
+      "required": false
+    }
   ]
 }

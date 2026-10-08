@@ -1,0 +1,8 @@
+{
+  "parent": "skycraft:block/shrine",
+  "textures": {
+    "stone": "skycraft:block/shrine_stone",
+    "symbol": "skycraft:block/shrine_dibella",
+    "top": "skycraft:block/shrine_dibella_top"
+  }
+}

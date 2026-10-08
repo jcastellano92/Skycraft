@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    " C ",
+    "SXS",
+    "SSS"
+  ],
+  "key": {
+    "C": {
+      "item": "minecraft:candle"
+    },
+    "S": {
+      "item": "minecraft:stone_bricks"
+    },
+    "X": {
+      "item": "minecraft:gold_ingot"
+    }
+  },
+  "result": {
+    "item": "skycraft:shrine_of_zenithar"
+  }
+}

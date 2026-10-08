@@ -17,6 +17,16 @@
     "skycraft:deepslate_silver_ore",
     "skycraft:blacksmith_forge",
     "skycraft:smelter",
-    "skycraft:word_wall"
+    "skycraft:word_wall",
+    "skycraft:cooking_pot",
+    "skycraft:shrine_of_akatosh",
+    "skycraft:shrine_of_arkay",
+    "skycraft:shrine_of_dibella",
+    "skycraft:shrine_of_julianos",
+    "skycraft:shrine_of_kynareth",
+    "skycraft:shrine_of_mara",
+    "skycraft:shrine_of_stendarr",
+    "skycraft:shrine_of_talos",
+    "skycraft:shrine_of_zenithar"
   ]
 }

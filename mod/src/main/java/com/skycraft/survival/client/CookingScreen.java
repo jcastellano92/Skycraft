@@ -1,0 +1,292 @@
+package com.skycraft.survival.client;
+
+import com.skycraft.crafting.recipe.Cost;
+import com.skycraft.network.SkyNetwork;
+import com.skycraft.survival.SurvivalPackets;
+import com.skycraft.survival.cooking.Cooking;
+import com.skycraft.survival.cooking.CookingMenu;
+import com.skycraft.survival.cooking.CookingRecipe;
+import com.skycraft.survival.cooking.CookingRecipes;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import org.lwjgl.glfw.GLFW;
+
+import java.util.List;
+
+/**
+ * Skyrim's cooking menu: categories (soups & stews, meat & fish, baking, drinks) on the left, dishes in the middle
+ * (bright when you have the ingredients), the selected dish's ingredients with have/need counts on the right.
+ */
+public class CookingScreen extends AbstractContainerScreen<CookingMenu> {
+    private static final int TEXT = 0xFFF5EBC8;
+    private static final int DIM = 0xFFBDB59E;
+    private static final int GREY = 0xFF7E786C;
+    private static final int GOOD = 0xFF90C090;
+    private static final int BAD = 0xFFD07070;
+    private static final int GOLD = 0xFFE0B040;
+    private static final int BORDER = 0xFF8A7F66;
+    private static final int PANEL = 0xE8100E0B;
+    private static final int INSET = 0x60000000;
+    private static final int ROW = 18;
+    private static final int CAT_ROW = 13;
+    private static int lastCategory;
+
+    private final List<String> categories = CookingRecipes.CATEGORIES;
+    private int category;
+    private int selected;
+    private int scroll;
+    private List<CookingRecipe> recipes = List.of();
+    private Button action;
+    private ItemStack hoveredStack = ItemStack.EMPTY;
+    private int catX, catW, listX, listY, listW, listH, detX, detW;
+
+    public CookingScreen(CookingMenu menu, Inventory inventory, Component title) {
+        super(menu, inventory, title);
+        this.category = Mth.clamp(lastCategory, 0, categories.size() - 1);
+    }
+
+    @Override
+    protected void init() {
+        imageWidth = Math.min(width - 16, 420);
+        imageHeight = Math.min(height - 16, 240);
+        super.init();
+        catX = leftPos + 6;
+        catW = 84;
+        listX = catX + catW + 4;
+        listY = topPos + 24;
+        listH = imageHeight - 30;
+        listW = Math.min(150, (imageWidth - catW) / 2 - 6);
+        detX = listX + listW + 6;
+        detW = leftPos + imageWidth - 6 - detX;
+        action = addRenderableWidget(Button.builder(Component.translatable("screen.skycraft.cooking.cook"), b -> act())
+                .bounds(detX + (detW - 96) / 2, topPos + imageHeight - 28, 96, 20).build());
+        refresh();
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        refresh();
+    }
+
+    private void refresh() {
+        if (minecraft == null || minecraft.player == null) return;
+        recipes = CookingRecipes.byCategory().getOrDefault(categories.get(category), List.of());
+        selected = Mth.clamp(selected, 0, Math.max(0, recipes.size() - 1));
+        scroll = Mth.clamp(scroll, 0, Math.max(0, recipes.size() - visibleRows()));
+        CookingRecipe r = selectedRecipe();
+        action.active = r != null && r.hasMaterials(minecraft.player.getInventory());
+    }
+
+    private int visibleRows() {
+        return Math.max(1, listH / ROW);
+    }
+
+    private CookingRecipe selectedRecipe() {
+        return selected >= 0 && selected < recipes.size() ? recipes.get(selected) : null;
+    }
+
+    private void act() {
+        CookingRecipe r = selectedRecipe();
+        if (r != null) SkyNetwork.sendToServer(new SurvivalPackets.Cook(r.id(), Screen.hasShiftDown() ? Cooking.MAX_BATCH : 1));
+    }
+
+    private void selectCategory(int i) {
+        if (category == i) return;
+        category = i;
+        selected = 0;
+        scroll = 0;
+        lastCategory = i;
+        refresh();
+    }
+
+    // ------------------------------------------------------------------ input
+
+    @Override
+    public boolean mouseClicked(double mx, double my, int button) {
+        if (button == 0) {
+            for (int i = 0; i < categories.size(); i++) {
+                if (inside(mx, my, catX, listY + i * CAT_ROW, catW, CAT_ROW - 1)) {
+                    selectCategory(i);
+                    return true;
+                }
+            }
+            if (inside(mx, my, listX, listY, listW, listH)) {
+                int idx = scroll + (int) ((my - listY) / ROW);
+                if (idx >= 0 && idx < recipes.size()) selected = idx;
+                refresh();
+                return true;
+            }
+        }
+        return super.mouseClicked(mx, my, button);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mx, double my, double delta) {
+        if (inside(mx, my, listX, listY, listW, listH)) {
+            scroll = Mth.clamp(scroll - (int) Math.signum(delta), 0, Math.max(0, recipes.size() - visibleRows()));
+            return true;
+        }
+        if (inside(mx, my, catX, listY, catW, listH)) {
+            selectCategory(Math.floorMod(category - (int) Math.signum(delta), categories.size()));
+            return true;
+        }
+        return super.mouseScrolled(mx, my, delta);
+    }
+
+    @Override
+    public boolean keyPressed(int key, int scan, int mods) {
+        if (!recipes.isEmpty() && (key == GLFW.GLFW_KEY_UP || key == GLFW.GLFW_KEY_DOWN)) {
+            selected = Mth.clamp(selected + (key == GLFW.GLFW_KEY_UP ? -1 : 1), 0, recipes.size() - 1);
+            if (selected < scroll) scroll = selected;
+            if (selected >= scroll + visibleRows()) scroll = selected - visibleRows() + 1;
+            refresh();
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT) {
+            selectCategory(Math.floorMod(category + (key == GLFW.GLFW_KEY_LEFT ? -1 : 1), categories.size()));
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_ENTER && action.active) {
+            act();
+            return true;
+        }
+        return super.keyPressed(key, scan, mods);
+    }
+
+    private static boolean inside(double mx, double my, int x, int y, int w, int h) {
+        return mx >= x && mx < x + w && my >= y && my < y + h;
+    }
+
+    // ------------------------------------------------------------------ rendering
+
+    @Override
+    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        renderBackground(g);
+        hoveredStack = ItemStack.EMPTY;
+        super.render(g, mouseX, mouseY, partialTick);
+        if (!hoveredStack.isEmpty()) g.renderTooltip(font, hoveredStack, mouseX, mouseY);
+    }
+
+    @Override
+    protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
+        // everything is drawn in renderBg
+    }
+
+    @Override
+    protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
+        int x0 = leftPos, y0 = topPos, x1 = leftPos + imageWidth, y1 = topPos + imageHeight;
+        g.fill(x0, y0, x1, y1, PANEL);
+        frame(g, x0, y0, x1, y1, BORDER);
+        frame(g, x0 + 2, y0 + 2, x1 - 2, y1 - 2, 0x408A7F66);
+        g.drawCenteredString(font, title, (x0 + x1) / 2, y0 + 7, TEXT);
+        g.fill(x0 + 6, y0 + 18, x1 - 6, y0 + 19, 0x808A7F66);
+        g.fill(listX, listY, listX + listW, listY + listH, INSET);
+        renderCategories(g, mouseX, mouseY);
+        renderList(g, mouseX, mouseY);
+        renderDetails(g, mouseX, mouseY);
+    }
+
+    private void renderCategories(GuiGraphics g, int mx, int my) {
+        for (int i = 0; i < categories.size(); i++) {
+            int y = listY + i * CAT_ROW;
+            boolean sel = i == category;
+            boolean hover = inside(mx, my, catX, y, catW, CAT_ROW - 1);
+            if (sel) g.fill(catX, y, catX + catW, y + CAT_ROW - 1, 0x50C8A050);
+            else if (hover) g.fill(catX, y, catX + catW, y + CAT_ROW - 1, 0x28F0E6C8);
+            if (sel) g.fill(catX, y, catX + 2, y + CAT_ROW - 1, GOLD);
+            Component name = Component.translatable("category.skycraft.cooking." + categories.get(i));
+            g.drawString(font, fit(name.getString(), catW - 8), catX + 5, y + 2, sel || hover ? TEXT : DIM, false);
+        }
+    }
+
+    private void renderList(GuiGraphics g, int mx, int my) {
+        Inventory inv = minecraft.player.getInventory();
+        g.enableScissor(listX, listY, listX + listW, listY + listH);
+        int rows = visibleRows() + 1;
+        for (int i = scroll; i < Math.min(recipes.size(), scroll + rows); i++) {
+            CookingRecipe r = recipes.get(i);
+            int y = listY + (i - scroll) * ROW;
+            boolean hover = inside(mx, my, listX, y, listW, ROW) && my < listY + listH;
+            if (i == selected) g.fill(listX, y, listX + listW, y + ROW, 0x50C8A050);
+            else if (hover) g.fill(listX, y, listX + listW, y + ROW, 0x28F0E6C8);
+            ItemStack stack = r.resultStack();
+            g.renderItem(stack, listX + 2, y + 1);
+            g.renderItemDecorations(font, stack, listX + 2, y + 1);
+            g.drawString(font, fit(stack.getHoverName().getString(), listW - 26), listX + 22, y + 5, r.hasMaterials(inv) ? TEXT : GREY, false);
+            if (hover && mx < listX + 19) hoveredStack = stack;
+        }
+        g.disableScissor();
+        int visible = visibleRows();
+        if (recipes.size() > visible) {
+            int x = listX + listW - 3;
+            g.fill(x, listY, x + 2, listY + listH, 0x40FFFFFF);
+            int barH = Math.max(10, listH * visible / recipes.size());
+            int barY = listY + (listH - barH) * scroll / Math.max(1, recipes.size() - visible);
+            g.fill(x, barY, x + 2, barY + barH, BORDER);
+        }
+    }
+
+    private void renderDetails(GuiGraphics g, int mx, int my) {
+        CookingRecipe r = selectedRecipe();
+        if (r == null) return;
+        Inventory inv = minecraft.player.getInventory();
+        ItemStack result = r.resultStack();
+        int y = listY + 2;
+        int bx = detX + 2;
+        g.fill(bx, y, bx + 34, y + 34, INSET);
+        frame(g, bx, y, bx + 34, y + 34, 0x808A7F66);
+        g.pose().pushPose();
+        g.pose().translate(bx + 1, y + 1, 0);
+        g.pose().scale(2f, 2f, 1f);
+        g.renderItem(result, 0, 0);
+        g.pose().popPose();
+        if (inside(mx, my, bx, y, 34, 34)) hoveredStack = result;
+        int textX = detX + 40;
+        List<FormattedCharSequence> nameLines = font.split(result.getHoverName(), detW - 42);
+        int ly = y + (nameLines.size() > 1 ? 4 : 8);
+        for (FormattedCharSequence line : nameLines.subList(0, Math.min(2, nameLines.size()))) {
+            g.drawString(font, line, textX, ly, TEXT, false);
+            ly += 10;
+        }
+        if (r.count() > 1) g.drawString(font, "x" + r.count(), textX, ly, DIM, false);
+        y += 40;
+        g.drawString(font, Component.translatable("screen.skycraft.cooking.ingredients"), detX + 2, y, GOLD, false);
+        y += 11;
+        for (Cost cost : r.costs()) {
+            ItemStack icon = cost.display().get();
+            int have = cost.countIn(inv, -1);
+            g.renderItem(icon, detX + 2, y);
+            if (inside(mx, my, detX + 2, y, 16, 16)) hoveredStack = icon;
+            String count = have + "/" + cost.count();
+            int countW = font.width(count);
+            g.drawString(font, fit(icon.getHoverName().getString(), detW - countW - 30), detX + 22, y + 4, DIM, false);
+            g.drawString(font, count, detX + detW - 4 - countW, y + 4, have >= cost.count() ? GOOD : BAD, false);
+            y += 18;
+        }
+        int hintY = topPos + imageHeight - 40;
+        if (y < hintY) {
+            g.drawCenteredString(font, Component.translatable("screen.skycraft.cooking.shift_hint", Cooking.MAX_BATCH), detX + detW / 2, hintY, GREY);
+        }
+    }
+
+    private static void frame(GuiGraphics g, int x0, int y0, int x1, int y1, int color) {
+        g.fill(x0, y0, x1, y0 + 1, color);
+        g.fill(x0, y1 - 1, x1, y1, color);
+        g.fill(x0, y0, x0 + 1, y1, color);
+        g.fill(x1 - 1, y0, x1, y1, color);
+    }
+
+    private String fit(String text, int width) {
+        if (width <= 0) return "";
+        if (font.width(text) <= width) return text;
+        return font.plainSubstrByWidth(text, Math.max(0, width - font.width("..."))) + "...";
+    }
+}
