@@ -1,0 +1,48 @@
+package com.skycraft.economy.client;
+
+import com.skycraft.Skycraft;
+import com.skycraft.core.Currency;
+import com.skycraft.core.SkyData;
+import com.skycraft.core.Skill;
+import com.skycraft.economy.EconomyPackets;
+import com.skycraft.economy.ItemValues;
+import com.skycraft.economy.SkillBookItem;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.event.entity.player.ItemTooltipEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
+/** Client side of the economy: packet handlers and the item value tooltip line. */
+@Mod.EventBusSubscriber(modid = Skycraft.MODID, value = Dist.CLIENT)
+public final class EconomyClient {
+    private EconomyClient() {}
+
+    public static void handleBarterState(EconomyPackets.BarterState state) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen instanceof BarterScreen screen && screen.entityId() == state.entityId()) {
+            screen.update(state);
+        } else if (state.open()) {
+            mc.setScreen(new BarterScreen(state));
+        }
+    }
+
+    public static boolean hasReadBook(Skill skill) {
+        Player player = Minecraft.getInstance().player;
+        return player != null && SkillBookItem.hasRead(SkyData.get(player), skill);
+    }
+
+    /** Skyrim shows every item's gold value. */
+    @SubscribeEvent
+    public static void onTooltip(ItemTooltipEvent event) {
+        ItemStack stack = event.getItemStack();
+        if (stack.isEmpty() || Currency.valueOf(stack) > 0) return;
+        int value = ItemValues.get(stack);
+        if (value <= 0) return;
+        event.getToolTip().add(Component.translatable("tooltip.skycraft.economy.value", value).withStyle(ChatFormatting.GOLD));
+    }
+}

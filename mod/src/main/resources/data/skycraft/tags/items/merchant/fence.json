@@ -1,0 +1,28 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:gold_ingot",
+    "minecraft:gold_nugget",
+    "minecraft:diamond",
+    "minecraft:emerald",
+    "minecraft:amethyst_shard",
+    "minecraft:lapis_lazuli",
+    "minecraft:quartz",
+    "minecraft:name_tag",
+    "minecraft:clock",
+    "minecraft:compass",
+    "minecraft:ender_pearl",
+    "minecraft:golden_apple",
+    "minecraft:spyglass",
+    "minecraft:golden_carrot",
+    "minecraft:music_disc_cat",
+    "minecraft:music_disc_13",
+    "minecraft:music_disc_mellohi",
+    "minecraft:skeleton_skull",
+    "minecraft:saddle",
+    {
+      "id": "#skycraft:thief_goods",
+      "required": false
+    }
+  ]
+}

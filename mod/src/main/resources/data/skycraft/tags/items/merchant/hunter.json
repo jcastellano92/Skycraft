@@ -1,0 +1,30 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:leather",
+    "minecraft:rabbit_hide",
+    "minecraft:rabbit_foot",
+    "minecraft:feather",
+    "minecraft:string",
+    "minecraft:bone",
+    "minecraft:beef",
+    "minecraft:porkchop",
+    "minecraft:mutton",
+    "minecraft:chicken",
+    "minecraft:rabbit",
+    "minecraft:bow",
+    "minecraft:arrow",
+    "minecraft:leather_helmet",
+    "minecraft:leather_chestplate",
+    "minecraft:leather_leggings",
+    "minecraft:leather_boots",
+    "minecraft:white_wool",
+    "minecraft:lead",
+    "minecraft:cooked_beef",
+    "minecraft:cooked_mutton",
+    {
+      "id": "skycraft:hide",
+      "required": false
+    }
+  ]
+}

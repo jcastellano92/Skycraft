@@ -1,0 +1,21 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:wheat",
+    "minecraft:carrot",
+    "minecraft:potato",
+    "minecraft:beetroot",
+    "minecraft:melon_slice",
+    "minecraft:melon",
+    "minecraft:pumpkin",
+    "minecraft:sugar_cane",
+    "minecraft:cocoa_beans",
+    "minecraft:sweet_berries",
+    "minecraft:glow_berries",
+    "minecraft:nether_wart",
+    {
+      "id": "#forge:crops",
+      "required": false
+    }
+  ]
+}

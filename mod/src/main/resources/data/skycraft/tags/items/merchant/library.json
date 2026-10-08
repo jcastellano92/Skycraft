@@ -1,0 +1,22 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:book",
+    "minecraft:book",
+    "minecraft:paper",
+    "minecraft:writable_book",
+    "minecraft:enchanted_book",
+    "minecraft:map",
+    "minecraft:compass",
+    "minecraft:ink_sac",
+    "minecraft:feather",
+    "minecraft:lantern",
+    "minecraft:bookshelf",
+    "minecraft:name_tag",
+    "minecraft:candle",
+    "minecraft:glow_ink_sac",
+    "minecraft:experience_bottle",
+    "minecraft:clock",
+    "minecraft:spyglass"
+  ]
+}

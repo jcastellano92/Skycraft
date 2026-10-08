@@ -1,0 +1,45 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:raw_iron",
+    "minecraft:raw_copper",
+    "minecraft:raw_gold",
+    "minecraft:iron_ore",
+    "minecraft:deepslate_iron_ore",
+    "minecraft:copper_ore",
+    "minecraft:deepslate_copper_ore",
+    "minecraft:gold_ore",
+    "minecraft:deepslate_gold_ore",
+    "minecraft:nether_gold_ore",
+    "minecraft:coal",
+    "minecraft:iron_ingot",
+    "minecraft:copper_ingot",
+    "minecraft:gold_ingot",
+    "minecraft:iron_nugget",
+    "minecraft:gold_nugget",
+    "minecraft:diamond",
+    "minecraft:emerald",
+    "minecraft:lapis_lazuli",
+    "minecraft:redstone",
+    "minecraft:quartz",
+    "minecraft:amethyst_shard",
+    "minecraft:netherite_scrap",
+    "minecraft:ancient_debris",
+    {
+      "id": "#forge:ores",
+      "required": false
+    },
+    {
+      "id": "#forge:raw_materials",
+      "required": false
+    },
+    {
+      "id": "#forge:ingots",
+      "required": false
+    },
+    {
+      "id": "#forge:gems",
+      "required": false
+    }
+  ]
+}

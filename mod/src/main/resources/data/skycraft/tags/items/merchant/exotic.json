@@ -1,0 +1,28 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:sugar",
+    "minecraft:cocoa_beans",
+    "minecraft:sweet_berries",
+    "minecraft:glow_berries",
+    "minecraft:honey_bottle",
+    "minecraft:amethyst_shard",
+    "minecraft:emerald",
+    "minecraft:nautilus_shell",
+    "minecraft:prismarine_crystals",
+    "minecraft:tropical_fish",
+    "minecraft:pufferfish",
+    "minecraft:chorus_fruit",
+    "minecraft:glow_ink_sac",
+    "minecraft:rabbit_foot",
+    "minecraft:spyglass",
+    "minecraft:saddle",
+    "minecraft:sea_pickle",
+    "minecraft:cactus",
+    "minecraft:lily_pad",
+    "minecraft:heart_of_the_sea",
+    "minecraft:golden_apple",
+    "minecraft:potion",
+    "minecraft:ghast_tear"
+  ]
+}

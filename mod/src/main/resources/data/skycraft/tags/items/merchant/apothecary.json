@@ -1,0 +1,32 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:potion",
+    "minecraft:potion",
+    "minecraft:splash_potion",
+    "minecraft:glass_bottle",
+    "minecraft:nether_wart",
+    "minecraft:blaze_powder",
+    "minecraft:spider_eye",
+    "minecraft:fermented_spider_eye",
+    "minecraft:sugar",
+    "minecraft:glistering_melon_slice",
+    "minecraft:golden_carrot",
+    "minecraft:magma_cream",
+    "minecraft:ghast_tear",
+    "minecraft:rabbit_foot",
+    "minecraft:phantom_membrane",
+    "minecraft:glowstone_dust",
+    "minecraft:redstone",
+    "minecraft:gunpowder",
+    "minecraft:brown_mushroom",
+    "minecraft:red_mushroom",
+    "minecraft:honey_bottle",
+    "minecraft:lingering_potion",
+    "minecraft:pufferfish",
+    {
+      "id": "#skycraft:alchemy_goods",
+      "required": false
+    }
+  ]
+}

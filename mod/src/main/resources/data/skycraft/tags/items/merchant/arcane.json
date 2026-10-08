@@ -1,0 +1,26 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:enchanted_book",
+    "minecraft:enchanted_book",
+    "minecraft:experience_bottle",
+    "minecraft:lapis_lazuli",
+    "minecraft:amethyst_shard",
+    "minecraft:ender_pearl",
+    "minecraft:ender_eye",
+    "minecraft:blaze_rod",
+    "minecraft:glowstone_dust",
+    "minecraft:potion",
+    "minecraft:book",
+    "minecraft:echo_shard",
+    "minecraft:glow_ink_sac",
+    {
+      "id": "#skycraft:arcane_goods",
+      "required": false
+    },
+    {
+      "id": "#skycraft:spell_tomes",
+      "required": false
+    }
+  ]
+}

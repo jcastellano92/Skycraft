@@ -1,0 +1,35 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:nether_wart",
+    "minecraft:blaze_powder",
+    "minecraft:ghast_tear",
+    "minecraft:magma_cream",
+    "minecraft:spider_eye",
+    "minecraft:fermented_spider_eye",
+    "minecraft:glistering_melon_slice",
+    "minecraft:golden_carrot",
+    "minecraft:rabbit_foot",
+    "minecraft:phantom_membrane",
+    "minecraft:pufferfish",
+    "minecraft:sugar",
+    "minecraft:glowstone_dust",
+    "minecraft:gunpowder",
+    "minecraft:dragon_breath",
+    "minecraft:brown_mushroom",
+    "minecraft:red_mushroom",
+    "minecraft:crimson_fungus",
+    "minecraft:warped_fungus",
+    "minecraft:honeycomb",
+    "minecraft:scute",
+    "minecraft:bone_meal",
+    "minecraft:slime_ball",
+    "minecraft:ink_sac",
+    "minecraft:glow_ink_sac",
+    "#minecraft:small_flowers",
+    {
+      "id": "#skycraft:alchemy_ingredients",
+      "required": false
+    }
+  ]
+}
