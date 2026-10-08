@@ -116,11 +116,6 @@ hash = "902bac905b93271f02bd0951a22bac06a3da24f5c237fcaeb469e14a7679e508"
 metafile = true
 
 [[files]]
-file = "mods/guard-villagers.pw.toml"
-hash = "145d32a60f94c6541c7d381e09590f6ad96b89a904fa059a50b1491f80b8ff6d"
-metafile = true
-
-[[files]]
 file = "mods/jade.pw.toml"
 hash = "5d03d20b037a8b7a4765ded0e25146fc970964be46401dff5f9b1059875084e8"
 metafile = true
@@ -187,16 +182,6 @@ hash = "e4b3839f4976fe80159d917214ff2e3148b5e16f56edcc9677df732ae57decb9"
 [[files]]
 file = "mods/sodium-options-api.pw.toml"
 hash = "5240c62752415b5d66d4beffec4fe98c253eba8ebcbb2a5c1097fc3ad3de0b00"
-metafile = true
-
-[[files]]
-file = "mods/sophisticated-backpacks.pw.toml"
-hash = "d0a96fe57be1729dc0d4e697b4b1238b0f2d51eb5c16bbc8b4cdd7e525220b6b"
-metafile = true
-
-[[files]]
-file = "mods/sophisticated-core.pw.toml"
-hash = "c833f91ecbd1b6d9d14c0e2ce3810bc730756d07ec83397b0bb3d142ee9b927f"
 metafile = true
 
 [[files]]

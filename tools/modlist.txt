@@ -27,11 +27,13 @@ mr:jade                          # look-at info
 mr:jei                           # recipe viewer
 mr:mouse-tweaks
 mr:default-options               # ships default keybinds for new players
+mr:essential                     # easy multiplayer hosting/invites with friends, skins & cosmetics
+mr:itemphysic-lite | cf:item-physic-lite   # dropped items lie in the world with physics (Skyrim clutter)
+mr:physicsmod                    # ragdoll bodies and physics effects (client)
 
 # --- NPCs, companions, factions ---
 cf:minecraft-comes-alive-reborn  # named villagers with dialogue, relationships, marriage
 cf:villager-recruits | mr:villager-recruits   # hire companions and followers that travel and fight with you
-mr:guard-villagers               # more village guards
 mr:easy-npc                      # admins can place custom quest NPCs with dialogue
 
 # --- Vampires, werewolves ---
@@ -61,7 +63,6 @@ mr:yungs-extras
 # --- Survival: fishing, cooking, gear, backpacks, sleeping ---
 cf:aquaculture | mr:aquaculture     # fishing overhaul (feeds the Fishing skill)
 mr:farmers-delight                  # cooking pots and meals
-mr:sophisticated-backpacks | cf:sophisticated-backpacks
 mr:comforts                         # sleeping bags and hammocks for camping
 
 # --- Shaders (optional, client) ---
