@@ -5,10 +5,19 @@ import com.skycraft.creatures.entity.BanditEntity;
 import com.skycraft.creatures.entity.DragonEntity;
 import com.skycraft.creatures.entity.DraugrDeathlordEntity;
 import com.skycraft.creatures.entity.DraugrEntity;
+import com.skycraft.creatures.entity.FalmerEntity;
+import com.skycraft.creatures.entity.ForswornEntity;
+import com.skycraft.creatures.entity.FrostbiteSpiderEntity;
 import com.skycraft.creatures.entity.GiantEntity;
 import com.skycraft.creatures.entity.GuardEntity;
+import com.skycraft.creatures.entity.HagravenEntity;
+import com.skycraft.creatures.entity.IceWraithEntity;
+import com.skycraft.creatures.entity.NecromancerEntity;
 import com.skycraft.creatures.entity.SkeeverEntity;
+import com.skycraft.creatures.entity.SprigganEntity;
 import com.skycraft.creatures.entity.TrollEntity;
+import com.skycraft.creatures.entity.VampireEntity;
+import com.skycraft.creatures.entity.WispmotherEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
@@ -62,6 +71,15 @@ public final class CreaturesModule {
         event.put(ModEntities.GIANT.get(), GiantEntity.createAttributes().build());
         event.put(ModEntities.DRAGON.get(), DragonEntity.createAttributes().build());
         event.put(ModEntities.GUARD.get(), GuardEntity.createAttributes().build());
+        event.put(ModEntities.FORSWORN.get(), ForswornEntity.createAttributes().build());
+        event.put(ModEntities.NECROMANCER.get(), NecromancerEntity.createAttributes().build());
+        event.put(ModEntities.VAMPIRE.get(), VampireEntity.createAttributes().build());
+        event.put(ModEntities.FALMER.get(), FalmerEntity.createAttributes().build());
+        event.put(ModEntities.FROSTBITE_SPIDER.get(), FrostbiteSpiderEntity.createAttributes().build());
+        event.put(ModEntities.ICE_WRAITH.get(), IceWraithEntity.createAttributes().build());
+        event.put(ModEntities.SPRIGGAN.get(), SprigganEntity.createAttributes().build());
+        event.put(ModEntities.HAGRAVEN.get(), HagravenEntity.createAttributes().build());
+        event.put(ModEntities.WISPMOTHER.get(), WispmotherEntity.createAttributes().build());
     }
 
     private static void onSpawnPlacements(SpawnPlacementRegisterEvent event) {

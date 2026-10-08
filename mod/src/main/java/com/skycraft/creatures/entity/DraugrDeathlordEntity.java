@@ -1,7 +1,10 @@
 package com.skycraft.creatures.entity;
 
+import com.skycraft.arsenal.LeveledGear;
 import com.skycraft.combat.CombatHandler;
+import com.skycraft.combat.LegendaryItem;
 import com.skycraft.core.Notifier;
+import com.skycraft.creatures.Leveling;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -12,6 +15,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.DifficultyInstance;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
@@ -32,6 +36,11 @@ import org.jetbrains.annotations.Nullable;
  * every ~10 seconds and Frost Breath now and then. Shows a boss bar.
  */
 public class DraugrDeathlordEntity extends DraugrEntity {
+    private static final String[] DEATHLORD_NAMES = {
+            "Curalmil the Ancient", "Red Eagle", "Jyrik Gauldurson",
+            "Mikrul Gauldurson", "Sigdis Gauldurson", "Kvenel the Tongue", "Olaf One-Eye", "Draugr Overlord"
+    };
+
     private final ServerBossEvent bossEvent = new ServerBossEvent(Component.translatable("entity.skycraft.draugr_deathlord"),
             BossEvent.BossBarColor.BLUE, BossEvent.BossBarOverlay.NOTCHED_10);
     private int shoutCooldown = 120;
@@ -63,6 +72,10 @@ public class DraugrDeathlordEntity extends DraugrEntity {
 
     @Override
     protected void equip(RandomSource random, DifficultyInstance difficulty) {
+        if (!this.hasCustomName()) {
+            String name = DEATHLORD_NAMES[random.nextInt(DEATHLORD_NAMES.length)];
+            this.setCustomName(Component.literal(name));
+        }
         ItemStack weapon = random.nextBoolean()
                 ? new ItemStack(Gear.modItem("iron_battleaxe", Items.IRON_AXE))
                 : new ItemStack(Gear.modItem("iron_greatsword", Items.IRON_SWORD));
@@ -70,6 +83,21 @@ public class DraugrDeathlordEntity extends DraugrEntity {
         Gear.equip(this, EquipmentSlot.CHEST, new ItemStack(Items.CHAINMAIL_CHESTPLATE), 0.0f);
         Gear.equip(this, EquipmentSlot.LEGS, new ItemStack(Items.CHAINMAIL_LEGGINGS), 0.0f);
         Gear.equip(this, EquipmentSlot.FEET, new ItemStack(Items.IRON_BOOTS), 0.0f);
+    }
+
+    @Override
+    protected void dropCustomDeathLoot(DamageSource source, int looting, boolean recentlyHit) {
+        super.dropCustomDeathLoot(source, looting, recentlyHit);
+        if (this.level() instanceof ServerLevel sl) {
+            int lvl = Leveling.levelOf(this);
+            if (lvl <= 0) lvl = Leveling.regionLevel(sl, this.blockPosition());
+            boolean isWeapon = this.random.nextFloat() < 0.6f;
+            LeveledGear.Kind kind = isWeapon ? (this.random.nextFloat() < 0.25f ? LeveledGear.Kind.BOW : LeveledGear.Kind.WEAPON) : LeveledGear.Kind.ARMOR;
+            ItemStack leg = LeveledGear.roll(kind, lvl, this.random);
+            if (leg.isEmpty()) leg = new ItemStack(Items.IRON_SWORD);
+            LegendaryItem.apply(leg, lvl, this.random, kind == LeveledGear.Kind.ARMOR);
+            this.spawnAtLocation(leg);
+        }
     }
 
     @Override

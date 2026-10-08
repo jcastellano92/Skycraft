@@ -47,16 +47,18 @@ public final class CorpseEvents {
 
         boolean corpseAllowed = CreaturesConfig.CORPSES.get() && dead instanceof Mob && !(dead instanceof Slime)
                 && !dead.getType().is(CreatureTags.NO_CORPSE)
-                && (dead.getBbHeight() >= 0.35f || dead instanceof SkeeverEntity)
-                && event.getSource().getEntity() instanceof Player;
-        if (!corpseAllowed || (event.getDrops().isEmpty() && arrows.isEmpty())) {
-            // no body: the arrows simply fall to the ground with the rest
+                && (dead.getBbHeight() >= 0.35f || dead instanceof SkeeverEntity);
+        if (!corpseAllowed) {
             for (ItemStack arrow : arrows) event.getDrops().add(new ItemEntity(level, dead.getX(), dead.getY() + 0.5, dead.getZ(), arrow));
             return;
         }
 
         CorpseEntity corpse = ModEntities.CORPSE.get().create(level);
         if (corpse == null) return;
+
+        // Ensure all worn armor and weapons are placed in the corpse container
+        corpse.populateEquipment(dead);
+
         List<ItemEntity> stored = new ArrayList<>();
         for (ItemEntity drop : event.getDrops()) {
             ItemStack rest = corpse.addLoot(drop.getItem().copy());
@@ -71,7 +73,7 @@ public final class CorpseEvents {
             ItemStack rest = corpse.addLoot(arrow);
             if (!rest.isEmpty()) event.getDrops().add(new ItemEntity(level, dead.getX(), dead.getY() + 0.5, dead.getZ(), rest));
         }
-        if (corpse.isEmptyOfLoot()) return;
+
         corpse.setBody(dead);
 
         if (dead instanceof DragonEntity dragon) {
@@ -89,7 +91,7 @@ public final class CorpseEvents {
             corpse.moveTo(dead.getX(), dead.getY(), dead.getZ(), yaw, 0);
             corpse.setCentered(false);
         }
-        corpse.setAppearDelay(APPEAR_DELAY);
+        corpse.setAppearDelay(0);
         level.addFreshEntity(corpse);
     }
 

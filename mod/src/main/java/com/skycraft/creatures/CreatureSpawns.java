@@ -5,6 +5,7 @@ import com.skycraft.core.SkyData;
 import com.skycraft.creatures.entity.DragonEntity;
 import com.skycraft.creatures.entity.DraugrEntity;
 import com.skycraft.creatures.entity.GuardEntity;
+import com.skycraft.creatures.entity.SkeeverEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -54,27 +55,97 @@ public final class CreatureSpawns {
         }
     }
 
-    // ------------------------------------------------------------------ draugr instead of zombies
+    // ------------------------------------------------------------------ Skyrim-like spawning
+
+    public static boolean isSettlementOrHouse(ServerLevelAccessor level, BlockPos pos) {
+        ServerLevel serverLevel = level.getLevel();
+        // Check POIs: settlements have MEETING and HOME (beds)
+        Optional<BlockPos> meeting = serverLevel.getPoiManager().findClosest(
+                holder -> holder.is(PoiTypes.MEETING) || holder.is(PoiTypes.HOME),
+                pos, 48, PoiManager.Occupancy.ANY);
+        if (meeting.isPresent()) return true;
+
+        // Check if inside a roofed house / building
+        if (!level.canSeeSky(pos)) {
+            int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, pos.getX(), pos.getZ());
+            if (pos.getY() < surfaceY - 1) {
+                Optional<BlockPos> housePoi = serverLevel.getPoiManager().findClosest(
+                        holder -> holder.is(PoiTypes.HOME),
+                        pos, 32, PoiManager.Occupancy.ANY);
+                if (housePoi.isPresent()) return true;
+            }
+        }
+        return false;
+    }
 
     @SubscribeEvent
     public static void onFinalizeSpawn(MobSpawnEvent.FinalizeSpawn event) {
+        if (event.isSpawnCancelled()) return;
         Mob mob = event.getEntity();
-        if (mob.getType() != EntityType.ZOMBIE || event.isSpawnCancelled()) return;
-        MobSpawnType type = event.getSpawnType();
-        if (type != MobSpawnType.NATURAL && type != MobSpawnType.CHUNK_GENERATION) return;
         ServerLevelAccessor level = event.getLevel();
         BlockPos pos = BlockPos.containing(event.getX(), event.getY(), event.getZ());
-        Holder<Biome> biome = level.getBiome(pos);
-        boolean north = biome.is(BiomeTags.IS_TAIGA) || biome.is(BiomeTags.IS_MOUNTAIN) || biome.is(Tags.Biomes.IS_SNOWY)
-                || biome.value().coldEnoughToSnow(pos);
-        if (!north || level.getRandom().nextFloat() >= CreaturesConfig.DRAUGR_REPLACES_ZOMBIES.get()) return;
+        MobSpawnType type = event.getSpawnType();
 
-        DraugrEntity draugr = ModEntities.DRAUGR.get().create(level.getLevel());
-        if (draugr == null) return;
-        draugr.moveTo(event.getX(), event.getY(), event.getZ(), mob.getYRot(), 0);
-        draugr.finalizeSpawn(level, event.getDifficulty(), type, null, null);
-        event.setSpawnCancelled(true);
-        level.addFreshEntity(draugr);
+        // 1. Suppress all hostiles spawning inside settlements or houses
+        if (mob instanceof net.minecraft.world.entity.monster.Enemy && isSettlementOrHouse(level, pos)) {
+            event.setSpawnCancelled(true);
+            return;
+        }
+
+        // 2. Suppress vanilla natural night hostile spawns in the Overworld
+        if (level.getLevel().dimension() == Level.OVERWORLD && type == MobSpawnType.NATURAL) {
+            EntityType<?> entityType = mob.getType();
+            boolean isVanillaDarkHostile = entityType == EntityType.ZOMBIE
+                    || entityType == EntityType.SKELETON
+                    || entityType == EntityType.CREEPER
+                    || entityType == EntityType.SPIDER
+                    || entityType == EntityType.CAVE_SPIDER
+                    || entityType == EntityType.WITCH
+                    || entityType == EntityType.ENDERMAN
+                    || entityType == EntityType.ZOMBIE_VILLAGER
+                    || entityType == EntityType.SLIME;
+
+            if (isVanillaDarkHostile) {
+                event.setSpawnCancelled(true);
+
+                // Small chance to spawn Skyrim wild night hostiles (skeevers or wolves) out in the wild
+                if (level.getLevel().isNight() && !isSettlementOrHouse(level, pos)) {
+                    float roll = level.getRandom().nextFloat();
+                    if (roll < 0.12f) {
+                        SkeeverEntity skeever = ModEntities.SKEEVER.get().create(level.getLevel());
+                        if (skeever != null) {
+                            skeever.moveTo(event.getX(), event.getY(), event.getZ(), mob.getYRot(), 0);
+                            skeever.finalizeSpawn(level, event.getDifficulty(), MobSpawnType.NATURAL, null, null);
+                            level.addFreshEntity(skeever);
+                        }
+                    } else if (roll < 0.20f) {
+                        net.minecraft.world.entity.animal.Wolf wolf = EntityType.WOLF.create(level.getLevel());
+                        if (wolf != null) {
+                            wolf.moveTo(event.getX(), event.getY(), event.getZ(), mob.getYRot(), 0);
+                            wolf.finalizeSpawn(level, event.getDifficulty(), MobSpawnType.NATURAL, null, null);
+                            level.addFreshEntity(wolf);
+                        }
+                    }
+                }
+                return;
+            }
+        }
+
+        // 3. Draugr replace zombies in snowy/mountain biomes
+        if (mob.getType() == EntityType.ZOMBIE && (type == MobSpawnType.CHUNK_GENERATION || type == MobSpawnType.SPAWNER)) {
+            Holder<Biome> biome = level.getBiome(pos);
+            boolean north = biome.is(BiomeTags.IS_TAIGA) || biome.is(BiomeTags.IS_MOUNTAIN) || biome.is(Tags.Biomes.IS_SNOWY)
+                    || biome.value().coldEnoughToSnow(pos);
+            if (north && level.getRandom().nextFloat() < CreaturesConfig.DRAUGR_REPLACES_ZOMBIES.get()) {
+                DraugrEntity draugr = ModEntities.DRAUGR.get().create(level.getLevel());
+                if (draugr != null) {
+                    draugr.moveTo(event.getX(), event.getY(), event.getZ(), mob.getYRot(), 0);
+                    draugr.finalizeSpawn(level, event.getDifficulty(), type, null, null);
+                    event.setSpawnCancelled(true);
+                    level.addFreshEntity(draugr);
+                }
+            }
+        }
     }
 
     // ------------------------------------------------------------------ per-player world events

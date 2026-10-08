@@ -142,9 +142,85 @@ public class CorpseEntity extends Entity {
         this.entityData.set(APPEAR_TICKS, ticks);
     }
 
+    /** Stores all equipped armor and weapons from the dead creature into the body's base loot container. */
+    public void populateEquipment(LivingEntity dead) {
+        net.minecraft.world.entity.EquipmentSlot[] armorSlots = {
+                net.minecraft.world.entity.EquipmentSlot.FEET,
+                net.minecraft.world.entity.EquipmentSlot.LEGS,
+                net.minecraft.world.entity.EquipmentSlot.CHEST,
+                net.minecraft.world.entity.EquipmentSlot.HEAD
+        };
+        for (int i = 0; i < 4; i++) {
+            ItemStack stack = dead.getItemBySlot(armorSlots[i]);
+            if (!stack.isEmpty()) {
+                base.setItem(i, stack.copy());
+            }
+        }
+        ItemStack main = dead.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND);
+        if (!main.isEmpty()) base.setItem(4, main.copy());
+        ItemStack off = dead.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND);
+        if (!off.isEmpty()) base.setItem(5, off.copy());
+    }
+
     /** Adds base loot (what every looter finds); returns the part that didn't fit. */
     public ItemStack addLoot(ItemStack stack) {
+        if (stack.isEmpty()) return ItemStack.EMPTY;
+        for (int i = 6; i < SIZE; i++) {
+            ItemStack existing = base.getItem(i);
+            if (existing.isEmpty()) {
+                base.setItem(i, stack);
+                return ItemStack.EMPTY;
+            } else if (ItemStack.isSameItemSameTags(existing, stack)) {
+                int space = existing.getMaxStackSize() - existing.getCount();
+                if (space > 0) {
+                    int add = Math.min(space, stack.getCount());
+                    existing.grow(add);
+                    stack.shrink(add);
+                    if (stack.isEmpty()) return ItemStack.EMPTY;
+                }
+            }
+        }
         return base.addItem(stack);
+    }
+
+    /** Updates the visual body model NBT when equipped gear is removed by a looter. */
+    public void syncEquipmentAppearance(Container container) {
+        if (this.level().isClientSide) return;
+        CompoundTag body = this.entityData.get(BODY).copy();
+        if (body.isEmpty()) return;
+
+        ListTag armor = body.getList("ArmorItems", Tag.TAG_COMPOUND);
+        ListTag hands = body.getList("HandItems", Tag.TAG_COMPOUND);
+
+        boolean changed = false;
+        // Armor: 0=feet, 1=legs, 2=chest, 3=head
+        for (int i = 0; i < 4; i++) {
+            if (i < armor.size()) {
+                ItemStack current = container.getItem(i);
+                CompoundTag slotTag = armor.getCompound(i);
+                if (current.isEmpty() && !slotTag.isEmpty()) {
+                    armor.set(i, new CompoundTag());
+                    changed = true;
+                }
+            }
+        }
+        // Hands: 0=mainhand (slot 4), 1=offhand (slot 5)
+        for (int i = 0; i < 2; i++) {
+            if (i < hands.size()) {
+                ItemStack current = container.getItem(4 + i);
+                CompoundTag slotTag = hands.getCompound(i);
+                if (current.isEmpty() && !slotTag.isEmpty()) {
+                    hands.set(i, new CompoundTag());
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed) {
+            body.put("ArmorItems", armor);
+            body.put("HandItems", hands);
+            this.entityData.set(BODY, body);
+        }
     }
 
     /** True when the base loot is empty. */
@@ -499,10 +575,15 @@ public class CorpseEntity extends Entity {
         return renderDummy;
     }
 
-    /** Called by the renderer when drawing the dummy threw: never try again for this corpse. */
+    private int renderFailures;
+
+    /** Called by the renderer when drawing the dummy threw: marks failed after repeated errors. */
     public void markRenderFailed() {
-        dummyFailed = true;
-        renderDummy = null;
+        renderFailures++;
+        if (renderFailures > 15) {
+            dummyFailed = true;
+            renderDummy = null;
+        }
     }
 
     @Override
@@ -605,6 +686,33 @@ public class CorpseEntity extends Entity {
         LootCopy(UUID owner) {
             super(SIZE);
             this.owner = owner;
+            this.addListener(container -> syncEquipmentAppearance(container));
+        }
+
+        @Override
+        public void setChanged() {
+            super.setChanged();
+            syncEquipmentAppearance(this);
+        }
+
+        @Override
+        public ItemStack removeItem(int slot, int amount) {
+            ItemStack stack = super.removeItem(slot, amount);
+            syncEquipmentAppearance(this);
+            return stack;
+        }
+
+        @Override
+        public ItemStack removeItemNoUpdate(int slot) {
+            ItemStack stack = super.removeItemNoUpdate(slot);
+            syncEquipmentAppearance(this);
+            return stack;
+        }
+
+        @Override
+        public void setItem(int slot, ItemStack stack) {
+            super.setItem(slot, stack);
+            syncEquipmentAppearance(this);
         }
 
         @Override

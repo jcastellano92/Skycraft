@@ -1,0 +1,7 @@
+{
+  "showUpdateNotifications": false,
+  "mobPhysics": false,
+  "mobRagdolls": false,
+  "mobs": false,
+  "blockPhysics": true
+}

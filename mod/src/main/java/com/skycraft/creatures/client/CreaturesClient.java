@@ -9,6 +9,15 @@ import com.skycraft.creatures.entity.DraugrDeathlordEntity;
 import com.skycraft.creatures.entity.DraugrEntity;
 import com.skycraft.creatures.entity.GiantEntity;
 import com.skycraft.creatures.entity.GuardEntity;
+import com.skycraft.creatures.entity.FalmerEntity;
+import com.skycraft.creatures.entity.ForswornEntity;
+import com.skycraft.creatures.entity.FrostbiteSpiderEntity;
+import com.skycraft.creatures.entity.HagravenEntity;
+import com.skycraft.creatures.entity.IceWraithEntity;
+import com.skycraft.creatures.entity.NecromancerEntity;
+import com.skycraft.creatures.entity.SprigganEntity;
+import com.skycraft.creatures.entity.VampireEntity;
+import com.skycraft.creatures.entity.WispmotherEntity;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
@@ -31,6 +40,13 @@ public final class CreaturesClient {
     private static final ResourceLocation DRAUGR_EYES = tex("draugr/draugr_eyes");
     private static final ResourceLocation GIANT = tex("giant");
     private static final ResourceLocation[] GUARD = new ResourceLocation[Holds.NAMES.length];
+    private static final ResourceLocation[] FORSWORN = textures("society/forsworn_", ForswornEntity.SKINS);
+    private static final ResourceLocation[] NECROMANCER = textures("society/necromancer_", NecromancerEntity.SKINS);
+    private static final ResourceLocation[] VAMPIRE = textures("society/vampire_", VampireEntity.SKINS);
+    private static final ResourceLocation FALMER = tex("creatures/falmer");
+    private static final ResourceLocation SPRIGGAN = tex("creatures/spriggan");
+    private static final ResourceLocation HAGRAVEN = tex("creatures/hagraven");
+    private static final ResourceLocation WISPMOTHER = tex("creatures/wispmother");
 
     static {
         for (int i = 0; i < GUARD.length; i++) GUARD[i] = tex("guard/guard_" + Holds.NAMES[i]);
@@ -80,5 +96,22 @@ public final class CreaturesClient {
         event.registerEntityRenderer(ModEntities.TROLL.get(), TrollRenderer::new);
         event.registerEntityRenderer(ModEntities.DRAGON.get(), DragonRenderer::new);
         event.registerEntityRenderer(ModEntities.CORPSE.get(), CorpseRenderer::new);
+
+        event.registerEntityRenderer(ModEntities.FORSWORN.get(),
+                ctx -> new SkyHumanoidRenderer<ForswornEntity>(ctx, HUMANOID, f -> FORSWORN[Math.floorMod(f.getSkin(), FORSWORN.length)], 0.5f, 1.0f, true));
+        event.registerEntityRenderer(ModEntities.NECROMANCER.get(),
+                ctx -> new SkyHumanoidRenderer<NecromancerEntity>(ctx, HUMANOID, n -> NECROMANCER[Math.floorMod(n.getSkin(), NECROMANCER.length)], 0.5f, 1.0f, true));
+        event.registerEntityRenderer(ModEntities.VAMPIRE.get(),
+                ctx -> new SkyHumanoidRenderer<VampireEntity>(ctx, HUMANOID, v -> VAMPIRE[Math.floorMod(v.getSkin(), VAMPIRE.length)], 0.5f, 1.0f, true));
+        event.registerEntityRenderer(ModEntities.FALMER.get(),
+                ctx -> new SkyHumanoidRenderer<FalmerEntity>(ctx, HUMANOID, f -> FALMER, 0.5f, 0.95f, true));
+        event.registerEntityRenderer(ModEntities.SPRIGGAN.get(),
+                ctx -> new SkyHumanoidRenderer<SprigganEntity>(ctx, HUMANOID, s -> SPRIGGAN, 0.5f, 1.05f, false));
+        event.registerEntityRenderer(ModEntities.HAGRAVEN.get(),
+                ctx -> new SkyHumanoidRenderer<HagravenEntity>(ctx, HUMANOID, h -> HAGRAVEN, 0.5f, 1.0f, false));
+        event.registerEntityRenderer(ModEntities.WISPMOTHER.get(),
+                ctx -> new SkyHumanoidRenderer<WispmotherEntity>(ctx, HUMANOID, w -> WISPMOTHER, 0.5f, 1.05f, false));
+        event.registerEntityRenderer(ModEntities.FROSTBITE_SPIDER.get(), FrostbiteSpiderRenderer::new);
+        event.registerEntityRenderer(ModEntities.ICE_WRAITH.get(), IceWraithRenderer::new);
     }
 }

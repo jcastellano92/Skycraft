@@ -1,11 +1,16 @@
 package com.skycraft.creatures.entity;
 
+import com.skycraft.core.SkyData;
+import com.skycraft.core.Skill;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.entity.EntityType;
@@ -98,11 +103,74 @@ public abstract class SkyHumanoid extends Monster implements RangedAttackMob {
         return data;
     }
 
+    private int searchTicks = 0;
+    @Nullable
+    private BlockPos lastKnownTargetPos;
+
     @Override
     public void tick() {
         super.tick();
         if (!this.level().isClientSide && !initialized) {
             initialize(this.getRandom(), this.level().getCurrentDifficultyAt(this.blockPosition()));
+        }
+    }
+
+    @Override
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        LivingEntity target = this.getTarget();
+        if (target instanceof Player player) {
+            if (player.isCreative() || player.isSpectator() || !player.isAlive()) {
+                this.setTarget(null);
+                this.searchTicks = 0;
+                return;
+            }
+
+            boolean hasLos = this.hasLineOfSight(player);
+            boolean sneaking = player.isCrouching();
+            boolean detected = true;
+
+            if (!hasLos) {
+                detected = false;
+            } else if (sneaking) {
+                double dist = this.distanceTo(player);
+                int light = player.level().getMaxLocalRawBrightness(player.blockPosition());
+                int sneakSkill = (player instanceof ServerPlayer sp) ? SkyData.get(sp).getSkill(Skill.SNEAK) : 15;
+                Vec3 look = this.getViewVector(1.0F);
+                Vec3 toPlayer = player.position().subtract(this.position()).normalize();
+                double dot = look.dot(toPlayer);
+
+                if (dot < 0.2 && dist > 3.0) {
+                    detected = false; // Behind or side of enemy
+                } else if (light <= 7 && dist > 8.0) {
+                    detected = false; // Hidden in shadows
+                } else if (sneakSkill >= 45 && dist > 12.0) {
+                    detected = false; // Master of shadows
+                }
+            }
+
+            if (detected) {
+                this.searchTicks = 0;
+                this.lastKnownTargetPos = player.blockPosition();
+            } else {
+                if (this.searchTicks == 0) {
+                    this.searchTicks = 140; // 7 seconds search state
+                    if (this.lastKnownTargetPos != null) {
+                        this.getNavigation().moveTo(lastKnownTargetPos.getX(), lastKnownTargetPos.getY(), lastKnownTargetPos.getZ(), 1.0D);
+                    }
+                } else {
+                    this.searchTicks--;
+                    if (this.searchTicks % 40 == 0 && player instanceof ServerPlayer sp) {
+                        SkyData.get(sp).awardSkill(Skill.SNEAK, 0.6f);
+                    }
+                    if (this.searchTicks <= 0) {
+                        // Lost the player: give up and return to normal
+                        this.setTarget(null);
+                        this.lastKnownTargetPos = null;
+                        this.getNavigation().stop();
+                    }
+                }
+            }
         }
     }
 
