@@ -1,0 +1,389 @@
+package com.skycraft.crime;
+
+import com.skycraft.Skycraft;
+import com.skycraft.core.Currency;
+import com.skycraft.core.Notifier;
+import com.skycraft.core.SkyData;
+import com.skycraft.core.Skill;
+import com.skycraft.dig.PlacedBlocks;
+import com.skycraft.perk.Perks;
+import com.skycraft.skills.Progression;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.registries.ForgeRegistries;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Locked loot containers and the lockpicking minigame.
+ *
+ * <p>Any container that still has a loot table to generate (or any Lootr container) is a lock candidate the first
+ * time someone interacts with it. Whether it's locked (~35%) and how hard (Novice..Master, harder deeper down and in
+ * the Nether) is derived from the world seed and the position, and remembered in {@link LockData}. Every player picks
+ * a lock once; afterwards it stays open for them ({@code crime.unlocked}).</p>
+ *
+ * <p>The sweet spot and pick breaking live on the server: the client only reports the pick angle while turning, and
+ * the server answers how far the lock turns, whether the pick broke and whether the lock opened.</p>
+ */
+@Mod.EventBusSubscriber(modid = Skycraft.MODID)
+public final class Locks {
+    public static final int NOT_LOCKED = -1;
+    public static final int NOVICE = 0, APPRENTICE = 1, ADEPT = 2, EXPERT = 3, MASTER = 4;
+    public static final String[] TIERS = {"novice", "apprentice", "adept", "expert", "master"};
+    /** Sweet spot width in degrees per difficulty. */
+    private static final float[] SWEET_SPOT = {30f, 20f, 12f, 7f, 4f};
+    /** Lockpicking skill use value per difficulty when a lock is picked. */
+    private static final float[] XP = {2f, 3f, 5f, 7f, 10f};
+    private static final int LOCK_CHANCE = 35;
+
+    public static final int RESULT_PARTIAL = 0;
+    public static final int RESULT_BROKEN = 1;
+    public static final int RESULT_UNLOCKED = 2;
+    public static final int RESULT_CLOSE = 3;
+
+    private static final Map<UUID, Session> SESSIONS = new HashMap<>();
+
+    private static final class Session {
+        final ResourceKey<Level> dim;
+        final BlockPos pos;
+        final int difficulty;
+        final float center;
+        final float half;
+        int strain;
+        long lastTurn = -100;
+
+        Session(ResourceKey<Level> dim, BlockPos pos, int difficulty, float center, float half) {
+            this.dim = dim;
+            this.pos = pos;
+            this.difficulty = difficulty;
+            this.center = center;
+            this.half = half;
+        }
+    }
+
+    private Locks() {}
+
+    // ------------------------------------------------------------------ lock decisions
+
+    static String key(Level level, BlockPos pos) {
+        return level.dimension().location() + "|" + pos.getX() + "|" + pos.getY() + "|" + pos.getZ();
+    }
+
+    /** Whether the block entity still has loot to generate (or is a Lootr container). */
+    static boolean isCandidate(Level level, BlockPos pos, BlockEntity be) {
+        if (be == null) return false;
+        ResourceLocation id = ForgeRegistries.BLOCKS.getKey(level.getBlockState(pos).getBlock());
+        if (id != null && id.getNamespace().equals("lootr")) return true;
+        return be instanceof RandomizableContainerBlockEntity && Theft.lootTable(be) != null;
+    }
+
+    /** The lock difficulty of the container at {@code pos}, or {@link #NOT_LOCKED}. Decides (and remembers) on first use. */
+    public static int lockLevel(ServerLevel level, BlockPos pos) {
+        LockData data = LockData.get(level.getServer());
+        String key = key(level, pos);
+        Integer stored = data.locks.get(key);
+        if (stored != null) return stored;
+        BlockEntity be = level.getBlockEntity(pos);
+        if (!isCandidate(level, pos, be) || PlacedBlocks.isPlayerPlaced(level, pos) || Jail.isJailDimension(level)) return NOT_LOCKED;
+        int decided = decide(level, pos);
+        data.locks.put(key, decided);
+        data.setDirty();
+        return decided;
+    }
+
+    private static int decide(ServerLevel level, BlockPos pos) {
+        long h = level.getSeed() ^ pos.asLong() * 0x9E3779B97F4A7C15L ^ level.dimension().location().hashCode() * 0xC2B2AE3D27D4EB4FL;
+        h = mix(h);
+        if (Math.floorMod(h, 100) >= LOCK_CHANCE) return NOT_LOCKED;
+        int[] weights;
+        int y = pos.getY();
+        if (y >= 50) weights = new int[]{40, 30, 20, 8, 2};
+        else if (y >= 0) weights = new int[]{25, 30, 25, 15, 5};
+        else weights = new int[]{10, 20, 30, 25, 15};
+        int roll = (int) Math.floorMod(mix(h + 0x632BE59BD9B4E019L), 100);
+        int tier = 0;
+        for (int i = 0; i < weights.length; i++) {
+            roll -= weights[i];
+            if (roll < 0) {
+                tier = i;
+                break;
+            }
+        }
+        if (level.dimension() == Level.NETHER) tier += 1;
+        else if (level.dimension() == Level.END) tier += 2;
+        return Math.min(MASTER, tier);
+    }
+
+    private static long mix(long z) {
+        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+        z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+        return z ^ (z >>> 31);
+    }
+
+    public static boolean isUnlocked(Player player, Level level, BlockPos pos) {
+        ListTag list = Bounty.state(player).getList("unlocked", Tag.TAG_STRING);
+        String key = key(level, pos);
+        for (int i = 0; i < list.size(); i++) {
+            if (list.getString(i).equals(key)) return true;
+        }
+        return false;
+    }
+
+    private static void markUnlocked(Player player, Level level, BlockPos pos) {
+        CompoundTag state = Bounty.state(player);
+        ListTag list = state.getList("unlocked", Tag.TAG_STRING);
+        list.add(StringTag.valueOf(key(level, pos)));
+        state.put("unlocked", list);
+        SkyData.get(player).markDirty();
+    }
+
+    public static Component tierName(int tier) {
+        return Component.translatable("crime.skycraft.lock." + TIERS[Math.max(0, Math.min(MASTER, tier))]);
+    }
+
+    /** Whether the player must pick this lock before using the block. */
+    public static boolean blocks(ServerPlayer player, ServerLevel level, BlockPos pos) {
+        if (player.isCreative() || player.isSpectator()) return false;
+        int tier = lockLevel(level, pos);
+        return tier != NOT_LOCKED && !isUnlocked(player, level, pos);
+    }
+
+    // ------------------------------------------------------------------ events
+
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)) return;
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
+        BlockPos pos = event.getPos();
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be == null) return;
+        // sneaking with something in hand places a block instead of opening the container
+        if (player.isSecondaryUseActive() && (!player.getMainHandItem().isEmpty() || !player.getOffhandItem().isEmpty())) return;
+        if (!blocks(player, level, pos)) return;
+
+        event.setCanceled(true);
+        event.setCancellationResult(InteractionResult.FAIL);
+        if (event.getHand() != InteractionHand.MAIN_HAND) return;
+
+        int tier = lockLevel(level, pos);
+        BlockState state = level.getBlockState(pos);
+        level.playSound(null, pos, SoundEvents.CHEST_LOCKED, SoundSource.BLOCKS, 0.8f, 1.2f);
+        int picks = countPicks(player);
+        if (picks <= 0) {
+            Notifier.message(player, Component.translatable("crime.skycraft.lock.need_pick", state.getBlock().getName(), tierName(tier)));
+            return;
+        }
+        start(player, level, pos, tier, picks);
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onBreak(BlockEvent.BreakEvent event) {
+        if (!(event.getPlayer() instanceof ServerPlayer player) || !(event.getLevel() instanceof ServerLevel level)) return;
+        BlockPos pos = event.getPos();
+        if (level.getBlockEntity(pos) == null) return;
+        if (blocks(player, level, pos)) {
+            event.setCanceled(true);
+            Notifier.message(player, Component.translatable("crime.skycraft.lock.cant_break", tierName(lockLevel(level, pos))));
+        }
+    }
+
+    /** Forget the decision for containers that are actually broken, so a new chest placed there isn't locked. */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onBroken(BlockEvent.BreakEvent event) {
+        if (event.isCanceled() || !(event.getLevel() instanceof ServerLevel level)) return;
+        if (level.getBlockEntity(event.getPos()) == null) return;
+        LockData data = LockData.get(level.getServer());
+        if (data.locks.remove(key(level, event.getPos())) != null) data.setDirty();
+    }
+
+    // ------------------------------------------------------------------ minigame
+
+    static int countPicks(Player player) {
+        Inventory inv = player.getInventory();
+        int n = 0;
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack s = inv.getItem(i);
+            if (s.is(CrimeItems.LOCKPICK.get())) n += s.getCount();
+        }
+        return n;
+    }
+
+    private static boolean consumePick(Player player) {
+        Inventory inv = player.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack s = inv.getItem(i);
+            if (s.is(CrimeItems.LOCKPICK.get())) {
+                s.shrink(1);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Full sweet spot width in degrees for this player and difficulty. */
+    static float sweetSpot(ServerPlayer player, int tier) {
+        float width = SWEET_SPOT[tier] * (1f + SkyData.get(player).getSkill(Skill.LOCKPICKING) / 100f);
+        if (Perks.has(player, "lockpicking." + TIERS[tier] + "_locks")) width *= 2f;
+        return Math.min(80f, width);
+    }
+
+    private static int breakTicks(ServerPlayer player) {
+        return 12 + SkyData.get(player).getSkill(Skill.LOCKPICKING) / 5;
+    }
+
+    private static void start(ServerPlayer player, ServerLevel level, BlockPos pos, int tier, int picks) {
+        float half = sweetSpot(player, tier) / 2f;
+        float center = -90f + half + player.getRandom().nextFloat() * (180f - 2 * half);
+        SESSIONS.put(player.getUUID(), new Session(level.dimension(), pos.immutable(), tier, center, half));
+        com.skycraft.network.SkyNetwork.sendToPlayer(player, new CrimePackets.OpenLockpick(pos, tier, picks));
+    }
+
+    /** The client is turning the lock with the pick at {@code angle} (-90..90). */
+    static void turn(ServerPlayer player, float angle, boolean start) {
+        Session s = SESSIONS.get(player.getUUID());
+        if (s == null) {
+            reply(player, RESULT_CLOSE, 0);
+            return;
+        }
+        if (player.level().dimension() != s.dim || player.distanceToSqr(Vec3.atCenterOf(s.pos)) > 49
+                || !(player.level() instanceof ServerLevel level) || level.getBlockEntity(s.pos) == null) {
+            SESSIONS.remove(player.getUUID());
+            reply(player, RESULT_CLOSE, 0);
+            return;
+        }
+        long now = level.getGameTime();
+        long dt = now - s.lastTurn;
+        if (dt < 3) return; // rate limit: no brute-force sweeping
+        s.lastTurn = now;
+        if (Float.isNaN(angle)) angle = 0;
+        angle = Math.max(-90f, Math.min(90f, angle));
+
+        float dist = Math.abs(angle - s.center);
+        if (dist <= s.half) {
+            unlock(player, level, s);
+            return;
+        }
+        float fraction = 1f - (dist - s.half) / (s.half + 30f);
+        fraction = Math.max(0.03f, Math.min(0.9f, fraction));
+        if (!Perks.has(player, "lockpicking.unbreakable")) {
+            s.strain += start ? 2 : (int) Math.min(6, dt);
+            if (s.strain >= breakTicks(player)) {
+                s.strain = 0;
+                consumePick(player);
+                level.playSound(null, s.pos, SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 0.9f, 1.3f);
+                int left = countPicks(player);
+                reply(player, RESULT_BROKEN, left);
+                if (left <= 0) {
+                    SESSIONS.remove(player.getUUID());
+                    Notifier.message(player, Component.translatable("crime.skycraft.lock.out_of_picks"));
+                }
+                return;
+            }
+        }
+        reply(player, RESULT_PARTIAL, fraction);
+    }
+
+    static void close(ServerPlayer player) {
+        SESSIONS.remove(player.getUUID());
+    }
+
+    private static void reply(ServerPlayer player, int result, float value) {
+        com.skycraft.network.SkyNetwork.sendToPlayer(player, new CrimePackets.LockResult(result, value));
+    }
+
+    private static void unlock(ServerPlayer player, ServerLevel level, Session s) {
+        SESSIONS.remove(player.getUUID());
+        markUnlocked(player, level, s.pos);
+        Progression.addSkillXp(player, Skill.LOCKPICKING, XP[s.difficulty]);
+        level.playSound(null, s.pos, SoundEvents.IRON_TRAPDOOR_OPEN, SoundSource.BLOCKS, 0.7f, 1.6f);
+
+        if (Perks.has(player, "lockpicking.golden_touch")) {
+            Currency.give(player, 10 + player.getRandom().nextInt(41) + s.difficulty * 10);
+        }
+        if (Perks.has(player, "lockpicking.treasure_hunter") && player.getRandom().nextFloat() < 0.5f) {
+            ItemStack bonus = switch (player.getRandom().nextInt(4)) {
+                case 0 -> new ItemStack(Items.EMERALD, 1 + s.difficulty / 2);
+                case 1 -> new ItemStack(Items.AMETHYST_SHARD, 2 + s.difficulty);
+                case 2 -> new ItemStack(s.difficulty >= EXPERT ? Items.DIAMOND : Items.GOLD_INGOT);
+                default -> Currency.coins(25L + 25L * s.difficulty);
+            };
+            player.getInventory().placeItemBackInInventory(bonus);
+            Notifier.message(player, Component.translatable("crime.skycraft.lock.treasure", bonus.getHoverName()));
+        }
+
+        // Picking an owned lock in plain sight is trespassing (Quick Hands: nobody notices).
+        if (!Perks.has(player, "lockpicking.quick_hands") && Theft.isOwned(level, s.pos)) {
+            Crimes.report(player, s.pos, Bounty.TRESPASS, false, null);
+        }
+
+        reply(player, RESULT_UNLOCKED, 1);
+        // open the container right away, like Skyrim
+        BlockState state = level.getBlockState(s.pos);
+        Theft.noteClick(player, s.pos);
+        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(s.pos), Direction.UP, s.pos, false);
+        state.use(level, player, InteractionHand.MAIN_HAND, hit);
+    }
+
+    static void forget(UUID player) {
+        SESSIONS.remove(player);
+    }
+
+    // ------------------------------------------------------------------ saved data
+
+    /** Per-world lock decisions: "dim|x|y|z" -> difficulty (or -1 when not locked). Stored with the overworld. */
+    public static class LockData extends SavedData {
+        private static final String NAME = "skycraft_locks";
+        final Map<String, Integer> locks = new HashMap<>();
+
+        static LockData get(MinecraftServer server) {
+            return server.overworld().getDataStorage().computeIfAbsent(LockData::load, LockData::new, NAME);
+        }
+
+        static LockData load(CompoundTag tag) {
+            LockData data = new LockData();
+            CompoundTag locks = tag.getCompound("locks");
+            for (String k : locks.getAllKeys()) data.locks.put(k, locks.getInt(k));
+            return data;
+        }
+
+        @Override
+        public CompoundTag save(CompoundTag tag) {
+            CompoundTag locks = new CompoundTag();
+            this.locks.forEach(locks::putInt);
+            tag.put("locks", locks);
+            return tag;
+        }
+    }
+}
