@@ -52,9 +52,12 @@ jobs:
           java-version: '17'
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
       - name: Install packwiz
-        run: go install github.com/packwiz/packwiz@latest && echo "$HOME/go/bin" >> "$GITHUB_PATH"
+        # Pinned: packwiz has no releases, and @latest can start needing a newer Go at any time.
+        env:
+          GOTOOLCHAIN: local
+        run: go install github.com/packwiz/packwiz@v0.0.0-20260906154125-ef87d964f8cb && echo "$HOME/go/bin" >> "$GITHUB_PATH"
       - uses: actions/download-artifact@v4
         with:
           name: skycraft-core-jar
