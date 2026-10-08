@@ -50,6 +50,8 @@ cp -r crash-reports "$OUT/" 2>/dev/null || true
 
 echo "=== Skycraft errors/warnings ==="
 grep -iE "skycraft" "$OUT/latest.log" 2>/dev/null | grep -iE "error|exception|warn|failed" | head -100
+echo "=== Skycraft exception detail ==="
+grep -n -A25 "Failed to create mod instance\|Exception caught during firing event\|skycraft.*Exception" "$OUT/debug.log" 2>/dev/null | grep -E "Exception|Error|Caused by|at com\.skycraft" | head -40
 echo "=== All ERROR lines (first 150) ==="
 grep -E "/ERROR\]|\[ERROR\]" "$OUT/latest.log" 2>/dev/null | head -150
 if [ "$started" != 1 ]; then echo "Server did not finish starting"; tail -150 console.log; exit 1; fi

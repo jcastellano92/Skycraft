@@ -1,8 +1,7 @@
 package com.skycraft.dialogue;
 
-import com.skycraft.client.screen.DialogueScreen;
+import com.skycraft.client.DialogueClient;
 import com.skycraft.network.SkyNetwork;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -50,7 +49,7 @@ public final class DialoguePackets {
         }
 
         static void handle(OpenDialogue m, Supplier<NetworkEvent.Context> ctx) {
-            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> Minecraft.getInstance().setScreen(new DialogueScreen(m)));
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> DialogueClient.open(m));
             ctx.get().setPacketHandled(true);
         }
     }
