@@ -1,56 +1,55 @@
 # Mod resolution report
 
-- [x] `mr:embeddium`
-- [x] `mr:oculus`
-- [x] `mr:distanthorizons`
-- [x] `mr:modernfix`
-- [x] `mr:ferrite-core`
-- [x] `mr:entityculling`
-- [x] `mr:immediatelyfast`
-- [x] `mr:canary`
-- [x] `mr:memoryleakfix`
-- [x] `mr:chunky`
-- [x] `mr:spark`
-- [x] `mr:lootr`
-- [x] `mr:better-combat`
-- [x] `mr:corpse`
-- [x] `mr:waystones`
-- [x] `mr:xaeros-minimap`
-- [x] `mr:xaeros-world-map`
-- [ ] **unresolved:** `mr:dynamiclights-reforged`
-- [x] `mr:jade`
-- [x] `mr:jei`
-- [x] `mr:mouse-tweaks`
-- [x] `mr:default-options`
-- [x] `cf:minecraft-comes-alive-reborn`
-- [x] `mr:villager-recruits`
-- [x] `mr:guard-villagers`
-- [x] `mr:easy-npc`
-- [x] `mr:vampirism`
-- [x] `mr:werewolves`
-- [x] `mr:terralith`
-- [x] `mr:tectonic`
-- [ ] **unresolved:** `mr:ctov`
-- [x] `mr:towns-and-towers`
-- [x] `mr:dungeons-and-taverns`
-- [x] `mr:when-dungeons-arise`
-- [x] `mr:moogs-voyager-structures`
-- [x] `mr:explorify`
-- [x] `mr:yungs-better-dungeons`
-- [x] `mr:yungs-better-mineshafts`
-- [x] `mr:yungs-better-strongholds`
-- [x] `mr:yungs-better-desert-temples`
-- [x] `mr:yungs-better-jungle-temples`
-- [x] `mr:yungs-better-ocean-monuments`
-- [x] `mr:yungs-better-witch-huts`
-- [x] `mr:yungs-better-nether-fortresses`
-- [x] `mr:yungs-bridges`
-- [x] `mr:yungs-extras`
-- [x] `cf:aquaculture`
-- [x] `mr:farmers-delight`
-- [ ] **unresolved:** `cf:epic-knights-shields-armor-and-weapons`
-- [x] `mr:sophisticated-backpacks`
-- [x] `mr:comforts`
-- [x] `mr:complementary-reimagined`
+- [x] `mr:embeddium` (pinned)
+- [x] `mr:oculus` (pinned)
+- [x] `mr:distanthorizons` (pinned)
+- [x] `mr:modernfix` (pinned)
+- [x] `mr:ferrite-core` (pinned)
+- [x] `mr:entityculling` (pinned)
+- [x] `mr:canary` (pinned)
+- [x] `mr:memoryleakfix` (pinned)
+- [x] `mr:chunky` (pinned)
+- [x] `mr:spark` (pinned)
+- [x] `mr:lootr` (pinned)
+- [x] `mr:better-combat` (pinned)
+- [x] `mr:corpse` (pinned)
+- [x] `mr:waystones` (pinned)
+- [x] `mr:xaeros-minimap` (pinned)
+- [x] `mr:xaeros-world-map` (pinned)
+- [x] `cf:dynamiclights-reforged`
+- [x] `mr:jade` (pinned)
+- [x] `mr:jei` (pinned)
+- [x] `mr:mouse-tweaks` (pinned)
+- [x] `mr:default-options` (pinned)
+- [x] `cf:minecraft-comes-alive-reborn` (pinned)
+- [x] `mr:villager-recruits` (pinned)
+- [x] `mr:guard-villagers` (pinned)
+- [x] `mr:easy-npc` (pinned)
+- [x] `mr:vampirism` (pinned)
+- [x] `mr:werewolves` (pinned)
+- [x] `mr:terralith` (pinned)
+- [x] `mr:tectonic` (pinned)
+- [x] `mr:ct-overhaul-village` (pinned)
+- [x] `mr:towns-and-towers` (pinned)
+- [x] `mr:dungeons-and-taverns` (pinned)
+- [x] `mr:when-dungeons-arise` (pinned)
+- [x] `mr:moogs-voyager-structures` (pinned)
+- [x] `mr:explorify` (pinned)
+- [x] `mr:yungs-better-dungeons` (pinned)
+- [x] `mr:yungs-better-mineshafts` (pinned)
+- [x] `mr:yungs-better-strongholds` (pinned)
+- [x] `mr:yungs-better-desert-temples` (pinned)
+- [x] `mr:yungs-better-jungle-temples` (pinned)
+- [x] `mr:yungs-better-ocean-monuments` (pinned)
+- [x] `mr:yungs-better-witch-huts` (pinned)
+- [x] `mr:yungs-better-nether-fortresses` (pinned)
+- [x] `mr:yungs-bridges` (pinned)
+- [x] `mr:yungs-extras` (pinned)
+- [x] `mr:aquaculture` (pinned)
+- [x] `mr:farmers-delight` (pinned)
+- [x] `cf:sophisticated-backpacks` (pinned)
+- [x] `mr:comforts` (pinned)
+- [x] `mr:complementary-reimagined` (pinned)
+- [x] Skycraft Core (local jar)
 
-Resolved: 49, unresolved: 3
+Resolved: 50, unresolved: 0
