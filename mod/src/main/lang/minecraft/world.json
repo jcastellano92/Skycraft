@@ -1,0 +1,28 @@
+{
+  "block.minecraft.nether_portal": "Oblivion Gate",
+  "block.minecraft.end_portal_frame": "Sovngarde Seal",
+  "block.minecraft.end_portal": "Sovngarde Portal",
+  "block.minecraft.end_gateway": "Whalebone Gateway",
+
+  "biome.minecraft.nether_wastes": "Deadlands",
+  "biome.minecraft.crimson_forest": "Coldharbour Thicket",
+  "biome.minecraft.warped_forest": "Shivering Isles Grove",
+  "biome.minecraft.soul_sand_valley": "Soul Cairn",
+  "biome.minecraft.basalt_deltas": "Ashpit",
+  "biome.minecraft.the_end": "Halls of Sovngarde",
+  "biome.minecraft.end_highlands": "Misty Vale",
+  "biome.minecraft.end_midlands": "Sovngarde Meadows",
+  "biome.minecraft.small_end_islands": "Shores of Sovngarde",
+  "biome.minecraft.end_barrens": "Mists of Sovngarde",
+
+  "advancements.nether.root.title": "Oblivion",
+  "advancements.nether.root.description": "Bring summer clothes to the realm of Mehrunes Dagon",
+  "advancements.story.enter_the_nether.title": "Into Oblivion",
+  "advancements.story.enter_the_nether.description": "Build, light and enter an Oblivion Gate",
+  "advancements.nether.find_fortress.title": "A Terrible Citadel",
+  "advancements.nether.find_bastion.title": "Tower of Oblivion",
+  "advancements.end.root.title": "Sovngarde",
+  "advancements.story.enter_the_end.title": "The Hall of Valor?",
+  "advancements.story.enter_the_end.description": "Pass the Sovngarde Seal",
+  "advancements.story.follow_ender_eye.title": "Path to Sovngarde"
+}

@@ -1,0 +1,31 @@
+package com.skycraft.world.client;
+
+import com.skycraft.world.WorldPackets;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+
+/** Client-side entry points for world packets and common-side events (only class-loaded on the client). */
+public final class WorldClient {
+    private WorldClient() {}
+
+    public static void cue(int cue) {
+        if (cue == WorldPackets.Cue.DISCOVERY) MusicController.playDiscoverySting();
+    }
+
+    public static void fade(int hours, int kind) {
+        Component text;
+        if (kind == WorldPackets.RestFade.TRAVEL) {
+            text = hours > 0 ? Component.translatable("world.skycraft.fade.travel_hours", hours) : Component.empty();
+        } else {
+            text = Component.translatable(hours == 1 ? "world.skycraft.fade.hour" : "world.skycraft.fade.hours", hours);
+        }
+        ScreenFade.start(text, kind == WorldPackets.RestFade.TRAVEL ? 1200 : 1800);
+    }
+
+    public static void openRest(boolean sleep, BlockPos bed) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        if (mc.screen == null || mc.screen instanceof RestScreen) mc.setScreen(new RestScreen(sleep, bed));
+    }
+}
