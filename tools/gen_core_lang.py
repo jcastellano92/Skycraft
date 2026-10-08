@@ -241,7 +241,7 @@ P("hunting.apex_predator", "Apex Predator", "Hunting trains twice as fast; +25% 
 # keys & screens & messages
 for k, n in {"skills": "Skills (Look to the Heavens)", "journal": "Journal", "magic_menu": "Magic & Shouts", "cast": "Cast Spell",
              "shout": "Shout / Power", "power_attack": "Power Attack (hold while attacking)", "block": "Block with Weapon (hold)",
-             "racial_power": "Racial Power", "wait": "Wait / Sleep", "party": "Party"}.items():
+             "racial_power": "Racial Power", "wait": "Wait / Sleep", "party": "Party", "map": "Map & Fast Travel"}.items():
     t(f"key.skycraft.{k}", n)
 t("key.categories.skycraft", "Skycraft")
 t("itemGroup.skycraft", "Skycraft")

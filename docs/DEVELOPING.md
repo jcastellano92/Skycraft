@@ -1,0 +1,114 @@
+# Developing Skycraft Core
+
+Skycraft Core (`mod/`) is a **Forge 1.20.1 (47.3.x)** mod, **official Mojang mappings**, **Java 17**.
+GitHub Actions builds it on every push (`.github/workflows/build.yml`).
+
+## Layout
+
+```
+mod/src/main/java/com/skycraft/
+  Skycraft.java            mod entry point; calls every module's init()
+  SkyConfig.java           common config (config/skycraft-common.toml)
+  core/                    PlayerData (+capability SkyData), Skill, Race, Currency, Holds, Buffs, Notifier, commands
+  perk/                    Perk + Perks (every constellation; ids are "<skill>.<perk>")
+  skills/                  Progression (skill XP, skill-ups, level-ups), LifeSkills (mining/woodcutting/fishing/hunting)
+  vitals/                  Vitals (magicka/stamina/health regen & costs), RacePowers, ActionHandler (key actions)
+  combat/                  CombatHandler (weapon/armor/block/sneak/archery rules), WeaponClass, ArmorClass
+  dig/                     DiggingRules (perk-gated terrain digging), PlacedBlocks (player-placed tracking)
+  dialogue/                Dialogue hub: NPC conversation menu that modules add topics to
+  loot/                    AddTableModifier: the skycraft:add_table global loot modifier
+  network/                 SkyNetwork (single channel), CorePackets, NotifyKind
+  registry/                ModItems (septim, coin purse), ModEffects, ModCreativeTab
+  client/                  SkyKeys, HUD (bars, compass, notifications), core screens
+  magic/ creatures/ economy/ crime/ quest/ crafting/ world/   feature modules
+mod/src/main/lang/<namespace>/<part>.json   language fragments, merged into assets/<ns>/lang/en_us.json at build
+tools/                     generators (core lang, textures)
+```
+
+## Module rules
+
+* Each module lives in `com.skycraft.<module>` and fills in `<Module>Module.init(IEventBus modBus)` (register its own
+  `DeferredRegister`s, mod-bus listeners) and `<Module>Module.registerPackets()` (register packets through
+  `SkyNetwork.register(...)` in a fixed order).
+* Forge-bus events: use `@Mod.EventBusSubscriber(modid = Skycraft.MODID)` classes. Client-only code goes in
+  `com.skycraft.<module>.client` with `value = Dist.CLIENT`. S2C packet handlers must reach client code through
+  `DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> SomeClientClass.handle(...))`.
+* Every Skycraft item automatically appears in the Skycraft creative tab — don't add your own tab.
+* Language: write **only** `mod/src/main/lang/skycraft/<module>.json` (and `mod/src/main/lang/minecraft/<module>.json`
+  to rename vanilla things). Never edit another module's file or `core.json`.
+* Textures: generate pixel art with a Python/PIL script `tools/textures/<module>.py` that writes PNGs into
+  `mod/src/main/resources/assets/skycraft/textures/...`; run it and keep the PNGs.
+* No mixins, no access transformers, no third-party compile dependencies. Optional integrations go through tags
+  with `{"id": "othermod:thing", "required": false}` entries.
+* `data/forge/loot_modifiers/global_loot_modifiers.json` is owned by the core. Its entries are
+  `skycraft:gold` (core), `skycraft:spell_tomes` (magic), , `skycraft:soul_gems`, `skycraft:alchemy_ingredients`
+  (crafting/arcane), `skycraft:lockpicks` (crime), `skycraft:skill_books` (economy). Each owner writes
+  `data/skycraft/loot_modifiers/<name>.json` (type `skycraft:add_table`, see `loot/AddTableModifier.java`) and the
+  referenced loot table.
+
+## Core API cheat sheet
+
+| Need | Call |
+| --- | --- |
+| Player RPG data | `PlayerData data = SkyData.get(player);` |
+| Per-module saved data | `CompoundTag t = data.module("magic"); ... data.markDirty();` (synced to the owning client automatically) |
+| Award skill XP | `Progression.addSkillXp(serverPlayer, Skill.DESTRUCTION, useValue)` |
+| Raise skill directly | `Progression.increaseSkill(serverPlayer, skill, levels)` |
+| Perk checks | `Perks.has(player, "destruction.augmented_flames")`, `Perks.rank(player, id)` |
+| Spend magicka/stamina | `Vitals.consumeMagicka(player, amount)`, `Vitals.consumeStamina(player, amount, partial)` |
+| Combat state | `Vitals.markInCombat(player)`, `Vitals.inCombat(player)` |
+| HUD popups | `Notifier.send(sp, NotifyKind.QUEST_STARTED, title, subtitle)`, `Notifier.message(sp, text)`, `Notifier.title(sp, title, sub)` |
+| Gold | `Currency.balance(p)`, `Currency.take(p, n)`, `Currency.give(p, n)`, `Currency.coins(n)` |
+| Stagger / paralysis | `CombatHandler.stagger(src, target, ticks)`, `ModEffects.PARALYSIS`, `ModEffects.STAGGER` |
+| Timed flags | `Buffs.apply(player, "name", ticks)`, `Buffs.active(player, "name")` |
+| Holds | `Holds.holdAt(level, pos)` -> `"whiterun"`, `Holds.displayName(id)` |
+| NPC conversation topics | `Dialogue.registerProvider((player, npc, out) -> out.add(new DialogueOption(id, label, order, action)))`; reopen with `Dialogue.open(player, npc, greeting)` |
+| Compass markers (client) | `CompassMarkers.set("quest", List.of(new CompassMarkers.Marker(pos, Shape.QUEST, 0xE8C060, "Bleak Falls", 0)))` |
+| Keys (client) | `SkyKeys.CAST`, `SkyKeys.SHOUT`, ... each key has exactly one owning module (see `SkyKeys`) |
+
+## Cross-module contracts
+
+These names are fixed so modules can be written independently.
+
+1. **Soul gems** (crafting owns): `com.skycraft.crafting.SoulGems.tryCaptureSoul(ServerPlayer player, LivingEntity victim) -> boolean`.
+   Magic calls it when a creature under its `skycraft:soul_trap` effect dies.
+2. **Dragons** (creatures owns the entity): every dragon is in entity tag `#skycraft:dragons`. Magic listens to
+   `LivingDeathEvent` for that tag and performs dragon-soul absorption.
+3. **Guards** (creatures owns the entity `skycraft:guard`): all guards are in `#skycraft:guards` and `#skycraft:talkers`.
+   Crime decides when guards become hostile and provides the arrest dialogue topics.
+4. **Item values** (economy owns the loader): data files `data/<ns>/skycraft_values/<any>.json` with
+   `{"values": {"minecraft:diamond": 250, "skycraft:ebony_ingot": 150}}`. Crafting ships values for its items.
+5. **Crime state** (crime owns): `data.module("crime")` keys `murders` (int), `assaults` (int), `items_stolen` (int),
+   `pickpockets` (int), `bounty` (compound holdId -> int). Stolen ItemStacks carry boolean NBT `skycraft_stolen`.
+6. **Factions** (quest owns): `data.module("quest").getCompound("factions")` maps faction id -> rank (int, absent = not a
+   member). Faction ids: `companions`, `college`, `thieves_guild`, `dark_brotherhood`, `imperial_legion`,
+   `stormcloaks`, `bards_college`.
+7. **Creature ids** (creatures owns): `skycraft:bandit`, `skycraft:bandit_chief`, `skycraft:draugr`,
+   `skycraft:draugr_deathlord`, `skycraft:skeever`, `skycraft:troll`, `skycraft:giant`, `skycraft:dragon`,
+   `skycraft:guard`, `skycraft:corpse`. Quests spawn them by registry id.
+8. **Compass sources**: `quest` (quest targets), `locations` (world module).
+9. **Well Rested** is applied by the world module's sleep system (`ModEffects.WELL_RESTED`).
+10. **Jail** dimension `skycraft:jail` belongs to crime.
+11. **Dragonrend** (magic sets, creatures reads): `entity.getPersistentData().getLong("skycraft_dragonrend_until")` holds the
+    game time until which a dragon is forced to land and can't fly.
+12. **Item values API** (economy owns): `com.skycraft.economy.ItemValues.get(ItemStack) -> int` (base gold value, never
+    negative; includes enchantments/quality). Crime uses it for theft bounties.
+13. **Creature drops** (crafting owns the items, creatures' loot tables reference them by id): `skycraft:dragon_bone`,
+    `skycraft:dragon_scale`, `skycraft:daedra_heart`, `skycraft:giants_toe`, `skycraft:troll_fat`, `skycraft:skeever_tail`,
+    `skycraft:bone_meal_draugr` (Draugr dust), `skycraft:hide` (animal hide), `skycraft:dwarven_scrap`.
+14. **Known spells & shouts** (magic owns): `data.module("magic").getList("spells", Tag.TAG_STRING)` (spell ids) and
+    `data.module("magic").getCompound("words")` (shout id -> number of words learned), `getInt("dragon_souls")`.
+15. **Merchant stock tags** (economy owns `#skycraft:merchant/*`): other modules publish goods in their own item tags
+    that economy includes optionally: `#skycraft:smithing_goods` (crafting), `#skycraft:alchemy_goods`,
+    `#skycraft:arcane_goods` (crafting/arcane), `#skycraft:spell_tomes` (magic), `#skycraft:thief_goods` (crime).
+16. **Quest markers** (quest owns): `data.module("quest").getList("markers", Tag.TAG_COMPOUND)`, each
+    `{x, y, z, dim, label}`; the world map draws them.
+17. **Sub-module**: `com.skycraft.crafting.arcane.ArcaneModule` (enchanting, soul gems, alchemy) is initialised from
+    `CraftingModule`; the `SoulGems` contract class lives at `com.skycraft.crafting.SoulGems` and is owned by arcane.
+
+## Building
+
+```
+cd mod && ./gradlew build      # needs network access to Forge & Mojang maven
+```
+The jar lands in `mod/build/libs/`.

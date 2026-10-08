@@ -12,7 +12,7 @@ import org.lwjgl.glfw.GLFW;
  *     <li>core: SKILLS, POWER_ATTACK, BLOCK, RACIAL_POWER</li>
  *     <li>magic: MAGIC_MENU, CAST, SHOUT</li>
  *     <li>quest: JOURNAL, PARTY</li>
- *     <li>world: WAIT</li>
+ *     <li>world: WAIT, MAP</li>
  *     <li>crime: (uses vanilla use key while sneaking for pickpocketing)</li>
  * </ul>
  */
@@ -29,8 +29,9 @@ public final class SkyKeys {
     public static final KeyMapping RACIAL_POWER = key("racial_power", GLFW.GLFW_KEY_H);
     public static final KeyMapping WAIT = key("wait", GLFW.GLFW_KEY_T);
     public static final KeyMapping PARTY = key("party", GLFW.GLFW_KEY_U);
+    public static final KeyMapping MAP = key("map", GLFW.GLFW_KEY_N);
 
-    public static final KeyMapping[] ALL = {SKILLS, JOURNAL, MAGIC_MENU, CAST, SHOUT, POWER_ATTACK, BLOCK, RACIAL_POWER, WAIT, PARTY};
+    public static final KeyMapping[] ALL = {SKILLS, JOURNAL, MAGIC_MENU, CAST, SHOUT, POWER_ATTACK, BLOCK, RACIAL_POWER, WAIT, PARTY, MAP};
 
     private SkyKeys() {}
 
