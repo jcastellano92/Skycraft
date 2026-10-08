@@ -41,6 +41,10 @@
     {
       "id": "#skycraft:smithing_goods",
       "required": false
+    },
+    {
+      "id": "#skycraft:arsenal_goods",
+      "required": false
     }
   ]
 }

@@ -1,0 +1,114 @@
+package com.skycraft.society;
+
+import net.minecraftforge.common.ForgeConfigSpec;
+
+/** Society configuration: config/skycraft-society.toml (COMMON, server-authoritative). */
+public final class SocietyConfig {
+    public static final ForgeConfigSpec SPEC;
+
+    // ------------------------------------------------------------------ npcs
+    public static final ForgeConfigSpec.BooleanValue POPULATE_SETTLEMENTS;
+
+    // ------------------------------------------------------------------ barks
+    public static final ForgeConfigSpec.BooleanValue AMBIENT_BARKS;
+    public static final ForgeConfigSpec.IntValue BARK_RANGE;
+    public static final ForgeConfigSpec.IntValue BARK_COOLDOWN_MIN;
+    public static final ForgeConfigSpec.IntValue BARK_COOLDOWN_MAX;
+    public static final ForgeConfigSpec.IntValue MAX_BARKS_PER_SECOND;
+
+    // ------------------------------------------------------------------ reputation
+    public static final ForgeConfigSpec.IntValue HOSTILE_THRESHOLD;
+    public static final ForgeConfigSpec.IntValue RECOVERY_MINUTES;
+
+    // ------------------------------------------------------------------ hit squads
+    public static final ForgeConfigSpec.BooleanValue HIT_SQUADS;
+    public static final ForgeConfigSpec.IntValue SQUAD_MIN_MINUTES;
+    public static final ForgeConfigSpec.IntValue SQUAD_MAX_MINUTES;
+
+    // ------------------------------------------------------------------ encounters
+    public static final ForgeConfigSpec.BooleanValue ENCOUNTERS;
+    public static final ForgeConfigSpec.IntValue ENCOUNTER_MIN_SECONDS;
+    public static final ForgeConfigSpec.IntValue ENCOUNTER_MAX_SECONDS;
+    public static final ForgeConfigSpec.IntValue ENCOUNTER_CAP;
+    public static final ForgeConfigSpec.BooleanValue DRAGON_FLYBYS;
+    public static final ForgeConfigSpec.BooleanValue HOSTILE_ENCOUNTERS;
+
+    // ------------------------------------------------------------------ pvp / cosmetics
+    public static final ForgeConfigSpec.BooleanValue PVP_BOUNTY;
+    public static final ForgeConfigSpec.BooleanValue COSMETICS;
+
+    static {
+        ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
+        b.push("npcs");
+        POPULATE_SETTLEMENTS = b.comment("Give every detected settlement (roads module) a few townsfolk: innkeeper, bard, priest, workers,",
+                        "and the first settlement of each hold its Jarl and housecarl.")
+                .define("populateSettlements", true);
+        b.pop();
+
+        b.push("barks");
+        AMBIENT_BARKS = b.comment("Villagers, guards and NPCs say things above their heads when a player passes by.")
+                .define("ambientBarks", true);
+        BARK_RANGE = b.comment("Distance in blocks at which a passing player triggers an ambient line.")
+                .defineInRange("range", 6, 2, 16);
+        BARK_COOLDOWN_MIN = b.comment("Minimum seconds before the same speaker says another ambient line.")
+                .defineInRange("cooldownMinSeconds", 30, 5, 3600);
+        BARK_COOLDOWN_MAX = b.comment("Maximum seconds before the same speaker says another ambient line.")
+                .defineInRange("cooldownMaxSeconds", 60, 5, 3600);
+        MAX_BARKS_PER_SECOND = b.comment("Server-wide limit of ambient lines per second.")
+                .defineInRange("maxPerSecond", 3, 1, 50);
+        b.pop();
+
+        b.push("reputation");
+        HOSTILE_THRESHOLD = b.comment("At or below this reputation a faction attacks the player on sight and may send hit squads.")
+                .defineInRange("hostileThreshold", -40, -100, 0);
+        RECOVERY_MINUTES = b.comment("Every this many minutes of play, each negative reputation recovers by 1 (0 = never).")
+                .defineInRange("recoveryMinutes", 10, 0, 1440);
+        b.pop();
+
+        b.push("hitSquads");
+        HIT_SQUADS = b.comment("Factions that hate the player send Thalmor justiciars, Forsworn ambushes, army patrols,",
+                        "Dark Brotherhood assassins or hired thugs after them.")
+                .define("enabled", true);
+        SQUAD_MIN_MINUTES = b.comment("Minimum minutes of play between two hit squad rolls.")
+                .defineInRange("minMinutes", 20, 1, 1440);
+        SQUAD_MAX_MINUTES = b.comment("Maximum minutes of play between two hit squad rolls.")
+                .defineInRange("maxMinutes", 40, 1, 1440);
+        b.pop();
+
+        b.push("encounters");
+        ENCOUNTERS = b.comment("Random wilderness encounters near players in the overworld (hunters, bards, prisoner escorts,",
+                        "fights, couriers, stranded merchants, vampires at night...).")
+                .define("enabled", true);
+        ENCOUNTER_MIN_SECONDS = b.comment("Minimum seconds between two encounter rolls per player.")
+                .defineInRange("minSeconds", 180, 10, 36000);
+        ENCOUNTER_MAX_SECONDS = b.comment("Maximum seconds between two encounter rolls per player.")
+                .defineInRange("maxSeconds", 360, 10, 36000);
+        ENCOUNTER_CAP = b.comment("Maximum encounter groups within 128 blocks of a player.")
+                .defineInRange("groupsPerArea", 3, 0, 32);
+        DRAGON_FLYBYS = b.comment("Rarely, a dragon (skycraft:dragon) flies over the wilderness.")
+                .define("dragonFlybys", true);
+        HOSTILE_ENCOUNTERS = b.comment("Allow encounters that attack the player (vampires, Forsworn ambushes). Never on Peaceful.")
+                .define("hostileEncounters", true);
+        b.pop();
+
+        b.push("pvp");
+        PVP_BOUNTY = b.comment("Attacking another player where witnesses see it adds an assault bounty; killing one is murder.")
+                .define("pvpBounty", true);
+        b.pop();
+
+        b.push("cosmetics");
+        COSMETICS = b.comment("Let faction members wear their faction's regalia (tabard, cloak, pelt, sash, hood) over their skin.")
+                .define("enabled", true);
+        b.pop();
+        SPEC = b.build();
+    }
+
+    private SocietyConfig() {}
+
+    /** Random duration between a min and max config value (swapped if misconfigured). */
+    static int between(int a, int b, net.minecraft.util.RandomSource random) {
+        int lo = Math.min(a, b);
+        int hi = Math.max(a, b);
+        return lo + (hi > lo ? random.nextInt(hi - lo + 1) : 0);
+    }
+}

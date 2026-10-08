@@ -1,16 +1,44 @@
 package com.skycraft.society;
 
+import com.skycraft.society.entity.NpcEntity;
+import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
 
-/** NPC types, overhead dialogue barks, reputation, random encounters, faction cosmetics and PvP rules. */
+/**
+ * NPC types, overhead dialogue barks, reputation, random encounters, faction cosmetics and PvP rules.
+ *
+ * <ul>
+ *     <li>{@link NpcEntities}: {@code skycraft:npc} (civilians, contract 22) and {@code skycraft:npc_fighter} (soldiers,
+ *     villains) with {@link NpcRole roles}; {@link Npcs} is the public spawn API, {@link NpcDialogue} their topics,
+ *     {@link Settlers} gives every settlement its townsfolk, Jarl and housecarl.</li>
+ *     <li>{@link Barks}: overhead speech (contract 22) and ambient lines from villagers, guards and NPCs.</li>
+ *     <li>{@link Reputation} (contract 23) and {@link ReputationEvents}; {@link HitSquads} for hated players.</li>
+ *     <li>{@link Encounters}: random wilderness encounters; {@link Letters} for couriers.</li>
+ *     <li>{@link Cosmetics}: faction regalia drawn over player skins (client layer in {@code society.client}).</li>
+ *     <li>{@link PvpRules}: witnessed PvP is assault/murder.</li>
+ *     <li>{@code /skycraft-society}: {@link SocietyCommands}.</li>
+ * </ul>
+ */
 public final class SocietyModule {
     private SocietyModule() {}
 
     /** Registers this module's DeferredRegisters and mod-bus listeners. Called from the mod constructor. */
     public static void init(IEventBus modBus) {
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SocietyConfig.SPEC, "skycraft-society.toml");
+        NpcEntities.init(modBus);
+        modBus.addListener(SocietyModule::onAttributes);
+        NpcDialogue.register();
     }
 
     /** Registers this module's packets via {@link com.skycraft.network.SkyNetwork#register}. Called once at startup. */
     public static void registerPackets() {
+        SocietyPackets.register();
+    }
+
+    private static void onAttributes(EntityAttributeCreationEvent event) {
+        event.put(NpcEntities.NPC.get(), NpcEntity.createAttributes().build());
+        event.put(NpcEntities.NPC_FIGHTER.get(), NpcEntity.createAttributes().build());
     }
 }

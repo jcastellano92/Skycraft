@@ -11,6 +11,10 @@
     "minecraft:feather",
     "minecraft:flint",
     "minecraft:string",
-    "minecraft:stick"
+    "minecraft:stick",
+    {
+      "id": "#skycraft:arsenal_goods",
+      "required": false
+    }
   ]
 }

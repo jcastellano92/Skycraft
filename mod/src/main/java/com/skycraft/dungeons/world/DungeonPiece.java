@@ -1,0 +1,198 @@
+package com.skycraft.dungeons.world;
+
+import com.skycraft.dungeons.DungeonsRegistry;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.StructureManager;
+import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import net.minecraft.world.level.levelgen.structure.StructurePiece;
+import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
+
+/**
+ * Every part of every dungeon: rooms, corridors, the entrance tunnel, the surface portal and whole surface sites.
+ * A piece is pure data (theme, kind, box, a seed and a few ints); {@link #postProcess} hands it to the builder for
+ * its theme, which paints it chunk by chunk through a {@link Painter}.
+ */
+public class DungeonPiece extends StructurePiece {
+    public enum Kind { ROOM, CORRIDOR, TUNNEL, PORTAL, SURFACE }
+
+    public static final int ROLE_START = 0, ROLE_NORMAL = 1, ROLE_BOSS = 2, ROLE_PUZZLE = 3;
+    public static final int FLAG_TREASURE = 1, FLAG_DEAD_END = 2, FLAG_TRAP = 4, FLAG_OPEN_TOP = 8;
+
+    public final Theme theme;
+    public final Kind kind;
+    public final long seed;
+    /** ROOM: walking level. CORRIDOR: floor at the low-coordinate end. TUNNEL/PORTAL: walking level at the bottom. SURFACE: ground level. */
+    public final int floor;
+    /** CORRIDOR: floor at the high-coordinate end. TUNNEL/PORTAL: walking level at the surface. */
+    public final int aux;
+    /** ROOM: side the room was entered from (2D data value, -1 = start). CORRIDOR: axis (0 = x, 1 = z). TUNNEL/PORTAL/SURFACE: facing. */
+    public final int dir;
+    /** ROOM: gated side (-1 none). TUNNEL/PORTAL: depth. */
+    public final int extra;
+    public final int role;
+    public final int doors;
+    public final int variant;
+    /** Dungeon-wide sub-theme (bandit cave vs animal den, ...). */
+    public final int flavor;
+    public final int flags;
+
+    public DungeonPiece(Theme theme, Kind kind, BoundingBox box, long seed, int floor, int aux, int dir, int extra,
+                        int role, int doors, int variant, int flavor, int flags) {
+        super(DungeonsRegistry.DUNGEON_PIECE.get(), 0, box);
+        this.theme = theme;
+        this.kind = kind;
+        this.seed = seed;
+        this.floor = floor;
+        this.aux = aux;
+        this.dir = dir;
+        this.extra = extra;
+        this.role = role;
+        this.doors = doors;
+        this.variant = variant;
+        this.flavor = flavor;
+        this.flags = flags;
+    }
+
+    public DungeonPiece(StructurePieceSerializationContext context, CompoundTag tag) {
+        super(DungeonsRegistry.DUNGEON_PIECE.get(), tag);
+        this.theme = Theme.byOrdinal(tag.getInt("Theme"));
+        Kind[] kinds = Kind.values();
+        int k = tag.getInt("Kind");
+        this.kind = k >= 0 && k < kinds.length ? kinds[k] : Kind.ROOM;
+        this.seed = tag.getLong("Seed");
+        this.floor = tag.getInt("Floor");
+        this.aux = tag.getInt("Aux");
+        this.dir = tag.getInt("Dir");
+        this.extra = tag.getInt("Extra");
+        this.role = tag.getInt("Role");
+        this.doors = tag.getInt("Doors");
+        this.variant = tag.getInt("Variant");
+        this.flavor = tag.getInt("Flavor");
+        this.flags = tag.getInt("Flags");
+    }
+
+    @Override
+    protected void addAdditionalSaveData(StructurePieceSerializationContext context, CompoundTag tag) {
+        tag.putInt("Theme", theme.ordinal());
+        tag.putInt("Kind", kind.ordinal());
+        tag.putLong("Seed", seed);
+        tag.putInt("Floor", floor);
+        tag.putInt("Aux", aux);
+        tag.putInt("Dir", dir);
+        tag.putInt("Extra", extra);
+        tag.putInt("Role", role);
+        tag.putInt("Doors", doors);
+        tag.putInt("Variant", variant);
+        tag.putInt("Flavor", flavor);
+        tag.putInt("Flags", flags);
+    }
+
+    public boolean has(int flag) {
+        return (flags & flag) != 0;
+    }
+
+    public Direction facing() {
+        return Direction.from2DDataValue(dir);
+    }
+
+    @Override
+    public void postProcess(WorldGenLevel level, StructureManager structures, ChunkGenerator generator, RandomSource random,
+                            BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+        Painter p = new Painter(level, chunkBox, this.boundingBox, seed);
+        if (p.empty()) return;
+        RandomSource r = RandomSource.create(seed);
+        switch (kind) {
+            case ROOM -> {
+                Room room = new Room(this);
+                if (theme.natural()) NaturalBuilder.room(p, room, r);
+                else BuiltBuilder.room(p, room, r);
+            }
+            case CORRIDOR -> {
+                if (theme.natural()) NaturalBuilder.corridor(p, this, r);
+                else BuiltBuilder.corridor(p, this, r);
+            }
+            case TUNNEL -> {
+                if (theme.natural()) NaturalBuilder.tunnel(p, this, r);
+                else BuiltBuilder.tunnel(p, this, r);
+            }
+            case PORTAL -> Portals.build(p, this, r);
+            case SURFACE -> SurfaceBuilder.build(p, this, r);
+        }
+    }
+
+    // ------------------------------------------------------------------ shared geometry
+
+    /** Corridor length (blocks between the two rooms' walls). */
+    public int corridorLength() {
+        return dir == 0 ? boundingBox.getXSpan() : boundingBox.getZSpan();
+    }
+
+    /**
+     * Walking level at step {@code k} (0 = low-coordinate end) of a corridor. All the climbing happens strictly inside
+     * the corridor, one block per step, centred on its length.
+     */
+    public int corridorFloor(int k) {
+        int len = corridorLength();
+        int dy = aux - floor;
+        int ady = Math.abs(dy);
+        if (ady == 0) return floor;
+        int s0 = Math.max(0, (len - 1 - ady) / 2);
+        int step = Math.max(0, Math.min(ady, k - s0));
+        return floor + Integer.signum(dy) * step;
+    }
+
+    /** Tunnel length: depth + 4 positions out of the start room. */
+    public int tunnelLength() {
+        return extra + 4;
+    }
+
+    /** Walking level at tunnel position {@code t} (1 = next to the start room, {@link #tunnelLength()} = surface). */
+    public int tunnelFloor(int t) {
+        return floor + Math.max(0, Math.min(extra, t - 2));
+    }
+
+    /**
+     * Tunnel/portal frame: maps (t = distance out of the start room's wall, lateral offset) to world x/z.
+     * For TUNNEL and PORTAL pieces {@link #variant} holds the wall's axis coordinate and {@link #doors} the lateral centre.
+     */
+    public int frameX(int t, int lat) {
+        Direction out = facing();
+        if (out.getAxis() == Direction.Axis.X) return variant + t * out.getStepX();
+        return doors + lat * lateralStep(out);
+    }
+
+    public int frameZ(int t, int lat) {
+        Direction out = facing();
+        if (out.getAxis() == Direction.Axis.Z) return variant + t * out.getStepZ();
+        return doors + lat * lateralStep(out);
+    }
+
+    /** Converts world x/z to tunnel position t. */
+    public int frameT(int x, int z) {
+        Direction out = facing();
+        return out.getAxis() == Direction.Axis.X ? (x - variant) * out.getStepX() : (z - variant) * out.getStepZ();
+    }
+
+    /** Converts world x/z to the lateral offset. */
+    public int frameLat(int x, int z) {
+        Direction out = facing();
+        return out.getAxis() == Direction.Axis.X ? (z - doors) * lateralStep(out) : (x - doors) * lateralStep(out);
+    }
+
+    /** Lateral axis = out rotated clockwise; its step sign along the lateral world axis. */
+    private static int lateralStep(Direction out) {
+        Direction right = out.getClockWise();
+        return right.getAxis() == Direction.Axis.X ? right.getStepX() : right.getStepZ();
+    }
+
+    /** The world direction of positive lateral offsets. */
+    public Direction right() {
+        return facing().getClockWise();
+    }
+}

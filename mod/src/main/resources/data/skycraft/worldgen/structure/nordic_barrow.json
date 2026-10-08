@@ -1,0 +1,8 @@
+{
+  "type": "skycraft:dungeon",
+  "theme": "barrow",
+  "biomes": "#skycraft:has_structure/nordic_barrow",
+  "step": "underground_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none"
+}

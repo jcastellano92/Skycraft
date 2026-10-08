@@ -8,13 +8,11 @@
 - [x] `mr:entityculling` (pinned)
 - [x] `mr:canary` (pinned)
 - [x] `mr:memoryleakfix` (pinned)
-- [x] `mr:chunky` (pinned)
 - [x] `mr:spark` (pinned)
 - [x] `mr:lootr` (pinned)
 - [x] `mr:better-combat` (pinned)
 - [x] `mr:corpse` (pinned)
 - [x] `mr:waystones` (pinned)
-- [x] `mr:xaeros-minimap` (pinned)
 - [x] `mr:xaeros-world-map` (pinned)
 - [x] `cf:dynamiclights-reforged` (pinned)
 - [x] `mr:jade` (pinned)
@@ -48,9 +46,8 @@
 - [x] `mr:yungs-bridges` (pinned)
 - [x] `mr:yungs-extras` (pinned)
 - [x] `mr:aquaculture` (pinned)
-- [x] `mr:farmers-delight` (pinned)
 - [x] `mr:comforts` (pinned)
 - [x] `mr:complementary-reimagined` (pinned)
 - [x] Skycraft Core (local jar)
 
-Resolved: 51, unresolved: 0
+Resolved: 48, unresolved: 0

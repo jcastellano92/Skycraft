@@ -1,0 +1,8 @@
+{
+  "type": "skycraft:dungeon",
+  "theme": "vampire_lair",
+  "biomes": "#skycraft:has_structure/vampire_lair",
+  "step": "underground_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none"
+}

@@ -11,6 +11,15 @@
     {"id": "betterdungeons:skeleton_dungeon", "required": false},
     {"id": "betterdungeons:zombie_dungeon", "required": false},
     {"id": "betterdungeons:spider_dungeon", "required": false},
-    {"id": "betterdungeons:small_dungeon", "required": false}
+    {"id": "betterdungeons:small_dungeon", "required": false},
+    "skycraft:nordic_barrow",
+    "skycraft:cave",
+    "skycraft:dwemer_ruin",
+    "skycraft:vampire_lair",
+    "skycraft:necromancer_lair",
+    "skycraft:hagraven_lair",
+    "skycraft:fort",
+    "skycraft:mine",
+    "skycraft:dragon_lair"
   ]
 }

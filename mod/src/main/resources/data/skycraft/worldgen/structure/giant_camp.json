@@ -1,0 +1,8 @@
+{
+  "type": "skycraft:dungeon",
+  "theme": "giant_camp",
+  "biomes": "#skycraft:has_structure/giant_camp",
+  "step": "surface_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none"
+}

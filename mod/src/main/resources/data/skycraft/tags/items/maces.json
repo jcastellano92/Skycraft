@@ -9,6 +9,10 @@
     "skycraft:glass_mace",
     "skycraft:ebony_mace",
     "skycraft:daedric_mace",
-    "skycraft:dragonbone_mace"
+    "skycraft:dragonbone_mace",
+    {
+      "id": "#skycraft:arsenal/maces",
+      "required": false
+    }
   ]
 }

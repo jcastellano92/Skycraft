@@ -25,6 +25,10 @@
     {
       "id": "vampirism:vampire_baron",
       "required": false
+    },
+    {
+      "id": "#skycraft:automatons",
+      "required": false
     }
   ]
 }

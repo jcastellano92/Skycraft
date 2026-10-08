@@ -9,6 +9,10 @@
     "skycraft:glass_warhammer",
     "skycraft:ebony_warhammer",
     "skycraft:daedric_warhammer",
-    "skycraft:dragonbone_warhammer"
+    "skycraft:dragonbone_warhammer",
+    {
+      "id": "#skycraft:arsenal/warhammers",
+      "required": false
+    }
   ]
 }

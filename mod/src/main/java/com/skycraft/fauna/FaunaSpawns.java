@@ -65,6 +65,8 @@ public final class FaunaSpawns {
 
     static boolean nearWater(ServerLevelAccessor level, BlockPos pos, int radius) {
         for (BlockPos p : BlockPos.betweenClosed(pos.offset(-radius, -1, -radius), pos.offset(radius, 0, radius))) {
+            // during world generation only the region's chunks are readable
+            if (!level.hasChunk(p.getX() >> 4, p.getZ() >> 4)) continue;
             if (level.getFluidState(p).is(FluidTags.WATER)) return true;
         }
         return false;

@@ -1,0 +1,6 @@
+{
+  "parent": "skycraft:item/bow_of_shadows",
+  "textures": {
+    "layer0": "skycraft:item/bow_of_shadows_pulling_1"
+  }
+}

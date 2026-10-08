@@ -1,0 +1,157 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "name": "skycraft:chests/gold",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_sword",
+          "functions": [
+            {
+              "function": "skycraft:leveled_gear",
+              "kind": "weapon",
+              "enchant_chance": 0.12,
+              "quality_chance": 0.15
+            }
+          ],
+          "weight": 30
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_chestplate",
+          "functions": [
+            {
+              "function": "skycraft:leveled_gear",
+              "kind": "armor",
+              "enchant_chance": 0.12,
+              "quality_chance": 0.15
+            }
+          ],
+          "weight": 25
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:bow",
+          "functions": [
+            {
+              "function": "skycraft:leveled_gear",
+              "kind": "bow",
+              "enchant_chance": 0.12,
+              "quality_chance": 0.15
+            }
+          ],
+          "weight": 8
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:arrow",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 4,
+                "max": 12
+              }
+            },
+            {
+              "function": "skycraft:leveled_gear",
+              "kind": "arrow"
+            }
+          ],
+          "weight": 20
+        },
+        {
+          "type": "minecraft:empty",
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "rolls": {
+        "type": "minecraft:uniform",
+        "min": 1,
+        "max": 3
+      },
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "name": "skycraft:chests/soul_gems",
+          "weight": 12
+        },
+        {
+          "type": "minecraft:loot_table",
+          "name": "skycraft:chests/alchemy_ingredients",
+          "weight": 20
+        },
+        {
+          "type": "minecraft:loot_table",
+          "name": "skycraft:chests/lockpicks",
+          "weight": 10
+        },
+        {
+          "type": "minecraft:item",
+          "name": "skycraft:garnet",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "skycraft:ruby",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "skycraft:sapphire",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:amethyst_shard",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:emerald",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:tag",
+          "name": "skycraft:spell_tomes",
+          "expand": true,
+          "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:bread",
+          "weight": 6,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 3
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:empty",
+          "weight": 30
+        }
+      ]
+    }
+  ],
+  "random_sequence": "skycraft:chests/dungeon_common"
+}

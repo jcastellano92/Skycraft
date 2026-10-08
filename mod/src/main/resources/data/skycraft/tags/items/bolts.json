@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:steel_bolt",
+    "skycraft:dwarven_bolt",
+    "skycraft:explosive_bolt"
+  ]
+}
