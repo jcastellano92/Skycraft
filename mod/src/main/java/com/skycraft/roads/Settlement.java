@@ -1,0 +1,96 @@
+package com.skycraft.roads;
+
+import net.minecraft.nbt.CompoundTag;
+
+/**
+ * A town or village (a structure start in {@code #skycraft:settlements}). Positions are the structure's bounding box
+ * center; the y coordinate is refined from the real heightmap once the center chunk is loaded.
+ */
+public final class Settlement {
+    /** Extra margin around the structure bounding box in which nothing is paved. */
+    public static final int BOX_MARGIN = 6;
+    /** Bounding boxes larger than this (per side from the center) are clamped, so huge modded towns stay sane. */
+    private static final int MAX_HALF_EXTENT = 112;
+
+    public final int id;
+    /** Start chunk ({@code ChunkPos.toLong()}): unique per structure start. */
+    public final long key;
+    public final int x;
+    public final int z;
+    public int y;
+    public boolean yResolved;
+    public final int minX, minZ, maxX, maxZ;
+    public final String name;
+    /** Structure registry id, e.g. {@code minecraft:village_plains}. */
+    public final String structure;
+    /** The world module's location id ({@code dim|structure|cx,cz}) used to check discovery. */
+    public final String locationId;
+
+    public Settlement(int id, long key, int x, int y, int z, int minX, int minZ, int maxX, int maxZ, String name,
+                      String structure, String locationId, boolean yResolved) {
+        this.id = id;
+        this.key = key;
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.minX = Math.max(minX, x - MAX_HALF_EXTENT);
+        this.minZ = Math.max(minZ, z - MAX_HALF_EXTENT);
+        this.maxX = Math.min(maxX, x + MAX_HALF_EXTENT);
+        this.maxZ = Math.min(maxZ, z + MAX_HALF_EXTENT);
+        this.name = name;
+        this.structure = structure;
+        this.locationId = locationId;
+        this.yResolved = yResolved;
+    }
+
+    /** True if (px, pz) is inside the settlement: within {@code radius} of the center or inside its box (+margin). */
+    public boolean inZone(int px, int pz, int radius) {
+        long dx = px - x;
+        long dz = pz - z;
+        if (dx * dx + dz * dz <= (long) radius * radius) return true;
+        return px >= minX - BOX_MARGIN && px <= maxX + BOX_MARGIN && pz >= minZ - BOX_MARGIN && pz <= maxZ + BOX_MARGIN;
+    }
+
+    public double distSq(double px, double pz) {
+        double dx = px - (x + 0.5);
+        double dz = pz - (z + 0.5);
+        return dx * dx + dz * dz;
+    }
+
+    public int zoneMinX(int radius) {
+        return Math.min(x - radius, minX - BOX_MARGIN);
+    }
+
+    public int zoneMaxX(int radius) {
+        return Math.max(x + radius, maxX + BOX_MARGIN);
+    }
+
+    public int zoneMinZ(int radius) {
+        return Math.min(z - radius, minZ - BOX_MARGIN);
+    }
+
+    public int zoneMaxZ(int radius) {
+        return Math.max(z + radius, maxZ + BOX_MARGIN);
+    }
+
+    CompoundTag save() {
+        CompoundTag t = new CompoundTag();
+        t.putInt("id", id);
+        t.putLong("key", key);
+        t.putIntArray("pos", new int[]{x, y, z});
+        t.putIntArray("box", new int[]{minX, minZ, maxX, maxZ});
+        t.putString("name", name);
+        t.putString("structure", structure);
+        t.putString("loc", locationId);
+        t.putBoolean("yres", yResolved);
+        return t;
+    }
+
+    static Settlement load(CompoundTag t) {
+        int[] p = t.getIntArray("pos");
+        int[] b = t.getIntArray("box");
+        if (p.length < 3 || b.length < 4) return null;
+        return new Settlement(t.getInt("id"), t.getLong("key"), p[0], p[1], p[2], b[0], b[1], b[2], b[3],
+                t.getString("name"), t.getString("structure"), t.getString("loc"), t.getBoolean("yres"));
+    }
+}

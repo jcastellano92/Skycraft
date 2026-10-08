@@ -1,0 +1,22 @@
+{
+  "command.skycraft.roads.info": "Roads: %s settlements, %s roads (%s km), %s signposts, %s lantern posts; %s plans pending, %s chunks waiting to be paved, %s travelers loaded",
+  "command.skycraft.roads.disabled": "Roads are disabled in skycraft-roads.toml.",
+  "command.skycraft.roads.replan": "Forgot all roads; re-planning between %s settlements (%s connections queued). Existing road blocks stay in the world.",
+  "command.skycraft.roads.repave": "Re-paving road chunks: %s loaded chunks queued.",
+  "command.skycraft.roads.nearest": "Nearest settlement: %s, %s m away at %s, %s (%s roads).",
+  "command.skycraft.roads.none": "No settlements are known yet. Explore to find villages and towns.",
+  "command.skycraft.roads.traveler": "A %s sets out on the road.",
+  "command.skycraft.roads.traveler_failed": "No road point 40-100 blocks away out of sight (or that traveler type is unavailable).",
+  "roads.skycraft.kind.caravan": "Khajiit caravan",
+  "roads.skycraft.kind.courier": "traveler",
+  "roads.skycraft.kind.patrol": "guard patrol",
+  "roads.skycraft.kind.ambush": "bandit ambush",
+  "roads.skycraft.title.traveler": "%s the Traveler",
+  "roads.skycraft.title.pilgrim": "%s the Pilgrim",
+  "roads.skycraft.title.peddler": "%s the Peddler",
+  "roads.skycraft.title.bard": "%s the Wandering Bard",
+  "roads.skycraft.title.hunter": "%s the Hunter",
+  "roads.skycraft.title.farmhand": "%s the Farmhand",
+  "roads.skycraft.title.courier": "%s the Courier",
+  "roads.skycraft.title.courier_of": "%s's Courier"
+}

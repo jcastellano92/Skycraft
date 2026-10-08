@@ -1,0 +1,90 @@
+package com.skycraft.roads;
+
+import net.minecraftforge.common.ForgeConfigSpec;
+
+/** Roads configuration: config/skycraft-roads.toml (COMMON, server-authoritative). */
+public final class RoadsConfig {
+    public static final ForgeConfigSpec SPEC;
+
+    // ------------------------------------------------------------------ roads
+    public static final ForgeConfigSpec.BooleanValue ENABLED;
+    public static final ForgeConfigSpec.IntValue MAX_DISTANCE;
+    public static final ForgeConfigSpec.IntValue CONNECTIONS;
+    public static final ForgeConfigSpec.IntValue SETTLEMENT_RADIUS;
+    public static final ForgeConfigSpec.IntValue MAX_EXPANSIONS;
+    public static final ForgeConfigSpec.IntValue MAX_BRIDGE_LENGTH;
+    public static final ForgeConfigSpec.IntValue LANTERN_SPACING;
+    public static final ForgeConfigSpec.BooleanValue SIGNPOSTS;
+    public static final ForgeConfigSpec.BooleanValue LANTERNS;
+
+    // ------------------------------------------------------------------ performance
+    public static final ForgeConfigSpec.IntValue PAVE_BLOCKS_PER_TICK;
+    public static final ForgeConfigSpec.DoubleValue PAVE_MILLIS_PER_TICK;
+    public static final ForgeConfigSpec.IntValue PLAN_INTERVAL_TICKS;
+
+    // ------------------------------------------------------------------ travelers
+    public static final ForgeConfigSpec.BooleanValue TRAVELERS;
+    public static final ForgeConfigSpec.IntValue TRAVELER_INTERVAL;
+    public static final ForgeConfigSpec.IntValue TRAVELER_CAP;
+    public static final ForgeConfigSpec.IntValue TRAVELER_DESPAWN_DISTANCE;
+    public static final ForgeConfigSpec.BooleanValue BANDIT_AMBUSHES;
+
+    // ------------------------------------------------------------------ compass
+    public static final ForgeConfigSpec.BooleanValue COMPASS_MARKERS;
+    public static final ForgeConfigSpec.IntValue COMPASS_RANGE;
+
+    static {
+        ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
+        b.push("roads");
+        ENABLED = b.comment("Master switch: detect settlements, plan and pave roads between them (overworld only).")
+                .define("enabled", true);
+        MAX_DISTANCE = b.comment("Settlements farther apart than this (blocks) are not connected, unless one would otherwise be isolated.")
+                .defineInRange("maxDistance", 1600, 128, 6000);
+        CONNECTIONS = b.comment("Each new settlement is connected to this many of its nearest known settlements.")
+                .defineInRange("connectionsPerSettlement", 2, 1, 6);
+        SETTLEMENT_RADIUS = b.comment("Roads are not paved within this radius of a settlement center (villages have their own paths).",
+                        "The settlement's structure bounding box (+6) is always excluded too.")
+                .defineInRange("settlementRadius", 40, 8, 256);
+        MAX_EXPANSIONS = b.comment("A* node budget per road (coarse 8-block grid). Above it the road falls back to a straight line.")
+                .defineInRange("maxPathExpansions", 20000, 500, 200000);
+        MAX_BRIDGE_LENGTH = b.comment("Water crossings longer than this (blocks) get no bridge; the road simply stops at the shore.")
+                .defineInRange("maxBridgeLength", 64, 0, 512);
+        LANTERN_SPACING = b.comment("Distance in blocks between lantern posts along a road (0 = none).")
+                .defineInRange("lanternSpacing", 96, 0, 4096);
+        SIGNPOSTS = b.comment("Place signposts at settlement exits and road junctions.").define("signposts", true);
+        LANTERNS = b.comment("Place lantern posts along roads.").define("lanterns", true);
+        b.pop();
+
+        b.push("performance");
+        PAVE_BLOCKS_PER_TICK = b.comment("Maximum number of road block changes per server tick (all levels together).")
+                .defineInRange("paveBlocksPerTick", 400, 1, 10000);
+        PAVE_MILLIS_PER_TICK = b.comment("Hard time budget for paving per server tick, in milliseconds.")
+                .defineInRange("paveMillisPerTick", 3.0, 0.1, 50.0);
+        PLAN_INTERVAL_TICKS = b.comment("Ticks between starting two road plans (planning runs on a low-priority background thread).")
+                .defineInRange("planIntervalTicks", 10, 1, 1200);
+        b.pop();
+
+        b.push("travelers");
+        TRAVELERS = b.comment("Spawn ambient traffic on roads near players: Khajiit caravans, travelers, guard patrols and bandit ambushes.")
+                .define("enabled", true);
+        TRAVELER_INTERVAL = b.comment("Seconds between traveler spawn attempts per player.")
+                .defineInRange("intervalSeconds", 40, 5, 3600);
+        TRAVELER_CAP = b.comment("Maximum traveler groups within 128 blocks of a player.")
+                .defineInRange("groupsPerPlayer", 4, 0, 32);
+        TRAVELER_DESPAWN_DISTANCE = b.comment("Travelers farther than this from every player are removed.")
+                .defineInRange("despawnDistance", 160, 64, 512);
+        BANDIT_AMBUSHES = b.comment("Allow rare bandit ambushes beside roads (needs skycraft:bandit, never on Peaceful).")
+                .define("banditAmbushes", true);
+        b.pop();
+
+        b.push("compass");
+        COMPASS_MARKERS = b.comment("Show nearby settlements the player has not discovered yet on the compass.")
+                .define("markers", true);
+        COMPASS_RANGE = b.comment("Range in blocks of settlement compass markers.")
+                .defineInRange("range", 400, 32, 4096);
+        b.pop();
+        SPEC = b.build();
+    }
+
+    private RoadsConfig() {}
+}
