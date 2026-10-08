@@ -1,0 +1,23 @@
+{
+  "type": "forge:add_spawns",
+  "biomes": [
+    "minecraft:snowy_slopes",
+    "minecraft:frozen_peaks",
+    "minecraft:jagged_peaks",
+    "minecraft:stony_peaks",
+    "minecraft:grove",
+    "minecraft:taiga",
+    "minecraft:snowy_taiga",
+    "minecraft:old_growth_pine_taiga",
+    "minecraft:old_growth_spruce_taiga",
+    "minecraft:windswept_forest"
+  ],
+  "spawners": [
+    {
+      "type": "skycraft:troll",
+      "weight": 6,
+      "minCount": 1,
+      "maxCount": 1
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:slime",
+    "minecraft:magma_cube",
+    "minecraft:silverfish",
+    "minecraft:endermite",
+    "minecraft:bee",
+    "minecraft:vex",
+    "minecraft:bat",
+    "minecraft:allay",
+    "minecraft:ender_dragon",
+    "minecraft:armor_stand",
+    "minecraft:tadpole",
+    "minecraft:cod",
+    "minecraft:salmon",
+    "minecraft:tropical_fish",
+    "minecraft:pufferfish"
+  ]
+}

@@ -1,0 +1,248 @@
+package com.skycraft.creatures.entity;
+
+import com.skycraft.core.Notifier;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.DifficultyInstance;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySelector;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.SpawnGroupData;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.MoveTowardsRestrictionGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.UUID;
+
+/**
+ * {@code skycraft:giant}: peaceful herders unless provoked. Get too close and the giant stomps the ground in
+ * warning; stay and it attacks. Its club sends you flying into the sky.
+ */
+public class GiantEntity extends Monster {
+    private static final int SMASH_COOLDOWN = 36;
+    @Nullable
+    private BlockPos home;
+    @Nullable
+    private UUID warned;
+    private int warnTicks;
+    private int lastSmash = -1000;
+    private boolean initialized;
+
+    public GiantEntity(EntityType<? extends GiantEntity> type, Level level) {
+        super(type, level);
+        this.xpReward = 40;
+        this.setMaxUpStep(1.5f);
+    }
+
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, 120.0)
+                .add(Attributes.ATTACK_DAMAGE, 12.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.26)
+                .add(Attributes.FOLLOW_RANGE, 24.0)
+                .add(Attributes.ARMOR, 4.0)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0);
+    }
+
+    @Override
+    protected void registerGoals() {
+        this.goalSelector.addGoal(0, new FloatGoal(this));
+        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.1D, true) {
+            @Override
+            protected double getAttackReachSqr(LivingEntity target) {
+                double reach = 3.6 + target.getBbWidth() * 0.5;
+                return reach * reach;
+            }
+        });
+        this.goalSelector.addGoal(5, new MoveTowardsRestrictionGoal(this, 0.8D));
+        this.goalSelector.addGoal(6, new WaterAvoidingRandomStrollGoal(this, 0.6D));
+        this.goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 12.0F));
+        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+        this.targetSelector.addGoal(1, new HurtByTargetGoal(this).setAlertOthers());
+    }
+
+    @Override
+    @Nullable
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, MobSpawnType reason,
+                                        @Nullable SpawnGroupData data, @Nullable CompoundTag tag) {
+        data = super.finalizeSpawn(level, difficulty, reason, data, tag);
+        initialize();
+        if ((reason == MobSpawnType.NATURAL || reason == MobSpawnType.CHUNK_GENERATION) && level.getRandom().nextFloat() < 0.6f) {
+            placeCampfire(level, level.getRandom());
+        }
+        return data;
+    }
+
+    private void initialize() {
+        if (initialized) return;
+        initialized = true;
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BONE));
+        this.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
+    }
+
+    /** Giants camp around a fire in the open. */
+    private void placeCampfire(ServerLevelAccessor level, RandomSource random) {
+        for (int attempt = 0; attempt < 8; attempt++) {
+            int x = this.getBlockX() + random.nextInt(9) - 4;
+            int z = this.getBlockZ() + random.nextInt(9) - 4;
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+            BlockPos pos = new BlockPos(x, y, z);
+            BlockPos below = pos.below();
+            if (Math.abs(y - this.getBlockY()) > 3) continue;
+            if (!level.getBlockState(pos).isAir() || !level.getFluidState(below).isEmpty()) continue;
+            if (!level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)) continue;
+            level.setBlock(pos, Blocks.CAMPFIRE.defaultBlockState(), 3);
+            setHome(pos);
+            return;
+        }
+        setHome(this.blockPosition());
+    }
+
+    public void setHome(BlockPos pos) {
+        this.home = pos.immutable();
+        this.restrictTo(this.home, 20);
+    }
+
+    @Override
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        if (!initialized) initialize();
+        if (warnTicks > 0) warnTicks--;
+        LivingEntity target = this.getTarget();
+        if (target == null) {
+            if (this.tickCount % 10 == 0) checkIntruders();
+        } else if (target instanceof Player player && (player.isCreative() || player.isSpectator()
+                || this.distanceToSqr(player) > 24 * 24 && this.getLastHurtByMob() != player)) {
+            // Giants give up chasing people who ran away.
+            this.setTarget(null);
+        }
+    }
+
+    private void checkIntruders() {
+        Player player = this.level().getNearestPlayer(this.getX(), this.getY(), this.getZ(), 7.0, EntitySelector.NO_CREATIVE_OR_SPECTATOR);
+        if (player == null) return;
+        if (warned == null || !warned.equals(player.getUUID()) || warnTicks <= 0) {
+            warned = player.getUUID();
+            warnTicks = 80;
+            stomp(player);
+        } else if (warnTicks < 50 && this.distanceToSqr(player) < 5.0 * 5.0) {
+            this.setTarget(player);
+        }
+    }
+
+    /** The warning stomp: dust, a heavy thud and a clear message. */
+    private void stomp(Player player) {
+        this.getLookControl().setLookAt(player, 30f, 30f);
+        this.playSound(SoundEvents.RAVAGER_STEP, 2.5f, 0.5f);
+        this.playSound(SoundEvents.RAVAGER_ROAR, 1.2f, 0.6f);
+        if (this.level() instanceof ServerLevel server) {
+            BlockState ground = this.level().getBlockState(this.blockPosition().below());
+            if (!ground.isAir()) {
+                server.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, ground), this.getX(), this.getY() + 0.1, this.getZ(),
+                        40, 1.2, 0.1, 1.2, 0.15);
+            }
+        }
+        if (player instanceof ServerPlayer sp) Notifier.message(sp, Component.translatable("creatures.skycraft.giant.warning"));
+    }
+
+    /** Club hits launch the target into the sky. */
+    @Override
+    public boolean doHurtTarget(Entity target) {
+        if (this.tickCount - lastSmash < SMASH_COOLDOWN) return false;
+        lastSmash = this.tickCount;
+        boolean hit = super.doHurtTarget(target);
+        if (hit && target instanceof LivingEntity living) {
+            double dx = target.getX() - this.getX();
+            double dz = target.getZ() - this.getZ();
+            double len = Math.max(0.01, Math.sqrt(dx * dx + dz * dz));
+            living.setDeltaMovement(dx / len * 0.6, 1.45, dz / len * 0.6);
+            living.hurtMarked = true;
+            this.playSound(SoundEvents.IRON_GOLEM_ATTACK, 1.5f, 0.6f);
+        }
+        return hit;
+    }
+
+    @Override
+    public boolean isPreventingPlayerRest(Player player) {
+        return this.getTarget() == player;
+    }
+
+    @Override
+    protected boolean shouldDespawnInPeaceful() {
+        return false;
+    }
+
+    @Override
+    public float getVoicePitch() {
+        return super.getVoicePitch() * 0.55f;
+    }
+
+    @Override
+    protected SoundEvent getAmbientSound() {
+        return SoundEvents.RAVAGER_AMBIENT;
+    }
+
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return SoundEvents.RAVAGER_HURT;
+    }
+
+    @Override
+    protected SoundEvent getDeathSound() {
+        return SoundEvents.RAVAGER_DEATH;
+    }
+
+    @Override
+    protected void playStepSound(BlockPos pos, BlockState state) {
+        this.playSound(SoundEvents.RAVAGER_STEP, 0.6f, 0.6f);
+    }
+
+    @Override
+    protected float getSoundVolume() {
+        return 1.5f;
+    }
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        if (home != null) tag.put("Home", NbtUtils.writeBlockPos(home));
+        tag.putBoolean("SkycraftInit", initialized);
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains("Home")) setHome(NbtUtils.readBlockPos(tag.getCompound("Home")));
+        initialized = tag.getBoolean("SkycraftInit");
+    }
+}

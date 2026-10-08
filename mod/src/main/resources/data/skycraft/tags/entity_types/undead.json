@@ -1,0 +1,28 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:draugr",
+    "skycraft:draugr_deathlord",
+    "minecraft:zombie",
+    "minecraft:zombie_villager",
+    "minecraft:husk",
+    "minecraft:drowned",
+    "minecraft:skeleton",
+    "minecraft:stray",
+    "minecraft:wither_skeleton",
+    "minecraft:phantom",
+    "minecraft:zombified_piglin",
+    "minecraft:zoglin",
+    "minecraft:wither",
+    "minecraft:skeleton_horse",
+    "minecraft:zombie_horse",
+    {
+      "id": "vampirism:vampire",
+      "required": false
+    },
+    {
+      "id": "vampirism:advanced_vampire",
+      "required": false
+    }
+  ]
+}

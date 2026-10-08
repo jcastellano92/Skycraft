@@ -1,0 +1,30 @@
+{
+  "replace": false,
+  "values": [
+    "skycraft:troll",
+    "skycraft:giant",
+    "skycraft:dragon",
+    "skycraft:draugr",
+    "skycraft:draugr_deathlord",
+    "skycraft:skeever",
+    "minecraft:spider",
+    "minecraft:cave_spider",
+    "minecraft:witch",
+    {
+      "id": "werewolves:werewolf",
+      "required": false
+    },
+    {
+      "id": "vampirism:vampire",
+      "required": false
+    },
+    {
+      "id": "vampirism:advanced_vampire",
+      "required": false
+    },
+    {
+      "id": "vampirism:vampire_baron",
+      "required": false
+    }
+  ]
+}
