@@ -26,6 +26,8 @@ public final class SkyKeys {
     public static final KeyMapping SHOUT = key("shout", GLFW.GLFW_KEY_Z);
     public static final KeyMapping WAIT = key("wait", GLFW.GLFW_KEY_I);
     public static final KeyMapping MAP = key("map", GLFW.GLFW_KEY_M);
+    public static final KeyMapping SHEATHE = key("sheathe", GLFW.GLFW_KEY_R);
+    public static final KeyMapping DODGE = key("dodge", GLFW.GLFW_KEY_LEFT_ALT);
 
     // Compatibility aliases for keys transitioning to mouse/hold/journal controls
     public static final KeyMapping CAST = key("cast", InputConstants.UNKNOWN.getValue());
@@ -34,7 +36,7 @@ public final class SkyKeys {
     public static final KeyMapping RACIAL_POWER = SHOUT;
     public static final KeyMapping PARTY = JOURNAL;
 
-    public static final KeyMapping[] ALL = {SKILLS, HUB, JOURNAL, MAGIC_MENU, SHOUT, WAIT, MAP};
+    public static final KeyMapping[] ALL = {SKILLS, HUB, JOURNAL, MAGIC_MENU, SHOUT, WAIT, MAP, SHEATHE, DODGE};
 
     private SkyKeys() {}
 

@@ -126,7 +126,7 @@ public final class Barter {
         if (stack.isEmpty() || Currency.valueOf(stack) > 0) return false;
         CompoundTag tag = stack.getTag();
         if (tag == null) return true;
-        if (tag.getBoolean(NO_SELL_NBT)) return false;
+        if (tag.getBoolean(NO_SELL_NBT) || com.skycraft.quest.QuestItems.isQuestItem(stack)) return false;
         if (tag.contains("Items", Tag.TAG_LIST) && !tag.getList("Items", Tag.TAG_COMPOUND).isEmpty()) return false;
         CompoundTag be = tag.getCompound("BlockEntityTag");
         return !(be.contains("Items", Tag.TAG_LIST) && !be.getList("Items", Tag.TAG_COMPOUND).isEmpty());

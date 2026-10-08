@@ -102,17 +102,51 @@ public final class CombatHandler {
         double scale = SkyConfig.WEAPON_SKILL_DAMAGE_SCALE.get();
         var rnd = player.getRandom();
 
+        // Unsheathe on swing
+        Sheathe.setSheathed(player, false);
+
+        // Weapon cooldown: penalize spamming
+        if (player.getAttackStrengthScale(0.5f) < 0.75f) {
+            mult *= 0.4f;
+        }
+
+        // Melee swing stamina drain
+        float swingCost = wc.twoHanded() ? 10f : (wc == WeaponClass.UNARMED ? 4f : 6f);
+        boolean dualWield = !player.getMainHandItem().isEmpty() && !player.getOffhandItem().isEmpty()
+                && WeaponClass.of(player.getMainHandItem()).skill == Skill.ONE_HANDED
+                && WeaponClass.of(player.getOffhandItem()).skill == Skill.ONE_HANDED;
+        if (dualWield) swingCost = 8f;
+        if (!Vitals.consumeStamina(player, swingCost, true)) {
+            mult *= 0.5f; // Weak swing when exhausted
+        }
+
+        // Two-handed weapons stagger on hit
+        if (wc.twoHanded()) {
+            stagger(player, target, 20);
+        }
+
         if (wc.skill == Skill.ONE_HANDED) {
             mult += (float) (data.getSkill(Skill.ONE_HANDED) * scale) + 0.2f * Perks.rank(player, "one_handed.armsman");
         } else if (wc.skill == Skill.TWO_HANDED) {
             mult += (float) (data.getSkill(Skill.TWO_HANDED) * scale) + 0.2f * Perks.rank(player, "two_handed.barbarian");
         } else if (wc == WeaponClass.UNARMED) {
-            if (data.getRace() == Race.KHAJIIT) amount += 3f;
+            int unSkill = data.getSkill(Skill.UNARMED);
+            amount += unSkill * 0.12f;
+            int pugilist = Perks.rank(player, "unarmed.pugilist");
+            if (pugilist > 0) amount *= (1f + 0.2f * pugilist);
+            if (Perks.has(player, "unarmed.iron_fist")) amount += 3f;
+            if (data.getRace() == Race.KHAJIIT) amount += 4f;
             if (Perks.has(player, "heavy_armor.fists_of_steel")) {
-                // Minecraft has no gauntlet slot: heavy chest armor rating stands in for it.
                 ItemStack chest = player.getItemBySlot(EquipmentSlot.CHEST);
                 if (chest.getItem() instanceof ArmorItem a && ArmorClass.isHeavy(chest)) amount += a.getDefense() * 0.5f;
             }
+            if (Perks.has(player, "unarmed.heavy_strikes")) stagger(player, target, 25);
+            if (Perks.has(player, "unarmed.grandmaster") && rnd.nextFloat() < 0.2f) {
+                mult *= 2.0f;
+                stagger(player, target, 45);
+                Notifier.message(player, Component.translatable("message.skycraft.critical"));
+            }
+            Progression.addSkillXp(player, Skill.UNARMED, Math.min(amount * mult, target.getHealth()) * SKYRIM_SCALE * 0.25f);
         }
 
         // Weapon-family perks
@@ -142,13 +176,15 @@ public final class CombatHandler {
         // Power attacks: hold the power-attack key while swinging, or attack while sprinting.
         boolean sprinting = player.isSprinting();
         boolean power = ActionHandler.consumePowerAttack(player) || sprinting;
-        if (power && wc != WeaponClass.UNARMED && wc != WeaponClass.BOW && wc != WeaponClass.OTHER) {
+        if (power && wc != WeaponClass.BOW && wc != WeaponClass.OTHER) {
             float cost = (float) (double) SkyConfig.POWER_ATTACK_STAMINA.get();
             if (wc.twoHanded()) cost *= 1.3f;
+            if (wc == WeaponClass.UNARMED) cost *= 0.8f;
             if (wc.skill == Skill.ONE_HANDED && Perks.has(player, "one_handed.fighting_stance")) cost *= 0.75f;
             if (wc.skill == Skill.TWO_HANDED && Perks.has(player, "two_handed.champions_stance")) cost *= 0.75f;
             if (Vitals.consumeStamina(player, cost, true)) {
                 mult *= wc.twoHanded() ? 1.75f : 1.5f;
+                if (wc == WeaponClass.UNARMED && Perks.has(player, "unarmed.haymaker")) mult *= 1.5f;
                 if (wc.skill == Skill.ONE_HANDED && Perks.has(player, "one_handed.savage_strike")) mult *= 1.25f;
                 if (wc.skill == Skill.TWO_HANDED && Perks.has(player, "two_handed.devastating_blow")) mult *= 1.25f;
                 if (sprinting && (wc.skill == Skill.ONE_HANDED && Perks.has(player, "one_handed.critical_charge")
@@ -164,7 +200,44 @@ public final class CombatHandler {
                 if (wc.twoHanded() && Perks.has(player, "two_handed.sweep")) sweep(player, target, amount * mult * 0.5f);
                 player.level().playSound(null, target.blockPosition(), SoundEvents.PLAYER_ATTACK_STRONG, SoundSource.PLAYERS, 1f, 0.7f);
             } else {
-                mult *= 0.75f; // exhausted power attacks are weak
+                mult *= 0.5f; // exhausted power attacks are weak
+            }
+        }
+
+        // Legendary weapon effects
+        LegendaryItem.Prefix legPrefix = LegendaryItem.getPrefix(weapon);
+        if (legPrefix != null) {
+            switch (legPrefix) {
+                case INSTIGATING -> {
+                    if (target.getHealth() >= target.getMaxHealth() * 0.95f) mult *= 2f;
+                }
+                case WOUNDING -> bleed(target, 3);
+                case VAMPIRIC -> player.heal(Math.max(1f, amount * mult * 0.15f));
+                case INCENDIARY -> {
+                    target.setSecondsOnFire(5);
+                    amount += 4f;
+                }
+                case FREEZING -> {
+                    target.addEffect(new MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 80, 1));
+                    amount += 4f;
+                }
+                case SHOCKING -> {
+                    amount += 4f;
+                    if (target instanceof ServerPlayer tp) Vitals.consumeMagicka(tp, 25f);
+                }
+                case STAGGERING -> stagger(player, target, 30);
+                case DEADEYE -> {
+                    if (rnd.nextFloat() < 0.25f) {
+                        mult *= 1.75f;
+                        Notifier.message(player, Component.translatable("message.skycraft.critical"));
+                    }
+                }
+                case JUGGERNAUT -> mult *= (1f + 0.3f * (player.getHealth() / player.getMaxHealth()));
+                case BERSERKER -> {
+                    int ac = ArmorClass.countHeavy(player) + ArmorClass.countLight(player);
+                    if (ac <= 1) mult *= 1.35f;
+                }
+                default -> {}
             }
         }
 
@@ -297,7 +370,33 @@ public final class CombatHandler {
         if (heavy >= 4 && Perks.has(player, "heavy_armor.tower_of_strength")) {
             player.removeEffect(ModEffects.STAGGER.get());
         }
+
+        // Legendary armor effects
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            if (slot.getType() == EquipmentSlot.Type.ARMOR) {
+                LegendaryItem.Prefix lp = LegendaryItem.getPrefix(player.getItemBySlot(slot));
+                if (lp != null) {
+                    if (lp == LegendaryItem.Prefix.BOLSTERING) {
+                        float missing = 1f - (player.getHealth() / player.getMaxHealth());
+                        amount *= (1f - 0.12f * missing);
+                    } else if (lp == LegendaryItem.Prefix.UNYIELDING && player.getHealth() <= player.getMaxHealth() * 0.3f) {
+                        amount *= 0.8f;
+                    }
+                }
+            }
+        }
+
         return amount;
+    }
+
+    @SubscribeEvent
+    public static void onAttackEntity(net.minecraftforge.event.entity.player.AttackEntityEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && player.getMainHandItem().isEmpty()) {
+            net.minecraft.world.InteractionHand hand = (player.tickCount % 2 == 0)
+                    ? net.minecraft.world.InteractionHand.MAIN_HAND
+                    : net.minecraft.world.InteractionHand.OFF_HAND;
+            player.swing(hand, true);
+        }
     }
 
     private static boolean facing(Player player, Entity attacker) {

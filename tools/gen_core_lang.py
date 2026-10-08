@@ -239,11 +239,22 @@ P("hunting.field_dresser", "Field Dresser", "Harvest more meat from animals.")
 P("hunting.beast_lore", "Beast Lore", "Wild animals leave you alone unless you attack them.")
 P("hunting.monster_hunter", "Monster Hunter", "Deal 25% more damage to monsters: trolls, werewolves, vampires, dragons.")
 P("hunting.apex_predator", "Apex Predator", "Hunting trains twice as fast; +25% damage to beasts and monsters, and richer harvests.")
+P("unarmed.pugilist", "Pugilist", "Unarmed strikes deal 20% more damage per rank.")
+P("unarmed.iron_fist", "Iron Fist", "Unarmed strikes ignore 25% of target armor.")
+P("unarmed.heavy_strikes", "Heavy Strikes", "Power attacks with fists stagger opponents.")
+P("unarmed.haymaker", "Haymaker", "Charged punch deals 50% bonus critical damage.")
+P("unarmed.grandmaster", "Grandmaster", "Unarmed strikes deal double damage and have a chance to knock down enemies.")
+P("athletics.runner", "Runner", "Stamina regenerates 10% faster per rank.")
+P("athletics.sprinter", "Sprinter", "Sprinting drains 20% less stamina.")
+P("athletics.climber", "Climber", "Climbing speed increased by 30% and climb stamina drain reduced.")
+P("athletics.dodge_roll", "Dodge Roll", "Tap Left Alt to roll in your movement direction, avoiding attacks.")
+P("athletics.wind_walker", "Wind Walker", "Stamina regenerates 50% faster while moving.")
 
 # keys & screens & messages
 for k, n in {"skills": "Skills (Look to the Heavens)", "journal": "Journal", "magic_menu": "Magic & Shouts", "cast": "Cast Spell",
              "shout": "Shout / Power", "power_attack": "Power Attack (hold while attacking)", "block": "Block with Weapon (hold)",
-             "racial_power": "Racial Power", "wait": "Wait / Sleep", "party": "Party", "map": "Map & Fast Travel"}.items():
+             "racial_power": "Racial Power", "wait": "Wait / Sleep", "party": "Party", "map": "Map & Fast Travel",
+             "sheathe": "Ready / Sheathe Weapon", "dodge": "Dodge Roll"}.items():
     t(f"key.skycraft.{k}", n)
 t("key.categories.skycraft", "Skycraft")
 t("itemGroup.skycraft", "Skycraft")
@@ -309,6 +320,12 @@ t("message.skycraft.need_excavator", "You can't dig here. (Mining perk: Excavato
 t("message.skycraft.need_stonebreaker", "This rock is too hard for you. (Mining perk: Stonebreaker)")
 t("message.skycraft.need_deep_delver", "This rock is beyond your skill. (Mining perk: Deep Delver)")
 t("message.skycraft.legendary_fish", "You caught a legendary fish!")
+t("message.skycraft.sheathed", "Weapons sheathed")
+t("message.skycraft.drawn", "Weapons drawn")
+t("message.skycraft.unstuck_combat", "Cannot unstuck while in combat!")
+t("message.skycraft.unstuck_cooldown", "Unstuck is on cooldown (%s seconds left)")
+t("message.skycraft.unstuck_success", "Teleported to rest point")
+t("menu.skycraft.unstuck", "Unstuck / Respawn")
 t("command.skycraft.gold", "You have %s Septims")
 t("dialogue.skycraft.chat", "Let's talk.")
 t("dialogue.skycraft.goodbye", "Goodbye.")

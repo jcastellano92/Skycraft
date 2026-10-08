@@ -297,6 +297,10 @@ public final class InventoryActions {
             message(player, "bound");
             return;
         }
+        if (com.skycraft.quest.QuestItems.isQuestItem(stack)) {
+            message(player, "quest_item");
+            return;
+        }
         if (!all) {
             toss(player, inv, inv.removeItem(slot, 1));
             return;
@@ -310,7 +314,9 @@ public final class InventoryActions {
         for (int i = 0; i < Inventory.INVENTORY_SIZE; i++) {
             if (i == inv.selected) continue;
             ItemStack s = inv.getItem(i);
-            if (!s.isEmpty() && ItemStack.isSameItemSameTags(s, template)) toss(player, inv, inv.removeItem(i, s.getCount()));
+            if (!s.isEmpty() && !com.skycraft.quest.QuestItems.isQuestItem(s) && ItemStack.isSameItemSameTags(s, template)) {
+                toss(player, inv, inv.removeItem(i, s.getCount()));
+            }
         }
     }
 

@@ -5,6 +5,8 @@ import com.skycraft.Skycraft;
 import com.skycraft.core.Buffs;
 import com.skycraft.core.PlayerData;
 import com.skycraft.core.SkyData;
+import com.skycraft.core.Skill;
+import com.skycraft.skills.Progression;
 import com.skycraft.combat.ArmorClass;
 import com.skycraft.network.CorePackets;
 import com.skycraft.network.SkyNetwork;
@@ -117,9 +119,16 @@ public final class Vitals {
         if (player.isSprinting() && !player.isCreative() && !player.isSpectator()) {
             float drain = (float) (SkyConfig.SPRINT_STAMINA_PER_SECOND.get() / 20.0);
             if (Perks.has(player, "light_armor.unhindered") && ArmorClass.countLight(player) >= 4) drain *= 0.85f;
+            if (Perks.has(player, "athletics.sprinter")) drain *= 0.8f;
             data.setStamina(data.getStamina() - drain);
             data.setLastStaminaUseTick(now);
             if (data.getStamina() <= 0) player.setSprinting(false);
+            if (now % 20 == 0) Progression.addSkillXp(player, Skill.ATHLETICS, 0.4f);
+        }
+
+        // Swimming trains Athletics
+        if ((player.isSwimming() || player.isInWater()) && now % 20 == 0 && player.getDeltaMovement().lengthSqr() > 0.005) {
+            Progression.addSkillXp(player, Skill.ATHLETICS, 0.5f);
         }
 
         if (now % 5 == 0) {
@@ -164,9 +173,25 @@ public final class Vitals {
         }
         // Stamina
         float stPct = (float) (double) SkyConfig.STAMINA_REGEN_PERCENT.get() / 100f;
+        int ath = data.getSkill(Skill.ATHLETICS);
+        stPct *= 1f + ath * 0.005f;
+        int runner = Perks.rank(player, "athletics.runner");
+        if (runner > 0) stPct *= (1f + 0.1f * runner);
+        if (Perks.has(player, "athletics.wind_walker") && player.getDeltaMovement().lengthSqr() > 0.001) stPct *= 1.5f;
         if (Perks.has(player, "light_armor.wind_walker") && ArmorClass.countLight(player) >= 4) stPct *= 1.5f;
         if (Buffs.active(player, "adrenaline_rush")) stPct *= 10f;
         if (combat) stPct *= 0.5f;
+
+        // Armor trade-offs
+        int heavy = ArmorClass.countHeavy(player);
+        if (heavy > 0 && !Perks.has(player, "heavy_armor.conditioning")) {
+            stPct *= Math.max(0.2f, 1f - 0.05f * heavy);
+        }
+        int light = ArmorClass.countLight(player);
+        if (heavy == 0 && light == 0) {
+            stPct *= 1.15f; // Cloth bonus
+        }
+
         if (now - data.getLastStaminaUseTick() > 20 && !player.isSprinting()) {
             data.setStamina(data.getStamina() + data.maxStamina() * stPct * seconds);
         }

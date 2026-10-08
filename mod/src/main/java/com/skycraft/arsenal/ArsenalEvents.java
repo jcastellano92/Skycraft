@@ -255,9 +255,9 @@ public final class ArsenalEvents {
         boolean arrow = direct instanceof AbstractArrow;
         if (!melee && !arrow) return;
         boolean hostile = victim instanceof Enemy || victim instanceof Mob mob && mob.getTarget() == killer;
-        if (!hostile || victim.distanceToSqr(killer) > 48 * 48) return;
-        boolean last = victim.level().getEntitiesOfClass(Mob.class, killer.getBoundingBox().inflate(16),
-                m -> m != victim && m.isAlive() && m.getTarget() == killer).isEmpty();
+        if (!hostile || victim.distanceToSqr(killer) > (arrow ? 64 * 64 : 12 * 12)) return;
+        boolean last = victim.level().getEntitiesOfClass(Mob.class, killer.getBoundingBox().inflate(24),
+                m -> m != victim && m.isAlive() && (m instanceof Enemy || m.getTarget() == killer)).isEmpty();
         double chance = last ? ArsenalConfig.KILL_CAM_LAST_ENEMY_CHANCE.get() : ArsenalConfig.KILL_CAM_OTHER_CHANCE.get();
         if (killer.getRandom().nextDouble() >= chance) return;
         Vec3 dir = arrow ? direct.getDeltaMovement() : victim.position().subtract(killer.position());

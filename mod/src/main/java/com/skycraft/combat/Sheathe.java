@@ -1,17 +1,45 @@
 package com.skycraft.combat;
 
+import com.skycraft.core.Notifier;
+import com.skycraft.core.PlayerData;
+import com.skycraft.core.SkyData;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 
 /**
  * Contract 8 (docs/PLAYTEST-1.md): whether a player's weapon is sheathed. Synced, so it works on both sides.
  * Guards treat a sheathed or empty-handed player as yielding.
- *
- * <p>STUB: workstream D replaces the body; the signature is fixed.
  */
 public final class Sheathe {
     private Sheathe() {}
 
     public static boolean isSheathed(Player player) {
-        return player.getMainHandItem().isEmpty() && player.getOffhandItem().isEmpty();
+        if (player == null) return true;
+        if (player.getMainHandItem().isEmpty() && player.getOffhandItem().isEmpty()) return true;
+        PlayerData data = SkyData.get(player);
+        if (data == null) return false;
+        return data.module("combat").getBoolean("sheathed");
+    }
+
+    public static void setSheathed(Player player, boolean sheathed) {
+        if (player == null) return;
+        PlayerData data = SkyData.get(player);
+        if (data != null) {
+            data.module("combat").putBoolean("sheathed", sheathed);
+            data.markDirty();
+        }
+    }
+
+    public static void toggle(Player player) {
+        boolean now = !isSheathed(player);
+        setSheathed(player, now);
+        if (!player.level().isClientSide && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+            Notifier.message(sp, Component.translatable(now ? "message.skycraft.sheathed" : "message.skycraft.drawn"));
+            player.level().playSound(null, player.blockPosition(),
+                    now ? SoundEvents.ARMOR_EQUIP_LEATHER : SoundEvents.ARMOR_EQUIP_IRON,
+                    SoundSource.PLAYERS, 0.8f, 1.2f);
+        }
     }
 }
