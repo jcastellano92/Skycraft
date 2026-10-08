@@ -182,7 +182,7 @@ metafile = true
 
 [[files]]
 file = "mods/skycraft-core.jar"
-hash = "d634f7ef026b0f92957c874d3dd68a4d83af2d0cd2278ae56c45d1f464d45e2a"
+hash = "a603703e79ed4dc1882b814049671b9ea950b8cff41add3f5510aaea3fc79f84"
 
 [[files]]
 file = "mods/sodium-options-api.pw.toml"
