@@ -1,0 +1,8 @@
+{
+  "type": "skycraft:dungeon",
+  "theme": "daedric_shrine",
+  "biomes": "#skycraft:has_structure/daedric_shrine",
+  "step": "surface_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none"
+}

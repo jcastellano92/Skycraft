@@ -2,6 +2,10 @@
   "replace": false,
   "values": [
     "skycraft:dragon",
-    "skycraft:draugr_deathlord"
+    "skycraft:draugr_deathlord",
+    {
+      "id": "#skycraft:dungeon_bosses",
+      "required": false
+    }
   ]
 }
