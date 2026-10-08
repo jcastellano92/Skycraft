@@ -61,7 +61,7 @@ public final class ModEntities {
                     .sized(0.6f, 1.95f).clientTrackingRange(10).build(id("guard")));
     public static final RegistryObject<EntityType<CorpseEntity>> CORPSE = ENTITIES.register("corpse",
             () -> EntityType.Builder.<CorpseEntity>of(CorpseEntity::new, MobCategory.MISC)
-                    .sized(1.0f, 0.5f).fireImmune().clientTrackingRange(8).updateInterval(10).build(id("corpse")));
+                    .sized(1.0f, 0.5f).fireImmune().clientTrackingRange(8).updateInterval(2).build(id("corpse")));
 
     public static final RegistryObject<Item> BANDIT_EGG = egg("bandit", BANDIT, 0x5A3E2B, 0xB08A5A);
     public static final RegistryObject<Item> BANDIT_CHIEF_EGG = egg("bandit_chief", BANDIT_CHIEF, 0x3B2A1E, 0xC9C9C9);

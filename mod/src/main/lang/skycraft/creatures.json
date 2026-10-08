@@ -68,5 +68,6 @@
   "entity.skycraft.guard.haafingar": "Solitude Guard",
   "entity.skycraft.guard.hjaalmarch": "Morthal Guard",
   "entity.skycraft.guard.the_reach": "Markarth Guard",
-  "entity.skycraft.guard.falkreath": "Falkreath Guard"
+  "entity.skycraft.guard.falkreath": "Falkreath Guard",
+  "creatures.skycraft.corpse.too_tired": "You are too exhausted to drag the body any further."
 }

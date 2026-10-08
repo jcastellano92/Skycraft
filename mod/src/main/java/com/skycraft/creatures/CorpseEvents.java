@@ -4,6 +4,9 @@ import com.skycraft.Skycraft;
 import com.skycraft.creatures.entity.CorpseEntity;
 import com.skycraft.creatures.entity.DragonEntity;
 import com.skycraft.creatures.entity.SkeeverEntity;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
@@ -32,16 +35,25 @@ public final class CorpseEvents {
 
     private CorpseEvents() {}
 
+    /** Persistent-data key where the arsenal module records arrows stuck in a creature (contract 27). */
+    public static final String ARROWS_KEY = "skycraft_arrows";
+
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onDrops(LivingDropsEvent event) {
         if (event.isCanceled()) return;
         LivingEntity dead = event.getEntity();
-        if (!(dead.level() instanceof ServerLevel level) || !CreaturesConfig.CORPSES.get()) return;
-        if (!(dead instanceof Mob) || dead instanceof Slime) return;
-        if (dead.getType().is(CreatureTags.NO_CORPSE)) return;
-        if (dead.getBbHeight() < 0.35f && !(dead instanceof SkeeverEntity)) return;
-        if (!(event.getSource().getEntity() instanceof Player)) return;
-        if (event.getDrops().isEmpty()) return;
+        if (!(dead.level() instanceof ServerLevel level)) return;
+        List<ItemStack> arrows = takeArrows(dead);
+
+        boolean corpseAllowed = CreaturesConfig.CORPSES.get() && dead instanceof Mob && !(dead instanceof Slime)
+                && !dead.getType().is(CreatureTags.NO_CORPSE)
+                && (dead.getBbHeight() >= 0.35f || dead instanceof SkeeverEntity)
+                && event.getSource().getEntity() instanceof Player;
+        if (!corpseAllowed || (event.getDrops().isEmpty() && arrows.isEmpty())) {
+            // no body: the arrows simply fall to the ground with the rest
+            for (ItemStack arrow : arrows) event.getDrops().add(new ItemEntity(level, dead.getX(), dead.getY() + 0.5, dead.getZ(), arrow));
+            return;
+        }
 
         CorpseEntity corpse = ModEntities.CORPSE.get().create(level);
         if (corpse == null) return;
@@ -54,8 +66,12 @@ public final class CorpseEvents {
                 drop.setItem(rest);
             }
         }
-        if (corpse.isEmptyOfLoot()) return;
         event.getDrops().removeAll(stored);
+        for (ItemStack arrow : arrows) {
+            ItemStack rest = corpse.addLoot(arrow);
+            if (!rest.isEmpty()) event.getDrops().add(new ItemEntity(level, dead.getX(), dead.getY() + 0.5, dead.getZ(), rest));
+        }
+        if (corpse.isEmptyOfLoot()) return;
         corpse.setBody(dead);
 
         if (dead instanceof DragonEntity dragon) {
@@ -75,5 +91,19 @@ public final class CorpseEvents {
         }
         corpse.setAppearDelay(APPEAR_DELAY);
         level.addFreshEntity(corpse);
+    }
+
+    /** Reads (and clears) the arrows the arsenal module recorded on the creature. */
+    private static List<ItemStack> takeArrows(LivingEntity dead) {
+        List<ItemStack> out = new ArrayList<>();
+        CompoundTag data = dead.getPersistentData();
+        if (!data.contains(ARROWS_KEY, Tag.TAG_LIST)) return out;
+        ListTag list = data.getList(ARROWS_KEY, Tag.TAG_COMPOUND);
+        for (int i = 0; i < list.size(); i++) {
+            ItemStack stack = ItemStack.of(list.getCompound(i));
+            if (!stack.isEmpty()) out.add(stack);
+        }
+        data.remove(ARROWS_KEY);
+        return out;
     }
 }
