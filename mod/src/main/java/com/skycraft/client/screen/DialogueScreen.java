@@ -85,9 +85,17 @@ public class DialogueScreen extends Screen {
         return true;
     }
 
+    @Override
+    public void onClose() {
+        com.skycraft.client.DialogueCamera.stop();
+        SkyNetwork.sendToServer(new DialoguePackets.CloseDialogue(dialogue.entityId()));
+        super.onClose();
+    }
+
     private void choose(int index) {
         DialoguePackets.Line line = dialogue.lines().get(index);
-        onClose();
+        com.skycraft.client.DialogueCamera.stop();
+        super.onClose();
         SkyNetwork.sendToServer(new DialoguePackets.ChooseOption(dialogue.entityId(), line.id()));
     }
 }

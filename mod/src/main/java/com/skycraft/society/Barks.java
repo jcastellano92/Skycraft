@@ -59,7 +59,7 @@ public final class Barks {
 
     static {
         // guards
-        lines("guard.generic", 10);
+        lines("guard.generic", 14);
         lines("guard.night", 3);
         lines("guard.weapon", 3);
         lines("guard.sneak", 3);
@@ -246,7 +246,17 @@ public final class Barks {
             int cooldown = SocietyConfig.between(SocietyConfig.BARK_COOLDOWN_MIN.get(), SocietyConfig.BARK_COOLDOWN_MAX.get(), random);
             AMBIENT_NEXT.put(m.getUUID(), (long) tick + cooldown * 20L);
             m.getLookControl().setLookAt(player, 30f, 30f);
-            Component line = line(category, random, new Object[]{player.getDisplayName()});
+            Component line;
+            if ("town.rumor".equals(category)) {
+                Component loc = com.skycraft.world.Discovery.revealNear(player, player.blockPosition(), 1500);
+                if (loc != null) {
+                    line = Component.translatable("society.skycraft.bark.town.rumor", loc);
+                } else {
+                    line = line("town.generic", random, new Object[]{player.getDisplayName()});
+                }
+            } else {
+                line = line(category, random, new Object[]{player.getDisplayName()});
+            }
             if (line != null) say(m, line);
             return true;
         }
@@ -267,6 +277,7 @@ public final class Barks {
         if (!player.isCreative() && Bounty.current(player) > 0 && (guard || r.nextBoolean())) return group + ".wanted";
         if (weaponDrawn(player) && !soldier && r.nextInt(3) > 0) return group + ".weapon";
         if (player.isCrouching() && r.nextInt(3) > 0) return group + ".sneak";
+        if (!guard && r.nextInt(7) == 0) return "town.rumor";
         if (npc != null && r.nextInt(100) < 55) return "role." + npc.role().id;
         if (famous(player) && r.nextInt(4) == 0) return group + ".hero";
         String faction = memberFaction(player, r);

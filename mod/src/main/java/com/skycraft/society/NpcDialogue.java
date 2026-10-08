@@ -16,6 +16,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -58,6 +59,15 @@ public final class NpcDialogue {
                 event.setCanceled(true);
                 return;
             }
+            if (npc.isConversing() && npc.getConversationPartner() != sp.getId()) {
+                Entity current = sp.serverLevel().getEntity(npc.getConversationPartner());
+                if (current != null && current.isAlive() && npc.distanceToSqr(current) <= 64) {
+                    Notifier.message(sp, Component.translatable("society.skycraft.busy"));
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                    event.setCanceled(true);
+                    return;
+                }
+            }
             npc.getNavigation().stop();
             npc.getLookControl().setLookAt(sp, 30f, 30f);
             Dialogue.open(sp, npc, greeting(sp, npc));
@@ -99,6 +109,35 @@ public final class NpcDialogue {
         }
         out.add(new DialogueOption("society.job", opt("job"), 600,
                 (p, n) -> Dialogue.open(p, n, say("job." + role.id))));
+
+        // Rumor gathering with Speech checks
+        if (role.civilian && role != NpcRole.BEGGAR) {
+            out.add(new DialogueOption("society.rumor_persuade", opt("rumor_persuade"), 400, (p, n) -> {
+                if (SpeechChecks.checkPersuade(p, 35)) {
+                    Component loc = com.skycraft.world.Discovery.revealNear(p, p.blockPosition(), 1500);
+                    if (loc != null) {
+                        Dialogue.open(p, n, Component.translatable("society.skycraft.rumor.revealed", loc));
+                    } else {
+                        Dialogue.open(p, n, Component.translatable("society.skycraft.rumor.none"));
+                    }
+                } else {
+                    Dialogue.open(p, n, Component.translatable("society.skycraft.say.rumor_refuse"));
+                }
+            }));
+            out.add(new DialogueOption("society.rumor_intimidate", opt("rumor_intimidate"), 401, (p, n) -> {
+                if (SpeechChecks.checkIntimidate(p, 45)) {
+                    Component loc = com.skycraft.world.Discovery.revealNear(p, p.blockPosition(), 1500);
+                    if (loc != null) {
+                        Dialogue.open(p, n, Component.translatable("society.skycraft.rumor.revealed_fear", loc));
+                    } else {
+                        Dialogue.open(p, n, Component.translatable("society.skycraft.rumor.none_fear"));
+                    }
+                } else {
+                    Dialogue.open(p, n, Component.translatable("society.skycraft.say.intimidate_refuse"));
+                }
+            }));
+        }
+
         switch (role) {
             case BEGGAR -> out.add(new DialogueOption("society.coin", opt("coin"), 10, NpcDialogue::giveCoin));
             case BARD -> out.add(new DialogueOption("society.song", opt("song"), 10, (p, n) -> {

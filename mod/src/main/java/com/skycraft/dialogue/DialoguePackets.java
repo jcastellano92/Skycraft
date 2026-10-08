@@ -21,6 +21,7 @@ public final class DialoguePackets {
     public static void register() {
         SkyNetwork.register(OpenDialogue.class, NetworkDirection.PLAY_TO_CLIENT, OpenDialogue::encode, OpenDialogue::decode, OpenDialogue::handle);
         SkyNetwork.register(ChooseOption.class, NetworkDirection.PLAY_TO_SERVER, ChooseOption::encode, ChooseOption::decode, ChooseOption::handle);
+        SkyNetwork.register(CloseDialogue.class, NetworkDirection.PLAY_TO_SERVER, CloseDialogue::encode, CloseDialogue::decode, CloseDialogue::handle);
     }
 
     public record Line(String id, Component label) {
@@ -67,6 +68,22 @@ public final class DialoguePackets {
         static void handle(ChooseOption m, Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer player = ctx.get().getSender();
             if (player != null) Dialogue.choose(player, m.entityId, m.optionId);
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    public record CloseDialogue(int entityId) {
+        static void encode(CloseDialogue m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.entityId);
+        }
+
+        static CloseDialogue decode(FriendlyByteBuf buf) {
+            return new CloseDialogue(buf.readVarInt());
+        }
+
+        static void handle(CloseDialogue m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            if (player != null) Dialogue.endConversation(player, m.entityId);
             ctx.get().setPacketHandled(true);
         }
     }

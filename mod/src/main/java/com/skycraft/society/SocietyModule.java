@@ -30,6 +30,7 @@ public final class SocietyModule {
         NpcEntities.init(modBus);
         modBus.addListener(SocietyModule::onAttributes);
         NpcDialogue.register();
+        Followers.register();
     }
 
     /** Registers this module's packets via {@link com.skycraft.network.SkyNetwork#register}. Called once at startup. */

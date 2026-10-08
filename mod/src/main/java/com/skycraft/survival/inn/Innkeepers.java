@@ -299,6 +299,11 @@ public final class Innkeepers {
 
     /** Dialogue action: "Heard any rumors?" */
     public static void rumor(ServerPlayer player, LivingEntity npc) {
-        Dialogue.open(player, npc, Component.translatable("survival.skycraft.rumor." + player.getRandom().nextInt(RUMORS)));
+        Component loc = com.skycraft.world.Discovery.revealNear(player, player.blockPosition(), 1500);
+        if (loc != null) {
+            Dialogue.open(player, npc, Component.translatable("society.skycraft.rumor.revealed", loc));
+        } else {
+            Dialogue.open(player, npc, Component.translatable("survival.skycraft.rumor." + player.getRandom().nextInt(RUMORS)));
+        }
     }
 }
