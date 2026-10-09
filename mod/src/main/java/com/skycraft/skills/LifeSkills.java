@@ -117,8 +117,9 @@ public final class LifeSkills {
                     }
                 }));
             }
-            if (!CHAIN_BREAKING.get() && player.isCrouching() && Perks.has(player, "woodcutting.timber")) {
-                chainBreak(player, level, pos, null, 96, true);
+            // Entire tree crumbles and falls over in chop direction
+            if (!CHAIN_BREAKING.get()) {
+                fellTree(player, level, pos);
             }
         } else if (state.is(BlockTags.LEAVES) && Perks.has(player, "woodcutting.forager") && rnd.nextFloat() < 0.1f) {
             Block.popResource(level, pos, new ItemStack(rnd.nextBoolean() ? Items.APPLE : Items.STICK));
@@ -137,7 +138,91 @@ public final class LifeSkills {
         return Blocks.OAK_SAPLING;
     }
 
-    /** Breaks connected blocks (ore veins, or whole trees when {@code logs} is true). */
+    /**
+     * When any log in a tree trunk is cut, the tree completely crumbles and falls over in the direction
+     * the player is looking, turning the connected upper logs into falling blocks with momentum,
+     * crumbling the leaves into particles and drops, and planting a replanting sapling at the base dirt.
+     */
+    private static void fellTree(ServerPlayer player, ServerLevel level, BlockPos cutPos) {
+        CHAIN_BREAKING.set(true);
+        try {
+            Deque<BlockPos> queue = new ArrayDeque<>();
+            Set<BlockPos> logPositions = new HashSet<>();
+            Set<BlockPos> leafPositions = new HashSet<>();
+            Set<BlockPos> seen = new HashSet<>();
+
+            queue.add(cutPos);
+            seen.add(cutPos);
+
+            // Breadth-first search for connected logs and adjacent leaves of the tree
+            int maxBlocks = 160;
+            while (!queue.isEmpty() && (logPositions.size() + leafPositions.size()) < maxBlocks) {
+                BlockPos cur = queue.poll();
+                for (BlockPos next : BlockPos.betweenClosed(cur.offset(-1, -1, -1), cur.offset(1, 1, 1))) {
+                    if (seen.contains(next)) continue;
+                    BlockState s = level.getBlockState(next);
+                    if (s.is(BlockTags.LOGS)) {
+                        BlockPos imm = next.immutable();
+                        seen.add(imm);
+                        logPositions.add(imm);
+                        queue.add(imm);
+                    } else if (s.is(BlockTags.LEAVES) && leafPositions.size() < 120) {
+                        BlockPos imm = next.immutable();
+                        seen.add(imm);
+                        leafPositions.add(imm);
+                        queue.add(imm);
+                    }
+                }
+            }
+
+            // Direction vector the tree falls towards (away from player)
+            double lookX = player.getLookAngle().x;
+            double lookZ = player.getLookAngle().z;
+            double mag = Math.sqrt(lookX * lookX + lookZ * lookZ);
+            double fallX = mag > 0.01 ? (lookX / mag) * 0.28 : 0.2;
+            double fallZ = mag > 0.01 ? (lookZ / mag) * 0.28 : 0.0;
+
+            // Turn connected logs above or near the cut into falling block entities falling over
+            for (BlockPos logPos : logPositions) {
+                if (logPos.equals(cutPos)) continue;
+                BlockState s = level.getBlockState(logPos);
+                if (!s.is(BlockTags.LOGS)) continue;
+
+                // Replant if this log was touching ground dirt
+                if (level.getBlockState(logPos.below()).is(BlockTags.DIRT)) {
+                    Block sapling = saplingFor(s);
+                    level.setBlock(logPos, sapling.defaultBlockState(), 3);
+                } else {
+                    level.setBlock(logPos, Blocks.AIR.defaultBlockState(), 3);
+                }
+
+                // Spawn FallingBlockEntity with falling velocity
+                net.minecraft.world.entity.item.FallingBlockEntity falling =
+                        net.minecraft.world.entity.item.FallingBlockEntity.fall(level, logPos, s);
+                if (falling != null) {
+                    double heightBonus = Math.max(0, logPos.getY() - cutPos.getY()) * 0.04;
+                    falling.setDeltaMovement(fallX + (level.random.nextDouble() - 0.5) * 0.05, 0.12 + heightBonus, fallZ + (level.random.nextDouble() - 0.5) * 0.05);
+                    falling.dropItem = true;
+                }
+            }
+
+            // Crumble leaves: break them into leaf particles, sticks/sapling drops, and sounds
+            for (BlockPos leafPos : leafPositions) {
+                BlockState s = level.getBlockState(leafPos);
+                if (s.is(BlockTags.LEAVES)) {
+                    level.destroyBlock(leafPos, true, player);
+                }
+            }
+
+            // Play crumbling and tree-falling audio cues
+            level.playSound(null, cutPos, net.minecraft.sounds.SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, net.minecraft.sounds.SoundSource.BLOCKS, 1.2f, 0.7f);
+            level.playSound(null, cutPos, net.minecraft.sounds.SoundEvents.CHEST_OPEN, net.minecraft.sounds.SoundSource.BLOCKS, 0.8f, 0.5f);
+        } finally {
+            CHAIN_BREAKING.set(false);
+        }
+    }
+
+    /** Breaks connected blocks (ore veins). */
     private static void chainBreak(ServerPlayer player, ServerLevel level, BlockPos origin, Block match, int max, boolean logs) {
         CHAIN_BREAKING.set(true);
         try {
@@ -156,17 +241,8 @@ public final class LifeSkills {
                     BlockPos immutable = next.immutable();
                     seen.add(immutable);
                     queue.add(immutable);
-                    boolean baseDirt = logs && level.getBlockState(immutable.below()).is(BlockTags.DIRT);
-                    Block sapling = baseDirt ? saplingFor(s) : null;
                     if (player.gameMode.destroyBlock(immutable)) {
                         broken++;
-                        if (baseDirt && sapling != null) {
-                            level.getServer().tell(new TickTask(level.getServer().getTickCount() + 1, () -> {
-                                if (level.getBlockState(immutable).isAir() && level.getBlockState(immutable.below()).is(BlockTags.DIRT)) {
-                                    level.setBlock(immutable, sapling.defaultBlockState(), 3);
-                                }
-                            }));
-                        }
                     }
                     if (broken >= max) break;
                 }

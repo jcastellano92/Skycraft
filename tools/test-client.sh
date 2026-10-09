@@ -20,3 +20,4 @@ if grep -iE "Fatal|Crash|Exception caught during firing event" "$OUT/client.log"
   exit 1
 fi
 echo "Client smoke test passed."
+

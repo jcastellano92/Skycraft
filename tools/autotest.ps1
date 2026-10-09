@@ -20,3 +20,4 @@ if (Test-Path $Screenshots) {
     Write-Host "Screenshots captured at: $Screenshots" -ForegroundColor Cyan
     Get-ChildItem $Screenshots
 }
+
