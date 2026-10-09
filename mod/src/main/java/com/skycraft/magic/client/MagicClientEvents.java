@@ -8,6 +8,7 @@ import com.skycraft.magic.MagicPackets;
 import com.skycraft.magic.Targeting;
 import com.skycraft.magic.spell.Spell;
 import com.skycraft.magic.spell.SpellCasting;
+import com.skycraft.magic.spell.SpellTomeItem;
 import com.skycraft.magic.spell.Spells;
 import com.skycraft.network.SkyNetwork;
 import net.minecraft.client.Minecraft;
@@ -69,6 +70,12 @@ public final class MagicClientEvents {
         return wc != WeaponClass.OTHER && wc != WeaponClass.BOW && wc != WeaponClass.UNARMED;
     }
 
+    private static boolean canStartRightCast(Minecraft mc, LocalPlayer player) {
+        if (player.isSpectator() || player.isUsingItem()) return false;
+        if (!player.getMainHandItem().isEmpty() && !(player.getMainHandItem().getItem() instanceof SpellTomeItem)) return false;
+        return !MagicData.selectedSpell(player).isEmpty();
+    }
+
     private static boolean canStartLeftCast(Minecraft mc, LocalPlayer player) {
         if (player.isSpectator() || player.isUsingItem() || !player.getOffhandItem().isEmpty()) return false;
         if (!castFriendly(player.getMainHandItem())) return false;
@@ -94,17 +101,18 @@ public final class MagicClientEvents {
             if (mc.screen == null) mc.setScreen(new MagicMenuScreen());
         }
 
-        // Right hand: R.
+        // Right hand: LMB (attack key when hand is free) or CAST key.
         while (SkyKeys.CAST.consumeClick()) {
             // state is read through isDown(); drain the click queue
         }
-        boolean right = SkyKeys.CAST.isDown() && mc.screen == null;
+        boolean attackDown = mc.options.keyAttack.isDown() && mc.screen == null && canStartRightCast(mc, player);
+        boolean right = (SkyKeys.CAST.isDown() || attackDown) && mc.screen == null;
         if (right != rightDown) {
             rightDown = right;
             SkyNetwork.sendToServer(new MagicPackets.Cast(SpellCasting.RIGHT, right));
         }
 
-        // Left hand: the use key, started on a fresh press while nothing is targeted, held until released.
+        // Left hand: RMB (use key), started on a fresh press while nothing is targeted, held until released.
         boolean useDown = mc.options.keyUse.isDown() && mc.screen == null;
         boolean left = leftDown ? useDown : useDown && !useWasDown && canStartLeftCast(mc, player);
         useWasDown = useDown;

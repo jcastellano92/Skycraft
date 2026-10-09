@@ -42,42 +42,79 @@ public final class MagicHud {
         if (left != null) drawSpell(g, font, player, data, left, 12, height - 27, false, MagicClientEvents.isCasting(SpellCasting.LEFT), dual);
         if (right != null) drawSpell(g, font, player, data, right, width - 12, height - 42, true, MagicClientEvents.isCasting(SpellCasting.RIGHT), dual);
 
-        // ---------------------------------------------------------- equipped shout (bottom right)
-        Shout shout = Shout.byId(MagicData.selectedShout(player));
-        if (shout != null) {
-            int learned = MagicData.wordsLearned(player, shout);
-            int usable = player.isCreative() ? 3 : MagicData.usableWords(player, shout);
-            int charging = MagicClientEvents.shoutHeld >= 0 ? Math.min(Math.max(1, usable), MagicClientEvents.wordsFor(MagicClientEvents.shoutHeld)) : 0;
-            long now = mc.level.getGameTime();
-            long ready = MagicData.shoutReadyAt(player);
-            long total = MagicData.shoutCooldownTotal(player);
-            float remaining = ready > now && total > 0 ? Mth.clamp((ready - now) / (float) total, 0, 1) : 0;
+        // ---------------------------------------------------------- equipped voice / shout / power (bottom right)
+        String voice = MagicData.selectedVoice(player);
+        String shoutId = voice.startsWith("shout:") ? voice.substring("shout:".length()) : MagicData.selectedShout(player);
+        Shout shout = Shout.byId(shoutId);
 
+        if (voice.startsWith("power:")) {
+            Component powerName;
+            int powerColor = 0xFFE8C080;
+            long ready;
+            long total = 24000;
+            if (voice.equals("power:racial")) {
+                com.skycraft.core.Race race = data.getRace();
+                powerName = race != null ? race.powerName() : Component.literal("Power");
+                ready = data.getPowerReadyAt();
+                if (race == com.skycraft.core.Race.KHAJIIT) total = 200;
+            } else {
+                String stoneId = voice.substring("power:stone:".length());
+                com.skycraft.lore.StandingStone stone = com.skycraft.lore.StandingStone.byId(stoneId);
+                powerName = stone != null ? stone.powerName() : Component.literal("Stone Power");
+                ready = data.module("lore").getLong("power_" + stoneId);
+                if (stone != null) powerColor = 0xFF000000 | stone.color;
+            }
+            long now = mc.level.getGameTime();
+            boolean isReady = ready <= now;
+            float remaining = !isReady && total > 0 ? Mth.clamp((ready - now) / (float) total, 0, 1) : 0;
             int rightEdge = width - 12;
             int y = height - 29;
-            int shown = Math.max(1, Math.max(learned, usable));
-            int[] widths = new int[shown];
-            int totalWidth = 0;
-            for (int i = 0; i < shown; i++) {
-                widths[i] = font.width(shout.word(i));
-                totalWidth += widths[i] + (i > 0 ? 5 : 0);
-            }
-            int x = rightEdge - totalWidth;
-            for (int i = 0; i < shown; i++) {
-                int color;
-                if (i < charging) color = 0xFFFFFFFF;
-                else if (i < usable) color = remaining > 0 ? 0xFF8A9AAA : 0xFFD8E4F0;
-                else color = 0xFF505860;
-                g.drawString(font, shout.word(i), x, y, color, true);
-                x += widths[i] + 5;
-            }
-            // Voice meter: refills while the shout recharges.
-            int meterW = Math.max(40, totalWidth);
+            int nameW = font.width(powerName);
+            int x = rightEdge - nameW;
+            g.drawString(font, powerName, x, y, isReady ? powerColor : 0xFF8A9AAA, true);
+            // Voice meter
+            int meterW = Math.max(40, nameW);
             int mx = rightEdge - meterW;
             int my = y + 10;
             g.fill(mx - 1, my - 1, rightEdge + 1, my + 3, 0xB0101010);
             int fill = (int) (meterW * (1 - remaining));
-            g.fill(mx, my, mx + fill, my + 2, remaining > 0 ? 0xFF6A88A8 : 0xFFE8F4FF);
+            g.fill(mx, my, mx + fill, my + 2, isReady ? 0xFFE8C080 : 0xFF6A88A8);
+        } else {
+            if (shout != null) {
+                int learned = MagicData.wordsLearned(player, shout);
+                int usable = player.isCreative() ? 3 : MagicData.usableWords(player, shout);
+                int charging = MagicClientEvents.shoutHeld >= 0 ? Math.min(Math.max(1, usable), MagicClientEvents.wordsFor(MagicClientEvents.shoutHeld)) : 0;
+                long now = mc.level.getGameTime();
+                long ready = MagicData.shoutReadyAt(player);
+                long total = MagicData.shoutCooldownTotal(player);
+                float remaining = ready > now && total > 0 ? Mth.clamp((ready - now) / (float) total, 0, 1) : 0;
+
+                int rightEdge = width - 12;
+                int y = height - 29;
+                int shown = Math.max(1, Math.max(learned, usable));
+                int[] widths = new int[shown];
+                int totalWidth = 0;
+                for (int i = 0; i < shown; i++) {
+                    widths[i] = font.width(shout.word(i));
+                    totalWidth += widths[i] + (i > 0 ? 5 : 0);
+                }
+                int x = rightEdge - totalWidth;
+                for (int i = 0; i < shown; i++) {
+                    int color;
+                    if (i < charging) color = 0xFFFFFFFF;
+                    else if (i < usable) color = remaining > 0 ? 0xFF8A9AAA : 0xFFD8E4F0;
+                    else color = 0xFF505860;
+                    g.drawString(font, shout.word(i), x, y, color, true);
+                    x += widths[i] + 5;
+                }
+                // Voice meter: refills while the shout recharges.
+                int meterW = Math.max(40, totalWidth);
+                int mx = rightEdge - meterW;
+                int my = y + 10;
+                g.fill(mx - 1, my - 1, rightEdge + 1, my + 3, 0xB0101010);
+                int fill = (int) (meterW * (1 - remaining));
+                g.fill(mx, my, mx + fill, my + 2, remaining > 0 ? 0xFF6A88A8 : 0xFFE8F4FF);
+            }
         }
 
         // ---------------------------------------------------------- shout charge (under the crosshair)

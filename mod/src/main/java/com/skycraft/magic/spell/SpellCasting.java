@@ -169,8 +169,9 @@ public final class SpellCasting {
         }
         Active right = hands[RIGHT];
         Active left = hands[LEFT];
+        boolean hasDualPerk = right != null && (p.isCreative() || Perks.has(p, right.spell.school.id() + ".dual_casting"));
         boolean dualConcentration = right != null && left != null && right.spell.isConcentration()
-                && right.spell == left.spell && right.spell.dualCastable;
+                && right.spell == left.spell && right.spell.dualCastable && hasDualPerk;
         if (dualConcentration) {
             tickConcentration(p, hands, right, true);
             if (hands[LEFT] != null) hands[LEFT].ticks++;
@@ -230,8 +231,9 @@ public final class SpellCasting {
     private static void release(ServerPlayer p, Active[] hands, Active a) {
         int other = 1 - a.hand;
         Active partner = hands[other];
+        boolean hasDualPerk = p.isCreative() || Perks.has(p, a.spell.school.id() + ".dual_casting");
         boolean dual = a.spell.dualCastable && partner != null && partner.spell == a.spell && !partner.spell.isConcentration()
-                && (a.spell.chargeTicks <= 0 || partner.held);
+                && (a.spell.chargeTicks <= 0 || partner.held) && hasDualPerk;
         hands[a.hand] = null;
         if (dual) hands[other] = null;
         if (a.spell.chargeTicks > 0 && !a.held) return; // released before fully charged
@@ -255,9 +257,15 @@ public final class SpellCasting {
         next[a.hand] = now + CAST_COOLDOWN;
         if (dual) next[other] = now + CAST_COOLDOWN;
         if (result == Spell.Result.EFFECT) SpellEffects.xp(p, spell);
-        if (dual || a.hand == RIGHT) p.swing(InteractionHand.MAIN_HAND, true);
-        if (dual || a.hand == LEFT) p.swing(InteractionHand.OFF_HAND, true);
-        if (dual) MagicFx.sound(p, SoundEvents.EVOKER_CAST_SPELL, 0.6f, 1.5f);
+        if (dual) {
+            p.swing(InteractionHand.MAIN_HAND, true);
+            p.swing(InteractionHand.OFF_HAND, true);
+            MagicFx.send(p, MagicFx.BURST, spell.element, p.position(), p.position(), p.getId(), 2);
+            MagicFx.sound(p, SoundEvents.EVOKER_CAST_SPELL, 0.7f, 1.4f);
+        } else {
+            if (a.hand == RIGHT) p.swing(InteractionHand.MAIN_HAND, true);
+            if (a.hand == LEFT) p.swing(InteractionHand.OFF_HAND, true);
+        }
         SkyData.get(p).addStat("spells_cast", 1);
     }
 

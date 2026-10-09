@@ -269,3 +269,4 @@ public final class SideQuests {
         return Quests.find(player.server, player.getUUID(), questId) != null;
     }
 }
+

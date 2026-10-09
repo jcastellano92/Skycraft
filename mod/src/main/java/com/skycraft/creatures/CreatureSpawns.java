@@ -205,10 +205,21 @@ public final class CreatureSpawns {
     /** Skyrim: out of nowhere, a roar. A dragon appears ~100 blocks away and hunts the player. */
     private static void maybeDragonAttack(ServerLevel level, ServerPlayer player) {
         if (level.dimension() != Level.OVERWORLD || player.isCreative() || player.isSpectator() || !player.isAlive()) return;
-        if (SkyData.get(player).getLevel() < CreaturesConfig.DRAGON_MIN_LEVEL.get()) return;
+        com.skycraft.core.PlayerData data = SkyData.get(player);
+        int pLevel = data.getLevel();
+        if (pLevel < CreaturesConfig.DRAGON_MIN_LEVEL.get()) return;
+
+        // Dragons: Almost none early on. The dragon rate scales with player level and Dragonborn quest progress.
+        // The first dragon is a scripted questline encounter (Dragon Rising, stage 3). Random dragons start at stage 4+.
+        int questStage = com.skycraft.quest.MainQuest.stage(data);
+        if (questStage < 4) return;
+
         long dayTime = level.getDayTime() % 24000L;
         if (dayTime > 13500L) return; // day and dusk only
-        if (level.getRandom().nextFloat() >= CreaturesConfig.DRAGON_ATTACK_CHANCE.get()) return;
+
+        float baseChance = (float) (double) CreaturesConfig.DRAGON_ATTACK_CHANCE.get();
+        float scale = Math.min(2.5f, 0.4f + (pLevel / 40.0f) + ((questStage - 3) * 0.2f));
+        if (level.getRandom().nextFloat() >= baseChance * scale) return;
         trySpawnDragonAttack(level, player);
     }
 

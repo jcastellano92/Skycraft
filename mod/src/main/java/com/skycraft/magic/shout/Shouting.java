@@ -61,10 +61,32 @@ public final class Shouting {
 
     private Shouting() {}
 
+    /** Handles the Voice slot activation (Z key): executes equipped shout or power. */
+    public static void executeVoice(ServerPlayer p, int requested) {
+        if (!p.isAlive() || p.isSpectator() || p.hasEffect(ModEffects.PARALYSIS.get())) return;
+        String voice = MagicData.selectedVoice(p);
+        if (voice.startsWith("shout:")) {
+            String shoutId = voice.substring("shout:".length());
+            shout(p, shoutId, requested);
+        } else if (voice.equals("power:racial")) {
+            com.skycraft.vitals.RacePowers.use(p);
+        } else if (voice.startsWith("power:stone:")) {
+            com.skycraft.lore.StandingStones.usePower(p);
+        } else {
+            Shout shout = Shout.byId(voice);
+            if (shout != null) shout(p, shout.id(), requested);
+            else com.skycraft.vitals.RacePowers.use(p);
+        }
+    }
+
     /** Handles a shout key release: {@code requested} words (1..3, from how long the key was held). */
     public static void shout(ServerPlayer p, int requested) {
+        shout(p, MagicData.selectedShout(p), requested);
+    }
+
+    public static void shout(ServerPlayer p, String shoutId, int requested) {
         if (!p.isAlive() || p.isSpectator() || p.hasEffect(ModEffects.PARALYSIS.get())) return;
-        Shout shout = Shout.byId(MagicData.selectedShout(p));
+        Shout shout = Shout.byId(shoutId);
         if (shout == null) {
             Notifier.message(p, Component.translatable("message.skycraft.no_shout", Component.keybind("key.skycraft.magic_menu")));
             return;

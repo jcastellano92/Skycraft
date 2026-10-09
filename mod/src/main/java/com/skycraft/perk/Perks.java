@@ -157,6 +157,7 @@ public final class Perks {
         // ---------------------------------------------------------------- Destruction
         s = Skill.DESTRUCTION;
         tiers(s, "destruction");
+        p(s, "dual_casting", -0.3f, 0.2f, lv(20), "novice_destruction");
         p(s, "augmented_flames", -0.7f, 0.3f, lv(30, 60), "novice_destruction");
         p(s, "augmented_frost", -0.4f, 0.4f, lv(30, 60), "novice_destruction");
         p(s, "augmented_shock", 0.5f, 0.35f, lv(30, 60), "novice_destruction");
@@ -169,6 +170,7 @@ public final class Perks {
         // ---------------------------------------------------------------- Restoration
         s = Skill.RESTORATION;
         tiers(s, "restoration");
+        p(s, "dual_casting", -0.3f, 0.2f, lv(20), "novice_restoration");
         p(s, "regeneration", -0.5f, 0.2f, lv(20), "novice_restoration");
         p(s, "respite", 0.5f, 0.3f, lv(40), "novice_restoration");
         p(s, "recovery", 0.6f, 0.55f, lv(30, 60), "novice_restoration");
@@ -179,6 +181,7 @@ public final class Perks {
         // ---------------------------------------------------------------- Alteration
         s = Skill.ALTERATION;
         tiers(s, "alteration");
+        p(s, "dual_casting", -0.3f, 0.2f, lv(20), "novice_alteration");
         p(s, "mage_armor", -0.5f, 0.35f, lv(30, 50, 70), "novice_alteration");
         p(s, "magic_resistance", 0.5f, 0.35f, lv(30, 50, 70), "novice_alteration");
         p(s, "stability", -0.5f, 0.7f, lv(70), "mage_armor");
@@ -187,6 +190,7 @@ public final class Perks {
         // ---------------------------------------------------------------- Conjuration
         s = Skill.CONJURATION;
         tiers(s, "conjuration");
+        p(s, "dual_casting", -0.3f, 0.2f, lv(20), "novice_conjuration");
         p(s, "mystic_binding", -0.6f, 0.2f, lv(20), "novice_conjuration");
         p(s, "soul_stealer", -0.7f, 0.45f, lv(30), "mystic_binding");
         p(s, "oblivion_binding", -0.6f, 0.7f, lv(50), "soul_stealer");
@@ -199,6 +203,7 @@ public final class Perks {
         // ---------------------------------------------------------------- Illusion
         s = Skill.ILLUSION;
         tiers(s, "illusion");
+        p(s, "dual_casting", -0.3f, 0.2f, lv(20), "novice_illusion");
         p(s, "animage", -0.5f, 0.25f, lv(20), "novice_illusion");
         p(s, "hypnotic_gaze", 0.5f, 0.3f, lv(30), "novice_illusion");
         p(s, "kindred_mage", -0.55f, 0.5f, lv(40), "animage");

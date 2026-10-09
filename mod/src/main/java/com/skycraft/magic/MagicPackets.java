@@ -66,7 +66,7 @@ public final class MagicPackets {
 
         static void handle(ShoutPacket m, Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer player = ctx.get().getSender();
-            if (player != null) Shouting.shout(player, Math.max(1, Math.min(3, m.words)));
+            if (player != null) Shouting.executeVoice(player, Math.max(1, Math.min(3, m.words)));
             ctx.get().setPacketHandled(true);
         }
     }
@@ -79,6 +79,8 @@ public final class MagicPackets {
         public static final int TOGGLE_FAVORITE = 3;
         /** Equip a spell in the left hand ({@link #SELECT_SPELL} is the right hand). */
         public static final int SELECT_LEFT = 4;
+        /** Equip a power to the Voice slot ({@link #SELECT_SHOUT} is for shouts). */
+        public static final int SELECT_POWER = 5;
 
         static void encode(MenuAction m, FriendlyByteBuf buf) {
             buf.writeVarInt(m.action);
@@ -108,16 +110,18 @@ public final class MagicPackets {
                         Shout shout = Shout.byId(m.id);
                         if (shout != null && (MagicData.wordsLearned(player, shout) > 0 || player.isCreative())) {
                             MagicData.setSelectedShout(player, m.id);
+                            MagicData.setSelectedVoice(player, "shout:" + m.id);
                         }
+                    }
+                    case SELECT_POWER -> {
+                        MagicData.setSelectedVoice(player, m.id);
                     }
                     case UNLOCK_WORD -> {
                         Shout shout = Shout.byId(m.id);
                         if (shout != null) Shouting.unlockWord(player, shout);
                     }
                     case TOGGLE_FAVORITE -> {
-                        if (Spells.byId(m.id) != null && MagicData.knows(player, m.id) || Shout.byId(m.id) != null) {
-                            MagicData.toggleFavorite(player, m.id);
-                        }
+                        MagicData.toggleFavorite(player, m.id);
                     }
                     default -> {
                     }

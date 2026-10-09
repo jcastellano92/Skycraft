@@ -162,7 +162,28 @@ public final class MagicData {
     }
 
     public static void setSelectedShout(Player player, String shoutId) {
-        tag(player).putString("selected_shout", shoutId);
+        CompoundTag tag = tag(player);
+        tag.putString("selected_shout", shoutId);
+        tag.putString("voice", "shout:" + shoutId);
+        dirty(player);
+    }
+
+    /** The currently equipped Voice slot: "shout:<id>", "power:racial", or "power:stone:<id>". */
+    public static String selectedVoice(Player player) {
+        CompoundTag tag = tag(player);
+        String voice = tag.getString("voice");
+        if (!voice.isEmpty()) return voice;
+        String shout = tag.getString("selected_shout");
+        if (!shout.isEmpty()) return "shout:" + shout;
+        return "power:racial";
+    }
+
+    public static void setSelectedVoice(Player player, String voice) {
+        CompoundTag tag = tag(player);
+        tag.putString("voice", voice);
+        if (voice.startsWith("shout:")) {
+            tag.putString("selected_shout", voice.substring("shout:".length()));
+        }
         dirty(player);
     }
 

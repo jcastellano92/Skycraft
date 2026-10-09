@@ -327,6 +327,9 @@ public final class Quests {
         Currency.give(player, gold);
         for (ItemStack s : q.rewardItems) give(player, s.copy());
         if (!q.faction.isEmpty()) Factions.onQuestReward(player, q);
+        if (q.kind.startsWith("college_")) {
+            data.module("quest").putBoolean(q.kind + "_completed", true);
+        }
         data.addStat("quests_completed", 1);
         if (q.category == Quest.Category.BOUNTY) data.addStat("bounties_collected", 1);
         data.markDirty();

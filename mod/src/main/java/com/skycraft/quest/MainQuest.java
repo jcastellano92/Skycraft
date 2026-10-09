@@ -131,12 +131,15 @@ public final class MainQuest {
             }
             case 3 -> {
                 BlockPos spot = Locate.randomSpot(level, player.getRandom(), at, 180, 230);
-                String name = Names.dragon(player.getRandom());
+                String name = "Mirmulnir";
                 q.description = Component.translatable("quest.skycraft.main_3.desc", Names.direction(at, spot));
                 Objective o = new Objective(Objective.Type.KILL_TARGET, Component.translatable("quest.skycraft.obj.main_3"))
-                        .at(spot, dim, 0).guessY().placement("surface").label("Watchtower")
+                        .at(spot, dim, 0).guessY().placement("surface").label("Western Watchtower")
                         .spawn(Spawn.of("skycraft:dragon", 1).name(Component.literal(name)).target().boss().build());
-                q.add(o).reward(500, new ItemStack(Items.IRON_SWORD));
+                ItemStack axe = new ItemStack(Items.IRON_AXE);
+                axe.setHoverName(Component.translatable("item.skycraft.reward.axe_of_whiterun"));
+                axe.enchant(Enchantments.SHARPNESS, 2);
+                q.add(o).reward(600, axe);
             }
             case 4 -> {
                 q.add(new Objective(Objective.Type.CONDITION, Component.translatable("quest.skycraft.obj.main_4")).target("word"));
