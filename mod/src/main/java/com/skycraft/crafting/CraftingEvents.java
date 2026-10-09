@@ -95,6 +95,11 @@ public final class CraftingEvents {
             event.setCanceled(true);
             event.setCancellationResult(InteractionResult.SUCCESS);
             if (event.getEntity() instanceof ServerPlayer sp) {
+                if (com.skycraft.crime.Ownership.isOwnedByOther(sp, event.getLevel(), event.getPos()) && !com.skycraft.economy.Shop.isOpen(event.getLevel())) {
+                    com.skycraft.core.Notifier.message(sp, net.minecraft.network.chat.Component.translatable("dialogue.skycraft.economy.closed"));
+                    event.getLevel().playSound(null, event.getPos(), net.minecraft.sounds.SoundEvents.CHEST_LOCKED, net.minecraft.sounds.SoundSource.BLOCKS, 0.8f, 1.0f);
+                    return;
+                }
                 StationMenu.open(sp, StationType.ARMOR_WORKBENCH, event.getPos());
             }
         }

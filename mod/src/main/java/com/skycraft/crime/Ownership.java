@@ -55,6 +55,10 @@ public final class Ownership {
      * True if using or taking from this block is a crime (or not allowed) for this player.
      * Works on both client and server; client reads synced data.
      */
+    public static boolean isOwnedByOther(Player player, BlockPos pos) {
+        return isOwnedByOther(player, player.level(), pos);
+    }
+
     public static boolean isOwnedByOther(Player player, Level level, BlockPos pos) {
         if (player.isCreative() || player.isSpectator()) return false;
 

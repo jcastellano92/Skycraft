@@ -178,7 +178,46 @@ public final class RoadNetwork {
             Settlement nearest = others.get(0);
             if (Math.sqrt(s.distSq(nearest.x + 0.5, nearest.z + 0.5)) <= maxDist * 2.0 && queue(data, s, nearest)) queued++;
         }
+        queued += bridgeComponents(data, s, others, maxDist * 3.0);
         return queued;
+    }
+
+    /**
+     * No orphan towns: if {@code s}'s connected group does not reach every known settlement, links the group to the
+     * nearest settlement of another group (within {@code limit} blocks).
+     */
+    private static int bridgeComponents(RoadsData data, Settlement s, List<Settlement> others, double limit) {
+        java.util.Map<Integer, Integer> parent = new java.util.HashMap<>();
+        for (Settlement o : data.settlements) parent.put(o.id, o.id);
+        for (long pair : data.pairs) {
+            int ra = find(parent, RoadsData.pairA(pair)), rb = find(parent, RoadsData.pairB(pair));
+            if (ra != rb) parent.put(ra, rb);
+        }
+        int mine = find(parent, s.id);
+        Settlement best = null;
+        Settlement from = null;
+        double bestD = Double.MAX_VALUE;
+        // nearest pair between s's group and any other group
+        for (Settlement a : data.settlements) {
+            if (find(parent, a.id) != mine) continue;
+            for (Settlement o : others) {
+                if (find(parent, o.id) == mine) continue;
+                double d = a.distSq(o.x + 0.5, o.z + 0.5);
+                if (d < bestD) {
+                    bestD = d;
+                    best = o;
+                    from = a;
+                }
+            }
+        }
+        if (best == null || Math.sqrt(bestD) > limit) return 0;
+        return queue(data, from, best) ? 1 : 0;
+    }
+
+    private static int find(java.util.Map<Integer, Integer> parent, int x) {
+        int root = x;
+        while (parent.getOrDefault(root, root) != root) root = parent.get(root);
+        return root;
     }
 
     private static boolean queue(RoadsData data, Settlement a, Settlement b) {
