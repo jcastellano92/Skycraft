@@ -168,8 +168,10 @@ third-party mod that provides it.
 * **Sovngarde.** The End is Sovngarde, where Alduin awaits.
 * **Vampires and werewolves** (Vampirism, Werewolves: Become a Beast) let you transform, with their own skill
   trees.
-* **Fast travel.** The Skyrim map on **N** takes you to discovered locations; Waystones are wayshrines.
-* **Terrain map.** Xaero's World Map on **M** (the Skyrim compass replaces a minimap).
+* **Fast travel & Carriages.** The Skyrim map on **M** takes you to discovered locations and party members. Horse carriages outside hold capitals provide paid travel (20–50 Septims) across all 9 Skyrim holds with companion and horse teleportation.
+* **Terrain map.** The integrated Skyrim map on **M** replaces third-party maps, featuring explored terrain and fog of war.
+* **Woodcutting & Physics.** Whole trees topple and crumble dynamically with physics into harvestable logs, replanting saplings at the stump.
+* **Controllers & Steam Deck.** Full gamepad and Steam Deck support out-of-the-box via Controllable with virtual cursor and dedicated layouts.
 
 ## Performance
 
