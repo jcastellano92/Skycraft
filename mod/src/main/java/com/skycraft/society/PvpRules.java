@@ -54,8 +54,13 @@ public final class PvpRules {
     }
 
     private static boolean applies(ServerPlayer attacker, ServerPlayer victim) {
-        return SocietyConfig.PVP_BOUNTY.get() && attacker != victim && !victim.isCreative() && !victim.isSpectator()
-                && Crimes.canCommitCrime(attacker) && !Bounty.isHostile(victim);
+        if (!SocietyConfig.PVP_BOUNTY.get() || attacker == victim || victim.isCreative() || victim.isSpectator()
+                || !Crimes.canCommitCrime(attacker) || Bounty.isHostile(victim)) return false;
+        // Homestead grounds permit PvP without hold bounties
+        if (com.skycraft.homestead.HomesteadData.get(victim.server).getClaimAt(victim.level(), victim.blockPosition()) != null) {
+            return false;
+        }
+        return true;
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)

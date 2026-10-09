@@ -97,9 +97,27 @@ public final class CreatureSpawns {
             return;
         }
 
-        // 1. Suppress all hostiles spawning inside settlements or houses
+        // 1. Suppress all hostiles spawning inside settlements or houses (including wild trolls)
         if (mob instanceof net.minecraft.world.entity.monster.Enemy && isSettlementOrHouse(level, pos)) {
             event.setSpawnCancelled(true);
+            return;
+        }
+
+        // Trolls belong in caves and snowy wilderness, never towns
+        if (mob.getType() == ModEntities.TROLL.get() && isSettlementOrHouse(level, pos)) {
+            event.setSpawnCancelled(true);
+            return;
+        }
+
+        // Replace Iron Golems in towns with proper Hold Guards
+        if (mob.getType() == EntityType.IRON_GOLEM && isSettlementOrHouse(level, pos)) {
+            event.setSpawnCancelled(true);
+            GuardEntity guard = ModEntities.GUARD.get().create(level.getLevel());
+            if (guard != null) {
+                guard.moveTo(event.getX(), event.getY(), event.getZ(), mob.getYRot(), 0);
+                guard.finalizeSpawn(level, event.getDifficulty(), MobSpawnType.CONVERSION, null, null);
+                level.addFreshEntity(guard);
+            }
             return;
         }
 

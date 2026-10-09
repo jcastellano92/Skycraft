@@ -23,6 +23,7 @@ public final class CraftingClient {
     public static void setup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
             MenuScreens.register(CraftingMenus.STATION.get(), StationScreen::new);
+            MenuScreens.register(CraftingMenus.HOMESTEAD.get(), com.skycraft.homestead.client.HomesteadScreen::new);
             ResourceLocation pull = new ResourceLocation("pull");
             ResourceLocation pulling = new ResourceLocation("pulling");
             for (SmithingTier tier : SmithingTier.values()) {

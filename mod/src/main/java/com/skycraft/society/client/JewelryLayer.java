@@ -157,3 +157,4 @@ public class JewelryLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<
         }
     }
 }
+

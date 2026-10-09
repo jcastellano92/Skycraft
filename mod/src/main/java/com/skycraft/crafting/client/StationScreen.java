@@ -245,8 +245,38 @@ public class StationScreen extends AbstractContainerScreen<StationMenu> {
         g.fill(x0, y0, x1, y1, PANEL);
         frame(g, x0, y0, x1, y1, BORDER);
         frame(g, x0 + 2, y0 + 2, x1 - 2, y1 - 2, 0x408A7F66);
-        g.drawCenteredString(font, title, (x0 + x1) / 2, y0 + 7, TEXT);
+
+        int accentColor = switch (type) {
+            case FORGE -> 0xFFD97724; // fiery ember orange
+            case SMELTER -> 0xFFE6A23C; // molten bronze
+            case TANNING_RACK -> 0xFFA67C52; // tanned hide brown
+            case GRINDSTONE -> 0xFF7CA0C0; // whetstone steel blue
+            case ARMOR_WORKBENCH -> 0xFF969EA6; // plate iron slate
+        };
+        String subtitle = switch (type) {
+            case FORGE -> "FORGE - WEAPONS & ARMOR";
+            case SMELTER -> "SMELTER - INGOTS & ORES";
+            case TANNING_RACK -> "TANNING RACK - LEATHERCRAFT";
+            case GRINDSTONE -> "GRINDSTONE - WEAPON HONING";
+            case ARMOR_WORKBENCH -> "WORKBENCH - ARMOR PLATING";
+        };
+
+        // Title and station subtitle
+        g.drawCenteredString(font, title, (x0 + x1) / 2, y0 + 6, TEXT);
+        g.drawString(font, subtitle, x0 + 10, y0 + 6, accentColor, false);
+
+        // Smithing skill badge on the top right
+        String skillText = "Smithing " + data().getSkill(Skill.SMITHING);
+        g.drawString(font, skillText, x1 - 10 - font.width(skillText), y0 + 6, GOLD, false);
+
+        // Station-specific accent trim divider
+        g.fill(x0 + 6, y0 + 17, x1 - 6, y0 + 18, accentColor);
         g.fill(x0 + 6, y0 + 18, x1 - 6, y0 + 19, 0x808A7F66);
+
+        // Station motif decorative accents on inner frame
+        g.fill(x0 + 2, y0 + 2, x0 + 6, y0 + 4, accentColor);
+        g.fill(x1 - 6, y0 + 2, x1 - 2, y0 + 4, accentColor);
+
         g.fill(listX, listY, listX + listW, listY + listH, INSET);
         if (type.tempering()) {
             renderTemperList(g, mouseX, mouseY);

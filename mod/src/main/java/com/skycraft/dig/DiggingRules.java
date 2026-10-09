@@ -57,6 +57,14 @@ public final class DiggingRules {
     /** Returns the translation key of the reason the player can't break this block, or null if allowed. */
     public static String denyReason(Player player, BlockState state, BlockPos pos) {
         if (player.isCreative() || player.isSpectator()) return null;
+        if (player instanceof ServerPlayer sp && sp.getServer() != null) {
+            com.skycraft.homestead.HomesteadClaim claim = com.skycraft.homestead.HomesteadData.get(sp.getServer()).getClaimHorizontal(sp.level(), pos);
+            if (claim != null) {
+                if (!claim.canBuild(sp)) return "message.skycraft.homestead.no_build_permission";
+                if (pos.getY() < claim.getCenter().getY() - claim.getMinDepth()) return "message.skycraft.homestead.depth_limit";
+                if (PlacedBlocks.isPlayerPlaced(player.level(), pos)) return null;
+            }
+        }
         if (state.is(ALWAYS)) return null;
         if (PlacedBlocks.isPlayerPlaced(player.level(), pos)) return null;
         ItemStack tool = player.getMainHandItem();

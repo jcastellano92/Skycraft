@@ -14,5 +14,8 @@ public final class CraftingMenus {
     public static final RegistryObject<MenuType<StationMenu>> STATION = MENUS.register("smithing_station",
             () -> IForgeMenuType.create(StationMenu::fromNetwork));
 
+    public static final RegistryObject<MenuType<com.skycraft.homestead.HomesteadMenu>> HOMESTEAD = MENUS.register("homestead_table",
+            () -> IForgeMenuType.create(com.skycraft.homestead.HomesteadMenu::fromNetwork));
+
     private CraftingMenus() {}
 }

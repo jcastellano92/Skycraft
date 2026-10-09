@@ -54,11 +54,78 @@ public class FalmerEntity extends SkyHumanoid implements Ranked {
     }
 
     @Override
+    protected void registerGoals() {
+        this.goalSelector.addGoal(0, new net.minecraft.world.entity.ai.goal.FloatGoal(this));
+        this.goalSelector.addGoal(6, new net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal(this, 0.8D));
+        this.goalSelector.addGoal(7, new net.minecraft.world.entity.ai.goal.LookAtPlayerGoal(this, net.minecraft.world.entity.player.Player.class, 8.0F));
+        this.goalSelector.addGoal(8, new net.minecraft.world.entity.ai.goal.RandomLookAroundGoal(this));
+        this.targetSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal(this).setAlertOthers());
+        this.targetSelector.addGoal(2, new net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal<>(this, net.minecraft.world.entity.player.Player.class, true) {
+            @Override
+            public boolean canUse() {
+                if (!super.canUse() || this.target == null) return false;
+                return canHearOrTouch(target);
+            }
+        });
+    }
+
+    /**
+     * Blind Falmer perception:
+     * - Within 4 blocks: detects by touch / immediate proximity.
+     * - Beyond 4 blocks up to 24 blocks: detects sound/vibrations only if NOT sneaking (crouching).
+     */
+    public boolean canHearOrTouch(LivingEntity target) {
+        if (!(target instanceof net.minecraft.world.entity.player.Player player)) return true;
+        if (player.isCreative() || player.isSpectator()) return false;
+        double distSq = this.distanceToSqr(player);
+        if (distSq <= 4.0 * 4.0) return true; // Direct touch / breath
+        if (player.isCrouching()) {
+            // Player is sneaking: silent to blind Falmer
+            return false;
+        }
+        // Player is walking, running, or moving
+        return distSq <= 24.0 * 24.0;
+    }
+
+    @Override
+    public boolean canAttack(LivingEntity target) {
+        if (!super.canAttack(target)) return false;
+        return canHearOrTouch(target);
+    }
+
+    @Override
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        if (this.tickCount % 25 == 0 && this.getTarget() == null) {
+            // Listen for noisy intruders within 24 blocks
+            for (net.minecraft.world.entity.player.Player p : this.level().getEntitiesOfClass(
+                    net.minecraft.world.entity.player.Player.class, this.getBoundingBox().inflate(24),
+                    e -> !e.isCreative() && !e.isSpectator() && !e.isCrouching())) {
+                this.setTarget(p);
+                this.playSound(SoundEvents.WARDEN_SNIFF, 1.2f, 1.4f);
+                alertPack(p);
+                break;
+            }
+        }
+    }
+
+    /** Alerts all nearby subterranean Falmer to swarm the detected intruder. */
+    public void alertPack(LivingEntity intruder) {
+        for (FalmerEntity falmer : this.level().getEntitiesOfClass(FalmerEntity.class, this.getBoundingBox().inflate(24),
+                f -> f != this && f.isAlive())) {
+            if (falmer.getTarget() == null) {
+                falmer.setTarget(intruder);
+            }
+        }
+    }
+
+    @Override
     public boolean doHurtTarget(Entity target) {
         boolean hit = super.doHurtTarget(target);
         if (hit && target instanceof LivingEntity living) {
             // Falmer coat their weapons in Chaurus venom
             living.addEffect(new MobEffectInstance(MobEffects.POISON, 80, 0), this);
+            alertPack(living);
         }
         return hit;
     }
