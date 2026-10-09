@@ -55,13 +55,21 @@ public final class KeyConflictResolver {
             if (name.equals("key.drop") || name.equals("key.swapoffhand") || name.equals("key.advancements")) {
                 k.setKey(InputConstants.UNKNOWN);
                 changed = true;
-            } else if (name.contains("treechop") || name.contains("essential") || name.contains("emote")) {
+            } else if (name.contains("treechop") || name.contains("essential") || name.contains("emote") || name.contains("chat_peek")) {
                 k.setKey(InputConstants.UNKNOWN);
                 changed = true;
-            } else if (name.equals("key.chat") && (k.getKey().getValue() == GLFW.GLFW_KEY_Z || k.getKey().getValue() == GLFW.GLFW_KEY_R)) {
-                k.setKey(InputConstants.Type.KEYSYM.getOrCreate(GLFW.GLFW_KEY_ENTER));
+            } else if ((name.equals("key.chat") || name.contains("peek")) && (k.getKey().getValue() == GLFW.GLFW_KEY_Z || k.getKey().getValue() == GLFW.GLFW_KEY_R)) {
+                k.setKey(InputConstants.UNKNOWN);
+                changed = true;
+            } else if (k.getKey().getValue() == GLFW.GLFW_KEY_Z && !name.equals("key.skycraft.shout")) {
+                k.setKey(InputConstants.UNKNOWN);
                 changed = true;
             }
+        }
+
+        if (mc.options.toggleCrouch().get()) {
+            mc.options.toggleCrouch().set(false);
+            changed = true;
         }
 
         for (KeyMapping ours : all) {

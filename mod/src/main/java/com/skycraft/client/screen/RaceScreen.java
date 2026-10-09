@@ -27,7 +27,6 @@ public class RaceScreen extends Screen {
     private static final int DIM_COLOR = 0xFF8A8478;
 
     private Race selected = Race.NORD;
-    private float modelRotation = 0f;
     private float descScroll = 0f;
     private int maxDescScroll = 0;
 
@@ -83,21 +82,21 @@ public class RaceScreen extends Screen {
             g.drawString(font, r.displayName(), listX + 4, itemY + 4, color, isSel);
         }
 
-        // Center: Live 3D Character Preview Model
-        int modelCenterX = listX + listWidth + (width - (listX + listWidth) - 170) / 2;
-        int modelCenterY = height - 38;
-        int modelScale = Math.min(80, (height - 60) / 2);
-
-        if (minecraft.player != null) {
-            modelRotation += partialTick * 0.5f;
-            InventoryScreen.renderEntityInInventoryFollowsAngle(g, modelCenterX, modelCenterY, modelScale, modelRotation, 0f, minecraft.player);
-        }
-
         // Right Panel: Race Info & Attributes (Scrollable)
         int infoWidth = 150;
         int infoX = width - infoWidth - 14;
         int infoY = 24;
         int infoHeight = height - 60;
+
+        // Center: Live 3D Character Preview Model
+        int modelCenterX = (listX + listWidth + infoX) / 2;
+        int modelCenterY = height - 35;
+        int modelScale = Math.min(85, (height - 50) / 2);
+
+        if (minecraft.player != null) {
+            g.fill(modelCenterX - 24, modelCenterY - 2, modelCenterX + 24, modelCenterY, 0x40000000);
+            InventoryScreen.renderEntityInInventoryFollowsMouse(g, modelCenterX, modelCenterY, modelScale, (float) (modelCenterX - mouseX), (float) (modelCenterY - 55 - mouseY), minecraft.player);
+        }
 
         // Info Background Panel
         g.fill(infoX - 4, infoY - 4, infoX + infoWidth + 4, infoY + infoHeight + 4, 0x85000000);

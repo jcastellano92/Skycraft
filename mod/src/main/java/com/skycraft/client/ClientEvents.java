@@ -97,22 +97,33 @@ public final class ClientEvents {
 
         // Check if facing or touching a solid wall block
         boolean touchingWall = mc.player.horizontalCollision;
-        if (!touchingWall && mc.level != null) {
+        if (mc.level != null) {
             BlockPos front = playerPos.relative(playerFace);
-            if (mc.level.getBlockState(front).isSolid() || mc.level.getBlockState(front.above()).isSolid()) {
+            BlockPos headFront = playerPos.above().relative(playerFace);
+            if (mc.level.getBlockState(front).isSolid() || mc.level.getBlockState(headFront).isSolid()) {
                 touchingWall = true;
             }
         }
 
         if (!isWallClinging) {
-            // Intentional mount: crouch + jump while at a solid wall
+            // Intentional mount: crouch + jump while physically touching a solid wall
             if (canClimb && !exhausted && crouching && jumping && touchingWall) {
                 isWallClinging = true;
                 wallFacing = playerFace;
             }
         } else {
-            // Check dismount conditions:
-            if (!canClimb || exhausted) {
+            // Dismount conditions:
+            boolean wallInFront = false;
+            if (mc.level != null && wallFacing != null) {
+                BlockPos front = playerPos.relative(wallFacing);
+                BlockPos headFront = playerPos.above().relative(wallFacing);
+                BlockPos aboveFront = playerPos.above(2).relative(wallFacing);
+                if (mc.level.getBlockState(front).isSolid() || mc.level.getBlockState(headFront).isSolid() || mc.level.getBlockState(aboveFront).isSolid()) {
+                    wallInFront = true;
+                }
+            }
+
+            if (!canClimb || exhausted || !wallInFront) {
                 isWallClinging = false;
             } else if (movingBack && jumping) {
                 // Leap backward off the wall!
@@ -199,16 +210,29 @@ public final class ClientEvents {
             powerAttackResend = 0;
         }
 
-        // Weapon blocking: dual-wielding has no block
+        // Weapon & unarmed blocking: dual-wielding has no block.
+        // Can block with SkyKeys.BLOCK, or RMB (keyUse) when offhand has shield/weapon or when two-handed/unarmed.
         ItemStack main = mc.player.getMainHandItem();
         ItemStack off = mc.player.getOffhandItem();
         boolean dual = !main.isEmpty() && !off.isEmpty()
                 && WeaponClass.of(main).skill == Skill.ONE_HANDED
                 && WeaponClass.of(off).skill == Skill.ONE_HANDED;
-        boolean blocking = SkyKeys.BLOCK.isDown() && mc.screen == null && !dual;
+        boolean rmbBlock = mc.options.keyUse.isDown() && mc.screen == null && !dual
+                && (mc.hitResult == null || mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.MISS)
+                && (off.getItem() instanceof net.minecraft.world.item.ShieldItem || off.isEmpty() || WeaponClass.of(main).twoHanded());
+        boolean blocking = (SkyKeys.BLOCK.isDown() || rmbBlock) && mc.screen == null && !dual;
         if (blocking != wasBlocking) {
             SkyNetwork.sendToServer(new CorePackets.Action(blocking ? CorePackets.Action.BLOCK_START : CorePackets.Action.BLOCK_STOP, 0));
             wasBlocking = blocking;
+            if (blocking) {
+                if (off.getItem() instanceof net.minecraft.world.item.ShieldItem) {
+                    mc.player.startUsingItem(net.minecraft.world.InteractionHand.OFF_HAND);
+                } else if (!main.isEmpty()) {
+                    mc.player.startUsingItem(net.minecraft.world.InteractionHand.MAIN_HAND);
+                }
+            } else {
+                mc.player.stopUsingItem();
+            }
         }
 
         // Out of stamina: no sprinting until it recovers.
@@ -270,7 +294,7 @@ public final class ClientEvents {
         }
     }
 
-    /** Intercept screens: prevent MCA destiny/editor screen, redirect death and title screen if desired. */
+    /** Intercept screens: replace vanilla title, create world, options, and load screens with Skyrim suite. */
     @SubscribeEvent
     public static void onScreenOpen(ScreenEvent.Opening event) {
         net.minecraft.client.gui.screens.Screen screen = event.getNewScreen();
@@ -278,6 +302,26 @@ public final class ClientEvents {
         String name = screen.getClass().getName().toLowerCase(java.util.Locale.ROOT);
         if (name.contains("destiny") || name.contains("editor") && name.contains("mca")) {
             event.setCanceled(true);
+            return;
+        }
+
+        if (screen instanceof net.minecraft.client.gui.screens.TitleScreen && !(screen instanceof com.skycraft.client.screen.title.SkyTitleScreen)) {
+            event.setNewScreen(new com.skycraft.client.screen.title.SkyTitleScreen());
+            return;
+        }
+
+        if (screen instanceof net.minecraft.client.gui.screens.worldselection.CreateWorldScreen cws && !(screen instanceof com.skycraft.client.screen.title.SkyCreateWorldScreen)) {
+            event.setNewScreen(new com.skycraft.client.screen.title.SkyCreateWorldScreen(cws));
+            return;
+        }
+
+        if (screen instanceof net.minecraft.client.gui.screens.worldselection.SelectWorldScreen && !(screen instanceof com.skycraft.client.screen.title.SkyLoadWorldScreen)) {
+            event.setNewScreen(new com.skycraft.client.screen.title.SkyLoadWorldScreen(new com.skycraft.client.screen.title.SkyTitleScreen()));
+            return;
+        }
+
+        if (screen instanceof net.minecraft.client.gui.screens.OptionsScreen && !(screen instanceof com.skycraft.client.screen.title.SkyOptionsScreen)) {
+            event.setNewScreen(new com.skycraft.client.screen.title.SkyOptionsScreen(Minecraft.getInstance().screen, Minecraft.getInstance().options));
         }
     }
 }

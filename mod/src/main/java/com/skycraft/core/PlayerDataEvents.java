@@ -60,8 +60,28 @@ public final class PlayerDataEvents {
                 if (level.dimension() == net.minecraft.world.level.Level.OVERWORLD) {
                     net.minecraft.core.BlockPos village = com.skycraft.quest.Locate.nearestVillage(level, player.blockPosition());
                     if (village != null) {
-                        int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, village.getX(), village.getZ());
-                        player.teleportTo(level, village.getX() + 0.5, Math.max(64, y), village.getZ() + 0.5, player.getYRot(), player.getXRot());
+                        // Find a safe spot with solid ground beneath and 2 air blocks above, avoiding water/ocean
+                        net.minecraft.core.BlockPos.MutableBlockPos safe = new net.minecraft.core.BlockPos.MutableBlockPos(village.getX(), 64, village.getZ());
+                        boolean foundSafe = false;
+                        for (int dx = -4; dx <= 4 && !foundSafe; dx += 2) {
+                            for (int dz = -4; dz <= 4 && !foundSafe; dz += 2) {
+                                int testX = village.getX() + dx;
+                                int testZ = village.getZ() + dz;
+                                int surfaceY = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, testX, testZ);
+                                safe.set(testX, surfaceY, testZ);
+                                if (!level.getFluidState(safe).isEmpty() || !level.getFluidState(safe.below()).isEmpty()) continue;
+                                if (!level.getBlockState(safe.below()).isSolid()) continue;
+                                if (level.getBlockState(safe).isAir() && level.getBlockState(safe.above()).isAir()) {
+                                    foundSafe = true;
+                                }
+                            }
+                        }
+                        if (foundSafe) {
+                            player.teleportTo(level, safe.getX() + 0.5, safe.getY() + 0.1, safe.getZ() + 0.5, player.getYRot(), player.getXRot());
+                        } else {
+                            int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, village.getX(), village.getZ());
+                            player.teleportTo(level, village.getX() + 0.5, Math.max(64, y) + 1.0, village.getZ() + 0.5, player.getYRot(), player.getXRot());
+                        }
                     }
                 }
             }

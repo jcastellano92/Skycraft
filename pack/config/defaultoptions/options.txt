@@ -22,4 +22,4 @@ key_key.skycraft.shout:key.keyboard.z
 key_key.skycraft.sheathe:key.keyboard.unknown
 key_key.skycraft.dodge:key.keyboard.left.alt
 key_key.skycraft.call_horse:key.keyboard.h
-toggleCrouch:true
+toggleCrouch:false

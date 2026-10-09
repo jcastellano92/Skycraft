@@ -72,7 +72,7 @@ public final class InventoryClientEvents {
                     }
                     return;
                 }
-                event.setNewScreen(new SkyrimInventoryScreen());
+                event.setNewScreen(new com.skycraft.client.screen.HubScreen());
             }
             return;
         }
@@ -165,6 +165,14 @@ public final class InventoryClientEvents {
         List<InvEntry> favs = getFavorites(player);
         if (favs.isEmpty()) {
             com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+            for (int i = 0; i < 9; i++) {
+                if (player.getInventory().getItem(i).isEmpty()) {
+                    player.getInventory().selected = i;
+                    break;
+                }
+            }
+            boolean sheathed = !com.skycraft.combat.Sheathe.isSheathed(player);
+            ClientPacketHandlers.notify(new CorePackets.Notify(NotifyKind.MESSAGE, Component.literal(sheathed ? "Hands Sheathed" : "Hands Drawn"), Component.empty(), 0, 0f));
             return;
         }
 
@@ -184,7 +192,7 @@ public final class InventoryClientEvents {
                     break;
                 }
             }
-            ClientPacketHandlers.notify(new CorePackets.Notify(NotifyKind.MESSAGE, Component.literal("Unarmed"), Component.empty(), 0, 0f));
+            ClientPacketHandlers.notify(new CorePackets.Notify(NotifyKind.MESSAGE, Component.literal("Hands Sheathed"), Component.empty(), 0, 0f));
         } else {
             InvEntry chosen = favs.get(scrollFavIndex);
             if (com.skycraft.combat.Sheathe.isSheathed(player)) {
