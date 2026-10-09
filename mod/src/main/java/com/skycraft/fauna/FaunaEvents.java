@@ -15,6 +15,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraftforge.event.TickEvent;
@@ -85,10 +86,47 @@ public final class FaunaEvents {
 
     @SubscribeEvent
     public static void onKill(LivingDeathEvent event) {
+        if (event.getEntity() instanceof net.minecraft.world.entity.animal.horse.AbstractHorse horse) {
+            HorseManager.onHorseDeath(horse);
+        }
+
         if (!(event.getSource().getEntity() instanceof ServerPlayer player)) return;
         if (event.getEntity() instanceof SlaughterfishEntity fish) {
             Progression.addSkillXp(player, Skill.HUNTING, 4f + fish.getMaxHealth() * 0.8f);
             SkyData.get(player).addStat("animals_killed", 1);
+        }
+    }
+
+    // ------------------------------------------------------------------ horse mounting and taming
+
+    @SubscribeEvent
+    public static void onInteract(net.minecraftforge.event.entity.player.PlayerInteractEvent.EntityInteract event) {
+        if (event.getTarget() instanceof net.minecraft.world.entity.animal.horse.AbstractHorse horse) {
+            if (event.getEntity() instanceof ServerPlayer player) {
+                // Check if wild horse taming with saddle
+                ItemStack stack = event.getItemStack();
+                if (!horse.isTamed() && stack.is(net.minecraft.world.item.Items.SADDLE)) {
+                    if (WildHorseTaming.tryStartTaming(player, horse, stack)) {
+                        event.setCanceled(true);
+                        return;
+                    }
+                }
+
+                // Check mount ownership permission
+                if (!HorseManager.canMount(player, horse)) {
+                    com.skycraft.core.Notifier.message(player, net.minecraft.network.chat.Component.translatable("fauna.skycraft.horse.locked"));
+                    event.setCanceled(true);
+                    return;
+                }
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        if (event.player instanceof ServerPlayer player) {
+            WildHorseTaming.tickServer(player);
         }
     }
 
