@@ -14,6 +14,9 @@ LANG = [ROOT / "lang" / "skycraft"]
 NS = "skycraft"
 
 
+NON_ITEMS = {"poison_of", "potion_of", "legendary_fish"}
+
+
 def item_ids():
     ids = set()
     for d in LANG:
@@ -22,7 +25,9 @@ def item_ids():
         for f in d.glob("*.json"):
             for k in json.loads(f.read_text(encoding="utf-8")):
                 if k.startswith("item.skycraft."):
-                    ids.add(k[len("item.skycraft."):])
+                    name = k[len("item.skycraft."):]
+                    if "." not in name and name not in NON_ITEMS:
+                        ids.add(name)
     return ids
 
 

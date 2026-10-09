@@ -533,4 +533,77 @@ public final class RadiantQuests {
         q.faction(Faction.BARDS_COLLEGE.id, 1, false).reward(gold);
         return offer(q, f.count(), f.item().getDescription(), gold);
     }
+
+    // ------------------------------------------------------------------ unique challenges
+
+    public static Offer challenge(ServerPlayer player, LivingEntity guard) {
+        Ctx c = new Ctx(player, guard);
+        int roll = c.r.nextInt(4);
+        return switch (roll) {
+            case 0 -> challengeStealth(c);
+            case 1 -> challengeTimed(c);
+            case 2 -> challengeNoMagic(c);
+            default -> challengeEscort(c);
+        };
+    }
+
+    private static Offer challengeStealth(Ctx c) {
+        BlockPos spot = Locate.randomSpot(c.level, c.r, c.player.blockPosition(), 250, 550);
+        String camp = Names.camp(c.r);
+        String chief = Names.banditChief(c.r);
+        Component dir = Names.direction(c.player.blockPosition(), spot);
+        long gold = scale(550, c.lvl, 350, 1800);
+        Quest q = base(c, "challenge_stealth", Quest.Category.BOUNTY, chief, camp, dir);
+        q.extra.putBoolean("challenge", true);
+        Objective kill = killTarget(c, tr("quest.skycraft.obj.challenge_stealth", chief), spot, camp)
+                .spawn(Spawn.of("skycraft:bandit_chief", 1).name(lit(chief)).target().boss().build())
+                .spawn(Spawn.of("skycraft:bandit", 3).build());
+        kill.sneakKill = true;
+        q.add(kill);
+        q.reward(gold);
+        return offer(q, chief, camp, dir, gold);
+    }
+
+    private static Offer challengeTimed(Ctx c) {
+        BlockPos spot = Locate.randomSpot(c.level, c.r, c.player.blockPosition(), 200, 450);
+        Component dir = Names.direction(c.player.blockPosition(), spot);
+        long gold = scale(500, c.lvl, 300, 1600);
+        Quest q = base(c, "challenge_timed", Quest.Category.BOUNTY, dir);
+        q.extra.putBoolean("challenge", true);
+        long duration = 20L * 240; // 4 minutes
+        q.extra.putLong("deadline", c.level.getGameTime() + duration);
+        q.add(new Objective(Objective.Type.CLEAR_AREA, tr("quest.skycraft.obj.challenge_timed"))
+                .at(spot, c.dim, 32).guessY().count(4)
+                .spawn(Spawn.of("skycraft:bandit", 4).name(lit("Fleeing Raider")).build())
+                .label("Bandit Ambush"));
+        q.reward(gold);
+        return offer(q, dir, 4, gold);
+    }
+
+    private static Offer challengeNoMagic(Ctx c) {
+        BlockPos spot = Locate.randomSpot(c.level, c.r, c.player.blockPosition(), 200, 500);
+        Component dir = Names.direction(c.player.blockPosition(), spot);
+        String chief = "Warlord " + Names.banditChief(c.r);
+        long gold = scale(600, c.lvl, 400, 2000);
+        Quest q = base(c, "challenge_nomagic", Quest.Category.BOUNTY, chief, dir);
+        q.extra.putBoolean("challenge", true);
+        q.extra.putBoolean("nomagic", true);
+        q.add(killTarget(c, tr("quest.skycraft.obj.challenge_nomagic", chief), spot, "Duel Arena")
+                .spawn(Spawn.of("skycraft:bandit_chief", 1).name(lit(chief)).target().boss().health(2.2f).damage(1.4f).build()));
+        q.reward(gold);
+        return offer(q, chief, dir, gold);
+    }
+
+    private static Offer challengeEscort(Ctx c) {
+        BlockPos v = Locate.farVillage(c.level, c.npc.blockPosition(), 250, c.r);
+        if (v == null) v = c.npc.blockPosition().offset(200, 0, 200);
+        Component dir = Names.direction(c.npc.blockPosition(), v);
+        long gold = scale(450, c.lvl, 250, 1500);
+        Quest q = base(c, "challenge_escort", Quest.Category.BOUNTY, dir);
+        q.extra.putBoolean("challenge", true);
+        q.add(new Objective(Objective.Type.GO_TO, tr("quest.skycraft.obj.challenge_escort", dir))
+                .at(v, c.dim, 48).guessY().label("Village Safehouse"));
+        q.reward(gold);
+        return offer(q, dir, gold);
+    }
 }

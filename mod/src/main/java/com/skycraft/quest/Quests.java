@@ -214,19 +214,38 @@ public final class Quests {
     }
 
     private static void runOnComplete(MinecraftServer server, String key, Objective o, @Nullable ServerPlayer actor) {
-        if (o.onComplete.startsWith("give:")) {
-            ResourceLocation id = ResourceLocation.tryParse(o.onComplete.substring(5));
-            Item item = id == null ? null : ForgeRegistries.ITEMS.getValue(id);
-            if (item == null || item == Items.AIR) return;
-            ServerPlayer receiver = actor;
-            if (receiver == null) {
-                List<ServerPlayer> online = onlineMembers(server, key);
-                if (!online.isEmpty()) receiver = online.get(0);
-            }
-            if (receiver != null) {
-                ItemStack stack = new ItemStack(item);
-                Notifier.message(receiver, Component.translatable("quest.skycraft.item_found", stack.getHoverName()));
-                give(receiver, stack);
+        if (o.onComplete == null || o.onComplete.isEmpty()) return;
+        ServerPlayer receiver = actor;
+        if (receiver == null) {
+            List<ServerPlayer> online = onlineMembers(server, key);
+            if (!online.isEmpty()) receiver = online.get(0);
+        }
+        if (receiver == null) return;
+
+        for (String action : o.onComplete.split(";")) {
+            action = action.trim();
+            if (action.startsWith("give:")) {
+                String[] items = action.substring(5).split(",");
+                for (String part : items) {
+                    part = part.trim();
+                    if (part.isEmpty()) continue;
+                    int count = 1;
+                    if (part.contains("*")) {
+                        String[] cp = part.split("\\*");
+                        part = cp[0].trim();
+                        try {
+                            count = Integer.parseInt(cp[1].trim());
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    ResourceLocation id = ResourceLocation.tryParse(part);
+                    Item item = id == null ? null : ForgeRegistries.ITEMS.getValue(id);
+                    if (item != null && item != Items.AIR) {
+                        ItemStack stack = new ItemStack(item, count);
+                        Notifier.message(receiver, Component.translatable("quest.skycraft.item_found", stack.getHoverName()));
+                        give(receiver, stack);
+                    }
+                }
             }
         }
     }
@@ -270,6 +289,30 @@ public final class Quests {
         Ref ref = find(player.server, player.getUUID(), questId);
         if (ref == null || !ref.quest().isActive() || ref.quest().isMain()) return;
         fail(player.server, ref.key(), ref.quest(), Component.translatable("quest.skycraft.abandoned", player.getDisplayName()));
+    }
+
+    /** Share a personal active side quest with the player's party. */
+    public static void shareWithParty(ServerPlayer player, String questId) {
+        Party party = PartyManager.get(player.server).partyOf(player.getUUID());
+        if (party == null) {
+            Notifier.message(player, Component.translatable("party.skycraft.no_party"));
+            return;
+        }
+        QuestStore store = QuestStore.get(player.server);
+        String pKey = personalKey(player.getUUID());
+        Quest q = store.find(pKey, questId);
+        if (q == null || !q.isActive() || q.isMain()) return;
+
+        String ptKey = partyKey(party.id);
+        // Move from personal list to party list
+        store.quests(pKey).remove(q);
+        if (store.find(ptKey, q.id) != null) q.id = newId(store, ptKey);
+        store.quests(ptKey).add(q);
+        for (ServerPlayer m : onlineMembers(player.server, ptKey)) {
+            Notifier.message(m, Component.translatable("quest.skycraft.shared_with_party", player.getDisplayName(), q.title));
+        }
+        changed(player.server, pKey);
+        changed(player.server, ptKey);
     }
 
     // ------------------------------------------------------------------ rewards

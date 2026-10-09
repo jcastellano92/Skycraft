@@ -195,6 +195,10 @@ public final class QuestEvents {
         for (Quests.Ref ref : Quests.active(server, player.getUUID())) {
             Quest q = ref.quest();
             String key = ref.key();
+            if (q.extra.contains("deadline") && level.getGameTime() > q.extra.getLong("deadline")) {
+                Quests.fail(server, key, q, Component.translatable("quest.skycraft.timed_out"));
+                continue;
+            }
             Objective o = q.current();
             if (o == null) continue;
             if (o.type == Objective.Type.GO_TO) {

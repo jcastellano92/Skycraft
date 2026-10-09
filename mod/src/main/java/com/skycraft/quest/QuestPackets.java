@@ -154,6 +154,7 @@ public final class QuestPackets {
         public static final int TRACK = 0;
         public static final int UNTRACK = 1;
         public static final int ABANDON = 2;
+        public static final int SHARE = 3;
 
         static void encode(QuestAction m, FriendlyByteBuf buf) {
             buf.writeVarInt(m.action);
@@ -180,6 +181,7 @@ public final class QuestPackets {
                         data.markDirty();
                     }
                     case ABANDON -> Quests.abandon(player, m.questId);
+                    case SHARE -> Quests.shareWithParty(player, m.questId);
                     default -> {
                     }
                 }

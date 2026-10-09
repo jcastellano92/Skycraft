@@ -92,14 +92,36 @@ public final class MainQuest {
         switch (stage) {
             case 1 -> {
                 BlockPos village = level.dimension() == Level.OVERWORLD ? Locate.nearestVillage(level, at) : null;
-                Objective o = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1"));
+                // Guided starter steps: basic gear through steps rather than a chest, ending at nearest town
+                BlockPos p1 = at.offset(6, 0, 6);
+                Objective o1 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1a"))
+                        .at(p1, dim, 12).guessY().label("Camp Wreckage");
+                o1.onComplete = "give:minecraft:leather_chestplate,give:minecraft:leather_boots";
+
+                BlockPos p2 = village != null ? at.offset((village.getX() - at.getX()) * 1 / 8, 0, (village.getZ() - at.getZ()) * 1 / 8) : at.offset(14, 0, 14);
+                Objective o2 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1b"))
+                        .at(p2, dim, 14).guessY().label("Weapon Cache");
+                o2.onComplete = "give:minecraft:iron_sword";
+
+                BlockPos p3 = village != null ? at.offset((village.getX() - at.getX()) * 2 / 8, 0, (village.getZ() - at.getZ()) * 2 / 8) : at.offset(24, 0, 24);
+                Objective o3 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1c"))
+                        .at(p3, dim, 16).guessY().label("Traveler Cache");
+                o3.onComplete = "give:minecraft:shield,give:skycraft:spell_tome_flames";
+
+                BlockPos p4 = village != null ? at.offset((village.getX() - at.getX()) * 3 / 8, 0, (village.getZ() - at.getZ()) * 3 / 8) : at.offset(36, 0, 36);
+                Objective o4 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1d"))
+                        .at(p4, dim, 18).guessY().label("Provisions");
+                o4.onComplete = "give:minecraft:bread*4,give:minecraft:cooked_beef*2";
+
+                Objective o5 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1e"));
                 if (village != null) {
-                    o.at(village, "minecraft:overworld", 48).guessY().label("Village");
+                    o5.at(village, "minecraft:overworld", 48).guessY().label("Village");
                     q.extra.putLong("village", village.asLong());
                 } else {
-                    o.target("near:villager");
+                    o5.target("near:villager");
                 }
-                q.add(o).reward(100);
+
+                q.add(o1).add(o2).add(o3).add(o4).add(o5).reward(100);
             }
             case 2 -> {
                 Objective o = new Objective(Objective.Type.TALK_TO, Component.translatable("quest.skycraft.obj.main_2"))

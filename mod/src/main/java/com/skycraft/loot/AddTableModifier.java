@@ -62,13 +62,30 @@ public class AddTableModifier extends LootModifier {
 
         sanitize(generatedLoot, id);
 
-        if (id.getNamespace().equals(Skycraft.MODID) && id.getPath().startsWith("chests/")) return generatedLoot;
+        if (id.getNamespace().equals(Skycraft.MODID) && id.getPath().startsWith("chests/")) {
+            addDungeonLore(generatedLoot, id, context);
+            return generatedLoot;
+        }
         if (context.getRandom().nextFloat() > chance) return generatedLoot;
         LootTable extra = context.getResolver().getLootTable(table);
         extra.getRandomItemsRaw(context, generatedLoot::add);
 
+        addDungeonLore(generatedLoot, id, context);
         sanitize(generatedLoot, id);
         return generatedLoot;
+    }
+
+    private static void addDungeonLore(ObjectArrayList<ItemStack> loot, ResourceLocation id, LootContext context) {
+        String path = id.getPath();
+        if (path.contains("dungeon") || path.contains("stronghold") || path.contains("pyramid")
+                || path.contains("temple") || path.contains("ruin") || path.contains("fort")) {
+            if (context.getRandom().nextFloat() < 0.45f) {
+                com.skycraft.lore.LoreBooks.Book b = com.skycraft.lore.LoreBooks.random(context.getRandom(), book -> true);
+                if (b != null) {
+                    loot.add(com.skycraft.lore.LoreBookItem.create(b));
+                }
+            }
+        }
     }
 
     private static void sanitize(ObjectArrayList<ItemStack> loot, ResourceLocation id) {

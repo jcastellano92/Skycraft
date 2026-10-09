@@ -2,6 +2,8 @@ package com.skycraft.crafting;
 
 import com.skycraft.crafting.arcane.ArcaneRegistry;
 import com.skycraft.crime.Ownership;
+import com.skycraft.lore.LoreBookItem;
+import com.skycraft.lore.LoreBooks;
 import com.skycraft.roads.Settlement;
 import com.skycraft.society.Encounters;
 import com.skycraft.survival.SurvivalRegistry;
@@ -259,6 +261,24 @@ public final class SettlementStations {
                 BlockPos table = findIndoorCounter(level, house, 3);
                 if (table != null) {
                     ItemEntity entity = new ItemEntity(level, table.getX() + 0.5, table.getY() + 0.1, table.getZ() + 0.5, item.copy());
+                    entity.setDeltaMovement(0, 0, 0);
+                    entity.lifespan = Integer.MAX_VALUE;
+                    entity.setExtendedLifetime();
+                    entity.getPersistentData().putString(Ownership.ENTITY_OWNER_KEY, "settlement:" + s.id);
+                    level.addFreshEntity(entity);
+                }
+            }
+        }
+
+        // Place readable lore books and notes on desks and tables
+        LoreBooks.Book randomBook = LoreBooks.random(r, b -> true);
+        if (randomBook != null) {
+            BlockPos house = findIndoorHouse(level, center, 4, 24, r);
+            if (house != null) {
+                BlockPos table = findIndoorCounter(level, house, 3);
+                if (table != null) {
+                    ItemStack bookStack = LoreBookItem.create(randomBook);
+                    ItemEntity entity = new ItemEntity(level, table.getX() + 0.5, table.getY() + 0.1, table.getZ() + 0.5, bookStack);
                     entity.setDeltaMovement(0, 0, 0);
                     entity.lifespan = Integer.MAX_VALUE;
                     entity.setExtendedLifetime();

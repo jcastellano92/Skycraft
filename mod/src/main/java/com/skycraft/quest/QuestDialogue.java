@@ -145,6 +145,8 @@ public final class QuestDialogue {
                     (pl, n) -> ask(pl, n, "bounty", () -> RadiantQuests.bounty(pl, n))));
             out.add(opt("quest.hunt", "dialogue.skycraft.quest.hunts", 311,
                     (pl, n) -> ask(pl, n, "hunt", () -> RadiantQuests.hunt(pl, n))));
+            out.add(opt("quest.challenge", "dialogue.skycraft.quest.challenges", 312,
+                    (pl, n) -> ask(pl, n, "challenge", () -> RadiantQuests.challenge(pl, n))));
             companionsTopics(player, data, out);
             civilWarTopics(player, data, out);
         }
@@ -152,6 +154,7 @@ public final class QuestDialogue {
             thievesTopics(player, data, out);
             darkBrotherhoodTopics(player, data, out);
         }
+        SideQuests.addSideQuestTopics(player, npc, out);
     }
 
     // ------------------------------------------------------------------ offers
