@@ -133,9 +133,8 @@ public final class StandingStones {
                     1, 0, 0, 0, 0);
         }
         level.sendParticles(ParticleTypes.ENCHANT, player.getX(), player.getY() + 1, player.getZ(), 60, 0.6, 0.8, 0.6, 0.8);
-        level.playSound(null, base, SoundEvents.BEACON_ACTIVATE, SoundSource.BLOCKS, 1.4f, 1.1f);
-        level.playSound(null, base, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 2f, 0.6f);
-        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.5f, 0.6f);
+        level.playSound(null, base, com.skycraft.world.WorldSounds.MAGIC_STANDING_STONE.get(), SoundSource.BLOCKS, 1.6f, 1.0f);
+        level.playSound(null, player.getX(), player.getY(), player.getZ(), com.skycraft.world.WorldSounds.MAGIC_STANDING_STONE.get(), SoundSource.PLAYERS, 1.0f, 1.0f);
     }
 
     // ------------------------------------------------------------------ passive effects

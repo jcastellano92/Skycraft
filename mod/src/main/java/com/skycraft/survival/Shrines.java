@@ -32,7 +32,7 @@ public final class Shrines {
         Notifier.message(player, Component.translatable("message.skycraft.survival.blessed", divine.displayName()));
         Notifier.message(player, Component.translatable("survival.skycraft.blessing." + divine.id() + ".desc"));
         ServerLevel level = player.serverLevel();
-        level.playSound(null, pos, SoundEvents.BEACON_POWER_SELECT, SoundSource.BLOCKS, 0.7f, 1.3f);
+        level.playSound(null, pos, com.skycraft.world.WorldSounds.MAGIC_SHRINE_PRAY.get(), SoundSource.BLOCKS, 1.4f, 1.0f);
         level.sendParticles(ParticleTypes.END_ROD, pos.getX() + 0.5, pos.getY() + 1.2, pos.getZ() + 0.5, 16, 0.3, 0.4, 0.3, 0.02);
     }
 }

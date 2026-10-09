@@ -76,7 +76,9 @@ public class LockpickScreen extends Screen {
             else lockRot = limit;
             straining = maxFraction >= 0 && lockRot >= limit - 0.01f;
             if (straining && ticks % 4 == 0 && minecraft != null) {
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.CHAIN_HIT, 1.8f, 0.25f));
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_LOCKPICK_STRAIN.get(), 1.0f, 0.9f));
+            } else if (turning && ticks % 5 == 0 && minecraft != null && lockRot < limit) {
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_LOCKPICK_TURN.get(), 1.0f, 1.0f));
             }
         } else {
             lockRot = Math.max(0f, lockRot - 10f);
@@ -92,12 +94,18 @@ public class LockpickScreen extends Screen {
             case Locks.RESULT_UNLOCKED -> {
                 unlocked = true;
                 turning = false;
+                if (minecraft != null) {
+                    minecraft.getSoundManager().play(SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_LOCKPICK_UNLOCK.get(), 1.0f, 1.0f));
+                }
                 closeIn = 15; // the server opens the container, which replaces this screen
             }
             case Locks.RESULT_BROKEN -> {
                 picks = (int) m.value();
                 brokenFlash = 20;
                 turning = false;
+                if (minecraft != null) {
+                    minecraft.getSoundManager().play(SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_LOCKPICK_BREAK.get(), 1.0f, 1.0f));
+                }
                 maxFraction = -1;
                 lockRot = 0;
                 prevLockRot = 0;

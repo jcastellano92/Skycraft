@@ -104,7 +104,7 @@ public final class Progression {
         Notifier.send(player, NotifyKind.SKILL_UP,
                 Component.translatable("notify.skycraft.skill_increased", skill.displayName(), newLevel),
                 Component.empty(), skill.ordinal(), 0f);
-        player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.35f, 1.4f);
+        player.level().playSound(null, player.blockPosition(), com.skycraft.world.WorldSounds.UI_SKILL_UP.get(), SoundSource.PLAYERS, 0.85f, 1.0f);
         data.addStat("skill_increases", 1);
         addCharacterXp(player, data, newLevel * (float) (double) SkyConfig.LEVEL_XP_RATE.get());
     }

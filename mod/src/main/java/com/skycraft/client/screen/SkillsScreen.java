@@ -45,6 +45,9 @@ public class SkillsScreen extends Screen {
 
     @Override
     protected void init() {
+        if (minecraft != null) {
+            minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_MENU_OPEN.get(), 1.0f, 0.8f));
+        }
         int cx = width / 2;
         yesButton = addRenderableWidget(Button.builder(Component.translatable("gui.yes"), b -> confirmUnlock())
                 .bounds(cx - 62, height - 78, 60, 20).build());
@@ -78,6 +81,14 @@ public class SkillsScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    @Override
+    public void onClose() {
+        if (minecraft != null) {
+            minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_MENU_CLOSE.get(), 1.0f, 0.8f));
+        }
+        super.onClose();
     }
 
     // ------------------------------------------------------------------ input

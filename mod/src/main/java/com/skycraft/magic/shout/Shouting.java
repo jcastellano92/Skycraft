@@ -110,8 +110,13 @@ public final class Shouting {
         if (!p.isCreative()) MagicData.setShoutCooldown(p, now + cooldown, cooldown);
         SkyNetwork.sendToTracking(p, new MagicPackets.ShoutFx(p.getId(), shout.ordinal(), words));
         ServerLevel level = p.serverLevel();
-        level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENDER_DRAGON_GROWL, SoundSource.PLAYERS, 0.35f + 0.2f * words, 1.7f - 0.15f * words);
-        if (words == 3) level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 0.8f, 1.3f);
+        net.minecraft.sounds.SoundEvent shoutSound = switch (shout) {
+            case UNRELENTING_FORCE -> com.skycraft.world.WorldSounds.SHOUT_FUS_RO_DAH.get();
+            case WHIRLWIND_SPRINT -> com.skycraft.world.WorldSounds.SHOUT_WULD_NAH_KEST.get();
+            case FIRE_BREATH -> com.skycraft.world.WorldSounds.SHOUT_YOL_TOOR_SHUL.get();
+            default -> com.skycraft.world.WorldSounds.SHOUT_GENERIC.get();
+        };
+        level.playSound(null, p.getX(), p.getY(), p.getZ(), shoutSound, SoundSource.PLAYERS, 1.4f + 0.3f * words, 1.0f);
         p.swing(InteractionHand.MAIN_HAND, true);
         SkyData.get(p).addStat("shouts", 1);
     }

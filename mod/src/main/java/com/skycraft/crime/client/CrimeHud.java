@@ -133,10 +133,38 @@ public final class CrimeHud {
                 return;
             }
 
+            if (block.getDescriptionId().contains("shrine")) {
+                drawSmall(g, font, Component.literal("Pray  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+                return;
+            }
+
+            if (block.getDescriptionId().contains("standing_stone")) {
+                drawSmall(g, font, Component.literal("Activate  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+                return;
+            }
+
+            if (block.getDescriptionId().contains("word_wall")) {
+                drawSmall(g, font, Component.literal("Read  Word Wall"), cx, cy, 0.75f, 0xD0E8E2D0);
+                return;
+            }
+
+            if (block instanceof net.minecraft.world.level.block.CampfireBlock) {
+                drawSmall(g, font, Component.literal("Rest  Campfire"), cx, cy, 0.75f, 0xD0E8E2D0);
+                return;
+            }
+
+            if (block instanceof net.minecraft.world.level.block.CropBlock
+                    || block instanceof net.minecraft.world.level.block.SweetBerryBushBlock
+                    || block instanceof net.minecraft.world.level.block.FlowerBlock) {
+                drawSmall(g, font, Component.literal("Harvest  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+                return;
+            }
+
             if (block.getDescriptionId().contains("crafting") || block.getDescriptionId().contains("station")
                     || block.getDescriptionId().contains("furnace") || block.getDescriptionId().contains("anvil")
-                    || block.getDescriptionId().contains("grindstone")) {
-                drawSmall(g, font, Component.literal("Use  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+                    || block.getDescriptionId().contains("grindstone") || block.getDescriptionId().contains("cooking_pot")) {
+                String action = block.getDescriptionId().contains("cooking") ? "Cook  " : "Use  ";
+                drawSmall(g, font, Component.literal(action + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
             }
         }
     }

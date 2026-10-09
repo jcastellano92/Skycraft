@@ -83,6 +83,9 @@ public class MagicMenuScreen extends Screen {
 
     @Override
     protected void init() {
+        if (minecraft != null) {
+            minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_MENU_OPEN.get(), 1.0f, 0.8f));
+        }
         tabW = Mth.clamp(width / 5, 80, 120);
         listW = Mth.clamp(width * 32 / 100, 130, 220);
         tabX = 14;
@@ -113,6 +116,14 @@ public class MagicMenuScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    @Override
+    public void onClose() {
+        if (minecraft != null) {
+            minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_MENU_CLOSE.get(), 1.0f, 0.8f));
+        }
+        super.onClose();
     }
 
     // ------------------------------------------------------------------ data

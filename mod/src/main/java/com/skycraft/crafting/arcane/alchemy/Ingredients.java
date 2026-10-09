@@ -58,6 +58,7 @@ public final class Ingredients {
         add("minecraft:lily_of_the_valley", DAMAGE_HEALTH, SLOW, RESIST_POISON, FORTIFY_RESTORATION);
         add("minecraft:wither_rose", RAVAGE_HEALTH, DAMAGE_HEALTH, FEAR, WEAKNESS_TO_MAGIC);
         add("minecraft:oxeye_daisy", RESTORE_HEALTH, CURE_DISEASE, REGENERATE_HEALTH, FORTIFY_LIGHT_ARMOR);
+        add("skycraft:nirnroot", DAMAGE_HEALTH, DAMAGE_STAMINA, INVISIBILITY, RESIST_MAGIC);
         add("minecraft:torchflower", NIGHT_EYE, RESIST_FROST, FORTIFY_DESTRUCTION, REGENERATE_MAGICKA);
         add("minecraft:pitcher_plant", FORTIFY_ALCHEMY, RESTORE_MAGICKA, RESIST_POISON, FORTIFY_RESTORATION);
         add("minecraft:spore_blossom", FORTIFY_LOCKPICKING, FEATHERFALL, CURE_DISEASE, WEAKNESS_TO_SHOCK);

@@ -93,6 +93,9 @@ public class DialogueScreen extends Screen {
     }
 
     private void choose(int index) {
+        if (minecraft != null) {
+            minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_MENU_CLICK.get(), 1.0f, 1.0f));
+        }
         DialoguePackets.Line line = dialogue.lines().get(index);
         com.skycraft.client.DialogueCamera.stop();
         super.onClose();

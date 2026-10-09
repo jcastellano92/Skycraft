@@ -58,10 +58,8 @@ public final class WordWalls {
 
         Vec3 from = Vec3.atCenterOf(pos);
         MagicFx.sendNear(level, from, 64, MagicFx.STREAM, Element.ARCANE, from, from, p.getId(), 70);
-        level.playSound(null, pos, SoundEvents.ELDER_GUARDIAN_CURSE, SoundSource.BLOCKS, 0.5f, 0.6f);
-        level.playSound(null, pos, SoundEvents.BEACON_AMBIENT, SoundSource.BLOCKS, 1.5f, 0.6f);
-        level.playSound(null, pos, SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.BLOCKS, 1.5f, 0.5f);
-        level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.SOUL_ESCAPE, SoundSource.PLAYERS, 2f, 0.6f);
+        level.playSound(null, pos, com.skycraft.world.WorldSounds.WORDWALL_LEARN.get(), SoundSource.BLOCKS, 1.8f, 1.0f);
+        level.playSound(null, p.getX(), p.getY(), p.getZ(), com.skycraft.world.WorldSounds.WORDWALL_LEARN.get(), SoundSource.PLAYERS, 1.2f, 1.0f);
         Notifier.title(p, Component.translatable("notify.skycraft.word_learned"), target.wordWithTranslation(index));
         if (MagicData.dragonSouls(p) > 0) {
             Notifier.message(p, Component.translatable("message.skycraft.word_learned_hint_soul", target.displayName(), Component.keybind("key.skycraft.magic_menu")));

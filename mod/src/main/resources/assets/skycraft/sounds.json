@@ -55,5 +55,100 @@
     "sounds": [
       {"name": "skycraft:music/level_up", "stream": true}
     ]
+  },
+  "ui.menu_open": {
+    "sounds": [
+      {"name": "skycraft:ui/menu_open"}
+    ]
+  },
+  "ui.menu_close": {
+    "sounds": [
+      {"name": "skycraft:ui/menu_close"}
+    ]
+  },
+  "ui.menu_click": {
+    "sounds": [
+      {"name": "skycraft:ui/menu_click"}
+    ]
+  },
+  "ui.skill_up": {
+    "sounds": [
+      {"name": "skycraft:ui/skill_up"}
+    ]
+  },
+  "ui.quest_update": {
+    "sounds": [
+      {"name": "skycraft:ui/quest_update"}
+    ]
+  },
+  "ui.lockpick_turn": {
+    "sounds": [
+      {"name": "skycraft:ui/lockpick_turn"}
+    ]
+  },
+  "ui.lockpick_strain": {
+    "sounds": [
+      {"name": "skycraft:ui/lockpick_strain"}
+    ]
+  },
+  "ui.lockpick_break": {
+    "sounds": [
+      {"name": "skycraft:ui/lockpick_break"}
+    ]
+  },
+  "ui.lockpick_unlock": {
+    "sounds": [
+      {"name": "skycraft:ui/lockpick_unlock"}
+    ]
+  },
+  "shout.fus_ro_dah": {
+    "sounds": [
+      {"name": "skycraft:shout/fus_ro_dah"}
+    ]
+  },
+  "shout.wuld_nah_kest": {
+    "sounds": [
+      {"name": "skycraft:shout/wuld_nah_kest"}
+    ]
+  },
+  "shout.yol_toor_shul": {
+    "sounds": [
+      {"name": "skycraft:shout/yol_toor_shul"}
+    ]
+  },
+  "shout.generic": {
+    "sounds": [
+      {"name": "skycraft:shout/generic"}
+    ]
+  },
+  "wordwall.chant": {
+    "sounds": [
+      {"name": "skycraft:wordwall/chant"}
+    ]
+  },
+  "wordwall.learn": {
+    "sounds": [
+      {"name": "skycraft:wordwall/learn"}
+    ]
+  },
+  "magic.dragon_soul": {
+    "sounds": [
+      {"name": "skycraft:magic/dragon_soul"}
+    ]
+  },
+  "magic.shrine_pray": {
+    "sounds": [
+      {"name": "skycraft:magic/shrine_pray"}
+    ]
+  },
+  "magic.standing_stone": {
+    "sounds": [
+      {"name": "skycraft:magic/standing_stone"}
+    ]
+  },
+  "world.nirnroot_hum": {
+    "sounds": [
+      {"name": "skycraft:world/nirnroot_hum"}
+    ]
   }
 }
