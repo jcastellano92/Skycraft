@@ -37,11 +37,11 @@ import java.util.UUID;
  * tracking), Factions (membership, rank, reputation), Stats and Party.
  */
 public class JournalScreen extends Screen {
-    private static final int QUESTS = 0, MISC = 1, FACTIONS = 2, REPUTATION = 3, STATS = 4, PARTY = 5;
-    private static final String[] TABS = {"quests", "misc", "factions", "reputation", "stats", "party"};
+    private static final int MAIN = 0, SIDE = 1, MISC = 2, FACTIONS = 3, REPUTATION = 4, STATS = 5, PARTY = 6;
+    private static final String[] TABS = {"main", "side", "misc", "factions", "reputation", "stats", "party"};
     private static final int ROW = 12;
 
-    private static int tab = QUESTS;
+    private static int tab = MAIN;
     private static String selectedQuest = "";
     private static int selectedFaction = 0;
 
@@ -89,9 +89,9 @@ public class JournalScreen extends Screen {
         List<Quest> out = new ArrayList<>();
         for (Quest q : ClientQuestData.quests()) {
             if (!q.isActive()) continue;
-            boolean isMainOrSide = q.category == Quest.Category.MAIN || q.category == Quest.Category.SIDE;
-            if (tab == QUESTS && isMainOrSide) out.add(q);
-            else if (tab == MISC && !isMainOrSide) out.add(q);
+            if (tab == MAIN && q.category == Quest.Category.MAIN) out.add(q);
+            else if (tab == SIDE && q.category == Quest.Category.SIDE) out.add(q);
+            else if (tab == MISC && q.category != Quest.Category.MAIN && q.category != Quest.Category.SIDE) out.add(q);
         }
         out.sort(Comparator.comparingInt((Quest q) -> q.category.ordinal()).thenComparingLong(q -> -q.started));
         return out;
@@ -101,9 +101,9 @@ public class JournalScreen extends Screen {
         List<Quest> out = new ArrayList<>();
         for (Quest q : ClientQuestData.quests()) {
             if (q.isActive()) continue;
-            boolean isMainOrSide = q.category == Quest.Category.MAIN || q.category == Quest.Category.SIDE;
-            if (tab == QUESTS && isMainOrSide) out.add(q);
-            else if (tab == MISC && !isMainOrSide) out.add(q);
+            if (tab == MAIN && q.category == Quest.Category.MAIN) out.add(q);
+            else if (tab == SIDE && q.category == Quest.Category.SIDE) out.add(q);
+            else if (tab == MISC && q.category != Quest.Category.MAIN && q.category != Quest.Category.SIDE) out.add(q);
         }
         out.sort(Comparator.comparingLong((Quest q) -> -q.finished));
         return out;
@@ -124,7 +124,7 @@ public class JournalScreen extends Screen {
     @Override
     public void tick() {
         Quest q = selected();
-        boolean isQuestTab = tab == QUESTS || tab == MISC;
+        boolean isQuestTab = tab == MAIN || tab == SIDE || tab == MISC;
         boolean show = isQuestTab && q != null && q.isActive();
         trackButton.visible = show;
         abandonButton.visible = show && !q.isMain();
@@ -192,7 +192,7 @@ public class JournalScreen extends Screen {
         }
         int top = y0 + 30;
         if (mx >= x0 + 6 && mx < listX1 && my >= top && my < y1 - 8) {
-            if (tab == QUESTS || tab == MISC) {
+            if (tab == MAIN || tab == SIDE || tab == MISC) {
                 for (Row r : rows) {
                     if (r.quest() != null && my >= r.y() - 1 && my < r.y() + ROW - 1) {
                         selectedQuest = r.quest().id;
@@ -251,7 +251,7 @@ public class JournalScreen extends Screen {
         Parchment.page(g, x0, y0, x1, y1);
         drawTabs(g, mouseX, mouseY);
         switch (tab) {
-            case QUESTS, MISC -> renderQuests(g, mouseX, mouseY);
+            case MAIN, SIDE, MISC -> renderQuests(g, mouseX, mouseY);
             case FACTIONS -> renderFactions(g, mouseX, mouseY);
             case REPUTATION -> renderReputation(g);
             case STATS -> renderStats(g);

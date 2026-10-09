@@ -75,16 +75,6 @@ public final class Progression {
         if (level >= Skill.MAX_LEVEL) total = 0;
         data.setSkill(skill, level);
         data.setSkillXp(skill, total);
-
-        if (levelsGained == 0) {
-            // throttle the small "skill meter" popup to once per second per skill
-            long now = player.level().getGameTime();
-            long[] last = LAST_POPUP.computeIfAbsent(player.getUUID(), k -> new long[Skill.VALUES.length]);
-            if (now - last[skill.ordinal()] >= 20) {
-                last[skill.ordinal()] = now;
-                Notifier.send(player, NotifyKind.SKILL_XP, skill.displayName(), Component.empty(), skill.ordinal(), data.skillProgress(skill));
-            }
-        }
     }
 
     /** Directly raises a skill by whole levels (trainers, skill books). Grants character XP like normal increases. */

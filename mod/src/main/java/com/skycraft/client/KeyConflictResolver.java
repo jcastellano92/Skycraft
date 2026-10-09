@@ -49,6 +49,21 @@ public final class KeyConflictResolver {
     private static void resolve(Minecraft mc) {
         KeyMapping[] all = mc.options.keyMappings;
         boolean changed = false;
+        // Silence intrusive keys from other mods & vanilla conflicting with Skyrim controls
+        for (KeyMapping k : all) {
+            String name = k.getName().toLowerCase(java.util.Locale.ROOT);
+            if (name.equals("key.drop") || name.equals("key.swapoffhand") || name.equals("key.advancements")) {
+                k.setKey(InputConstants.UNKNOWN);
+                changed = true;
+            } else if (name.contains("treechop") || name.contains("essential") || name.contains("emote")) {
+                k.setKey(InputConstants.UNKNOWN);
+                changed = true;
+            } else if (name.equals("key.chat") && (k.getKey().getValue() == GLFW.GLFW_KEY_Z || k.getKey().getValue() == GLFW.GLFW_KEY_R)) {
+                k.setKey(InputConstants.Type.KEYSYM.getOrCreate(GLFW.GLFW_KEY_ENTER));
+                changed = true;
+            }
+        }
+
         for (KeyMapping ours : all) {
             if (!ours.getName().startsWith("key.skycraft.") || !ours.isDefault() || ours.isUnbound()) continue;
             if (!conflicts(ours, ours.getKey(), all)) continue;

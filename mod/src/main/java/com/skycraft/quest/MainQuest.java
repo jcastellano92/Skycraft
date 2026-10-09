@@ -92,23 +92,24 @@ public final class MainQuest {
         switch (stage) {
             case 1 -> {
                 BlockPos village = level.dimension() == Level.OVERWORLD ? Locate.nearestVillage(level, at) : null;
-                // Guided starter steps: basic gear through steps rather than a chest, ending at nearest town
-                BlockPos p1 = at.offset(6, 0, 6);
+                BlockPos center = village != null ? village : at;
+                // Guided starter steps: basic gear through steps rather than a chest, all around the starting settlement
+                BlockPos p1 = center.offset(8, 0, 8);
                 Objective o1 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1a"))
                         .at(p1, dim, 12).guessY().label("Camp Wreckage");
                 o1.onComplete = "give:minecraft:leather_chestplate,give:minecraft:leather_boots";
 
-                BlockPos p2 = village != null ? at.offset((village.getX() - at.getX()) * 1 / 8, 0, (village.getZ() - at.getZ()) * 1 / 8) : at.offset(14, 0, 14);
+                BlockPos p2 = center.offset(-12, 0, 8);
                 Objective o2 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1b"))
                         .at(p2, dim, 14).guessY().label("Weapon Cache");
                 o2.onComplete = "give:minecraft:iron_sword";
 
-                BlockPos p3 = village != null ? at.offset((village.getX() - at.getX()) * 2 / 8, 0, (village.getZ() - at.getZ()) * 2 / 8) : at.offset(24, 0, 24);
+                BlockPos p3 = center.offset(8, 0, -14);
                 Objective o3 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1c"))
                         .at(p3, dim, 16).guessY().label("Traveler Cache");
                 o3.onComplete = "give:minecraft:shield,give:skycraft:spell_tome_flames";
 
-                BlockPos p4 = village != null ? at.offset((village.getX() - at.getX()) * 3 / 8, 0, (village.getZ() - at.getZ()) * 3 / 8) : at.offset(36, 0, 36);
+                BlockPos p4 = center.offset(-10, 0, -12);
                 Objective o4 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1d"))
                         .at(p4, dim, 18).guessY().label("Provisions");
                 o4.onComplete = "give:minecraft:bread*4,give:minecraft:cooked_beef*2";

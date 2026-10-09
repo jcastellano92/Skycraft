@@ -93,10 +93,25 @@ public final class CrimeHud {
             var block = bstate.getBlock();
 
             if (block instanceof net.minecraft.world.level.block.BedBlock) {
+                if (Jail.isJailed(mc.player)) {
+                    int served = Bounty.state(mc.player).getCompound("jail").getInt("served");
+                    int left = Math.max(0, 60 - served);
+                    if (left > 0) {
+                        drawSmall(g, font, Component.literal("Rest  Serve Sentence (" + left + "s wait)"), cx, cy, 0.75f, 0xD0000000 | RED);
+                    } else {
+                        drawSmall(g, font, Component.literal("Sleep  Serve Sentence"), cx, cy, 0.75f, 0xD0E8E2D0);
+                    }
+                    return;
+                }
                 boolean owned = Ownership.isOwnedByOther(mc.player, mc.level, bpos);
                 boolean occ = bstate.hasProperty(net.minecraft.world.level.block.BedBlock.OCCUPIED) && bstate.getValue(net.minecraft.world.level.block.BedBlock.OCCUPIED);
                 String t = occ ? "Bed (occupied)" : owned ? "Sleep  Bed (owned)" : "Sleep  Bed";
                 drawSmall(g, font, Component.literal(t), cx, cy, 0.75f, (owned || occ) ? (0xD0000000 | RED) : 0xD0E8E2D0);
+                return;
+            }
+
+            if (Jail.isJailed(mc.player) && block instanceof net.minecraft.world.level.block.TrapDoorBlock) {
+                drawSmall(g, font, Component.literal("Escape  Old Sewer Grate"), cx, cy, 0.75f, 0xD0E8E2D0);
                 return;
             }
 

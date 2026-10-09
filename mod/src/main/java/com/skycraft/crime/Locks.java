@@ -214,16 +214,34 @@ public final class Locks {
         return Component.translatable("crime.skycraft.lock." + TIERS[Math.max(0, Math.min(MASTER, tier))]);
     }
 
+    public static void setLock(ServerLevel level, BlockPos rawPos, int tier) {
+        BlockPos pos = normalizePos(level, rawPos);
+        LockData data = LockData.get(level.getServer());
+        data.locks.put(key(level, pos), tier);
+        data.setDirty();
+    }
+
+    public static boolean hasJailKey(Player player) {
+        for (ItemStack s : player.getInventory().items) {
+            if (s.is(CrimeItems.JAIL_KEY.get())) return true;
+        }
+        return false;
+    }
+
     /** Whether the player must pick this lock before using the block. */
     public static boolean blocks(ServerPlayer player, ServerLevel level, BlockPos rawPos) {
         if (player.isCreative() || player.isSpectator()) return false;
         BlockPos pos = normalizePos(level, rawPos);
         BlockState state = level.getBlockState(pos);
         if (state.getBlock() instanceof DoorBlock || state.getBlock() instanceof TrapDoorBlock) {
-            if (!Ownership.isOwnedByOther(player, level, pos)) {
-                return false;
+            if (!Jail.isJailDimension(level) && !Ownership.isOwnedByOther(player, level, pos)) {
+                String key = key(level, pos);
+                if (!LockData.get(level.getServer()).locks.containsKey(key)) {
+                    return false;
+                }
             }
         }
+        if (Jail.isJailDimension(level) && hasJailKey(player)) return false;
         int tier = lockLevel(level, pos);
         return tier != NOT_LOCKED && !isUnlocked(player, level, pos);
     }
@@ -241,7 +259,22 @@ public final class Locks {
         if (be == null && !isDoor) return;
         // sneaking with something in hand places a block instead of opening the container
         if (player.isSecondaryUseActive() && (!player.getMainHandItem().isEmpty() || !player.getOffhandItem().isEmpty())) return;
-        if (!blocks(player, level, pos)) return;
+        if (!blocks(player, level, pos)) {
+            if (state.getBlock() instanceof DoorBlock door && state.is(net.minecraft.world.level.block.Blocks.IRON_DOOR)) {
+                boolean open = !state.getValue(DoorBlock.OPEN);
+                door.setOpen(player, level, state, pos, open);
+                level.playSound(null, pos, open ? SoundEvents.IRON_DOOR_OPEN : SoundEvents.IRON_DOOR_CLOSE, SoundSource.BLOCKS, 1f, 1f);
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            } else if (state.getBlock() instanceof TrapDoorBlock trapdoor && state.is(net.minecraft.world.level.block.Blocks.IRON_TRAPDOOR)) {
+                boolean open = !state.getValue(TrapDoorBlock.OPEN);
+                level.setBlock(pos, state.setValue(TrapDoorBlock.OPEN, open), 2);
+                level.playSound(null, pos, open ? SoundEvents.IRON_TRAPDOOR_OPEN : SoundEvents.IRON_TRAPDOOR_CLOSE, SoundSource.BLOCKS, 1f, 1f);
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            }
+            return;
+        }
 
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.FAIL);

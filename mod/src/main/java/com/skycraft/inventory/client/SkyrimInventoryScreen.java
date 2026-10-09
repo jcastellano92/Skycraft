@@ -298,7 +298,7 @@ public class SkyrimInventoryScreen extends Screen {
         g.pose().translate(cx, cy, 300);
         g.pose().mulPose(Axis.XP.rotationDegrees(inspectRotX));
         g.pose().mulPose(Axis.YP.rotationDegrees(inspectRotY));
-        float scale = (Math.min(width, height) / 3.2f) * inspectZoom;
+        float scale = (Math.min(width, height) / 10.0f) * inspectZoom;
         g.pose().scale(scale, scale, scale);
         g.pose().translate(0, 0, -150);
         g.renderItem(selectedEntry.stack, -8, -8);

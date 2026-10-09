@@ -60,6 +60,7 @@ public final class Pickpocket {
     public static boolean canPickpocket(LivingEntity npc) {
         if (!npc.isAlive()) return false;
         if (npc instanceof AbstractVillager) return true;
+        if (Crimes.isGuard(npc)) return true;
         return npc.getType().is(Dialogue.TALKERS) && !(npc instanceof Enemy) && !npc.getType().is(Dialogue.NO_DIALOGUE);
     }
 
@@ -112,7 +113,11 @@ public final class Pickpocket {
                 .withParameter(LootContextParams.THIS_ENTITY, npc)
                 .create(LootContextParamSets.GIFT);
         ObjectArrayList<ItemStack> items = table.getRandomItems(params);
-        return new ArrayList<>(items);
+        List<ItemStack> result = new ArrayList<>(items);
+        if (level.dimension() == Jail.JAIL && Crimes.isGuard(npc)) {
+            result.add(0, new ItemStack(CrimeItems.JAIL_KEY.get()));
+        }
+        return result;
     }
 
     // ------------------------------------------------------------------ chances

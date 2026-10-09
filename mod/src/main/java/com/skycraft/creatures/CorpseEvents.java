@@ -93,6 +93,7 @@ public final class CorpseEvents {
         }
         corpse.setAppearDelay(0);
         level.addFreshEntity(corpse);
+        dead.discard();
     }
 
     /** Reads (and clears) the arrows the arsenal module recorded on the creature. */

@@ -185,6 +185,35 @@ public final class SurvivalEvents {
     public static void onUseFinish(LivingEntityUseItemEvent.Finish event) {
         if (event.getEntity().level().isClientSide) return;
         if (hasCure(event.getItem())) queueCure(event.getEntity());
+        if (event.getEntity() instanceof ServerPlayer player) {
+            checkRawMeatInfection(player, event.getItem());
+        }
+    }
+
+    private static boolean isRawMeat(ItemStack stack) {
+        if (stack.isEmpty() || !stack.isEdible()) return false;
+        ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        if (id == null) return false;
+        String path = id.getPath();
+        if (path.equals("beef") || path.equals("porkchop") || path.equals("chicken") ||
+                path.equals("mutton") || path.equals("rabbit") || path.equals("rotten_flesh")) {
+            return true;
+        }
+        return path.startsWith("raw_") && (path.endsWith("_meat") || path.contains("venison")
+                || path.contains("snout") || path.contains("meat") || path.contains("flesh"));
+    }
+
+    private static void checkRawMeatInfection(ServerPlayer player, ItemStack item) {
+        if (!SurvivalConfig.DISEASES.get() || player.isCreative() || player.isSpectator()) return;
+        if (!isRawMeat(item)) return;
+        double chance = 0.35 * (1.0 - Diseases.resistance(player));
+        if (player.getRandom().nextDouble() >= chance) return;
+        List<net.minecraftforge.registries.RegistryObject<MobEffect>> diseases = List.of(
+                SurvivalEffects.COLLYWOBBLES, SurvivalEffects.GREENSPORE,
+                SurvivalEffects.SWAMP_ROT, SurvivalEffects.ATAXIA, SurvivalEffects.RATTLES
+        );
+        MobEffect chosen = diseases.get(player.getRandom().nextInt(diseases.size())).get();
+        Diseases.infect(player, chosen);
     }
 
     @SubscribeEvent

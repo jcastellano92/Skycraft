@@ -24,6 +24,8 @@ import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import java.util.List;
+
 /**
  * Forge-bus client events of the inventory module: swapping the vanilla survival inventory for the Skyrim one, the
  * favorites key, keeping an over-encumbered player from running, and item weights in tooltips.
@@ -104,10 +106,21 @@ public final class InventoryClientEvents {
             if (mc.screen == null && !player.isSpectator()) mc.setScreen(new FavoritesScreen());
         }
 
-        // Consume vanilla hotbar slot clicks so hotbar numbers 1-8 are reserved for favorites
-        if (mc.options != null && mc.options.keyHotbarSlots != null && !player.isCreative()) {
-            for (var key : mc.options.keyHotbarSlots) {
-                while (key.consumeClick()) {}
+        // Favorites hotbar mapping: number keys 1-8 map to Favorites 1-8
+        if (mc.options != null && mc.options.keyHotbarSlots != null && !player.isCreative() && mc.screen == null) {
+            for (int i = 0; i < Math.min(8, mc.options.keyHotbarSlots.length); i++) {
+                if (mc.options.keyHotbarSlots[i].consumeClick()) {
+                    List<InvEntry> favs = getFavorites(player);
+                    if (i < favs.size()) {
+                        if (com.skycraft.combat.Sheathe.isSheathed(player)) {
+                            com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+                        }
+                        ClientInventoryHandlers.primary(favs.get(i));
+                    }
+                }
+            }
+            for (int i = 8; i < mc.options.keyHotbarSlots.length; i++) {
+                while (mc.options.keyHotbarSlots[i].consumeClick()) {}
             }
         }
 
@@ -115,6 +128,60 @@ public final class InventoryClientEvents {
         if (ClientInventoryHandlers.over && !player.isCreative() && !player.isSpectator()) {
             if (player.isSprinting()) player.setSprinting(false);
             mc.options.keySprint.setDown(false);
+        }
+    }
+
+    private static int scrollFavIndex = -1;
+
+    public static List<InvEntry> getFavorites(LocalPlayer player) {
+        List<InvEntry> list = new java.util.ArrayList<>();
+        for (InvEntry e : InvEntry.build(player)) {
+            if (e.favorite) list.add(e);
+        }
+        list.sort(java.util.Comparator.comparingInt((InvEntry e) -> e.category.ordinal())
+                .thenComparing(e -> e.name, String.CASE_INSENSITIVE_ORDER)
+                .thenComparingInt(e -> e.equip));
+        return list;
+    }
+
+    @SubscribeEvent
+    public static void onMouseScroll(net.minecraftforge.client.event.InputEvent.MouseScrollingEvent event) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.screen != null || player.isCreative() || player.isSpectator()) return;
+        double delta = event.getScrollDelta();
+        if (delta == 0) return;
+        event.setCanceled(true);
+
+        List<InvEntry> favs = getFavorites(player);
+        if (favs.isEmpty()) {
+            com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+            return;
+        }
+
+        int total = favs.size() + 1;
+        if (scrollFavIndex < 0) scrollFavIndex = 0;
+        if (delta > 0) {
+            scrollFavIndex = Math.floorMod(scrollFavIndex - 1, total);
+        } else {
+            scrollFavIndex = Math.floorMod(scrollFavIndex + 1, total);
+        }
+
+        if (scrollFavIndex == favs.size()) {
+            com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+            for (int i = 0; i < 9; i++) {
+                if (player.getInventory().getItem(i).isEmpty()) {
+                    player.getInventory().selected = i;
+                    break;
+                }
+            }
+            ClientPacketHandlers.notify(new CorePackets.Notify(NotifyKind.MESSAGE, Component.literal("Unarmed"), Component.empty(), 0, 0f));
+        } else {
+            InvEntry chosen = favs.get(scrollFavIndex);
+            if (com.skycraft.combat.Sheathe.isSheathed(player)) {
+                com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+            }
+            ClientInventoryHandlers.primary(chosen);
         }
     }
 

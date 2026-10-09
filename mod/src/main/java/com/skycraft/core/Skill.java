@@ -39,7 +39,7 @@ public enum Skill {
     WOODCUTTING(Group.LIFE, 1.0f, 1f, 0f, "The Tower"),
     FISHING(Group.LIFE, 1.0f, 1f, 0f, "The Ritual"),
     HUNTING(Group.LIFE, 1.0f, 1f, 0f, "The Steed"),
-    ATHLETICS(Group.LIFE, 1.0f, 1f, 0f, "The Steed");
+    ATHLETICS(Group.LIFE, 3.5f, 1f, 0f, "The Steed");
 
     public enum Group {
         WARRIOR(0xC8463C), MAGE(0x4A7BD8), THIEF(0x4CB050), LIFE(0xD8B04A);

@@ -201,6 +201,8 @@
   "journal.skycraft.status_failed": "Failed: %s",
   "journal.skycraft.tab.factions": "Factions",
   "journal.skycraft.tab.party": "Party",
+  "journal.skycraft.tab.main": "Main",
+  "journal.skycraft.tab.side": "Side",
   "journal.skycraft.tab.quests": "Quests",
   "journal.skycraft.tab.stats": "Stats",
   "journal.skycraft.title.dragonborn": "Dragonborn, Savior of Sovngarde",

@@ -349,6 +349,13 @@ public final class Quests {
 
     public static void give(Player player, ItemStack stack) {
         if (stack.isEmpty()) return;
+        if (stack.getItem() instanceof net.minecraft.world.item.ArmorItem armor) {
+            net.minecraft.world.entity.EquipmentSlot slot = armor.getEquipmentSlot();
+            if (player.getItemBySlot(slot).isEmpty()) {
+                player.setItemSlot(slot, stack.copy());
+                return;
+            }
+        }
         if (!player.getInventory().add(stack) && !stack.isEmpty()) player.drop(stack, false);
     }
 

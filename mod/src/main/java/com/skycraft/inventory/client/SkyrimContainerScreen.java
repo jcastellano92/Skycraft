@@ -55,7 +55,9 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
     private int scrollOffset = 0;
     private int hoveredIndex = -1;
 
-    public record ContainerEntry(Slot slot, ItemStack stack, float weight, int value) {}
+    public record ContainerEntry(List<Slot> slots, ItemStack stack, int totalCount, float totalWeight, int value) {
+        public Slot primarySlot() { return slots.get(0); }
+    }
 
     public SkyrimContainerScreen(ChestMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -91,7 +93,8 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
     }
 
     private List<ContainerEntry> getCurrentEntries() {
-        List<ContainerEntry> list = new ArrayList<>();
+        java.util.Map<String, List<Slot>> groups = new java.util.LinkedHashMap<>();
+        java.util.Map<String, ItemStack> repStacks = new java.util.LinkedHashMap<>();
         int start = viewMode == 0 ? 0 : containerSlotCount;
         int end = viewMode == 0 ? containerSlotCount : menu.slots.size();
 
@@ -99,10 +102,25 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
             Slot slot = menu.getSlot(i);
             if (slot.hasItem()) {
                 ItemStack stack = slot.getItem();
-                float weight = ItemWeights.get(stack);
-                int value = ItemValues.get(stack);
-                list.add(new ContainerEntry(slot, stack, weight, value));
+                String key = stack.getItem().getDescriptionId() + ":" + (stack.getTag() != null ? stack.getTag().toString() : "");
+                groups.computeIfAbsent(key, k -> {
+                    repStacks.put(k, stack.copy());
+                    return new ArrayList<>();
+                }).add(slot);
             }
+        }
+
+        List<ContainerEntry> list = new ArrayList<>();
+        for (java.util.Map.Entry<String, List<Slot>> e : groups.entrySet()) {
+            ItemStack rep = repStacks.get(e.getKey());
+            int totalCount = 0;
+            float totalWeight = 0f;
+            for (Slot s : e.getValue()) {
+                totalCount += s.getItem().getCount();
+                totalWeight += ItemWeights.get(s.getItem());
+            }
+            int value = ItemValues.get(rep) * totalCount;
+            list.add(new ContainerEntry(e.getValue(), rep, totalCount, totalWeight, value));
         }
         return list;
     }
@@ -135,8 +153,11 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
         g.drawString(font, displayTitle, px + 12, headerY, SkyUi.TEXT, false);
 
         if (viewMode == 0 && isOwned) {
+            boolean detected = com.skycraft.client.ClientState.has(com.skycraft.network.CorePackets.SyncVitals.DETECTED);
             int stealX = px + 16 + font.width(displayTitle);
-            g.drawString(font, "[STEAL]", stealX, headerY, SkyUi.STOLEN, false);
+            String warn = "Taking is STEALING. Status: " + (detected ? "[DETECTED]" : "[HIDDEN]");
+            int warnColor = detected ? SkyUi.STOLEN : 0xFF55FF55;
+            g.drawString(font, warn, stealX, headerY, warnColor, false);
         }
 
         // View toggle tabs (Container vs My Items)
@@ -191,15 +212,15 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
 
                 // Name and count
                 String name = entry.stack().getHoverName().getString();
-                if (entry.stack().getCount() > 1) {
-                    name += " (" + entry.stack().getCount() + ")";
+                if (entry.totalCount() > 1) {
+                    name += " (" + entry.totalCount() + ")";
                 }
                 String ellipsized = SkyUi.ellipsize(font, name, listW - 75);
-                int nameColor = isSelected ? SkyUi.BRIGHT : (isHovered ? SkyUi.TEXT : SkyUi.DIM);
+                int nameColor = (viewMode == 0 && isOwned) ? SkyUi.STOLEN : (isSelected ? SkyUi.BRIGHT : (isHovered ? SkyUi.TEXT : SkyUi.DIM));
                 g.drawString(font, ellipsized, listX + 22, rowY + 5, nameColor, false);
 
                 // Weight and Value
-                String wtStr = ItemWeights.format(entry.weight());
+                String wtStr = ItemWeights.format(entry.totalWeight());
                 String valStr = entry.value() + "g";
                 int infoX = listX + listW - font.width(valStr) - 6;
                 g.drawString(font, valStr, infoX, rowY + 5, SkyUi.GOLD, false);
@@ -252,7 +273,7 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
             }
 
             g.drawString(font, "WEIGHT", detX, infoY, SkyUi.HEADER, false);
-            g.drawString(font, ItemWeights.format(sel.weight()), detX + 50, infoY, SkyUi.BRIGHT, false);
+            g.drawString(font, ItemWeights.format(sel.totalWeight()), detX + 50, infoY, SkyUi.BRIGHT, false);
             infoY += 11;
 
             g.drawString(font, "VALUE", detX, infoY, SkyUi.HEADER, false);
@@ -329,14 +350,23 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
         List<ContainerEntry> entries = getCurrentEntries();
         if (selectedIndex >= 0 && selectedIndex < entries.size()) {
             ContainerEntry entry = entries.get(selectedIndex);
-            this.slotClicked(entry.slot(), entry.slot().index, 0, ClickType.QUICK_MOVE);
+            for (Slot slot : entry.slots()) {
+                if (slot.hasItem()) {
+                    this.slotClicked(slot, slot.index, 0, ClickType.QUICK_MOVE);
+                    break;
+                }
+            }
         }
     }
 
     private void takeOrStoreAll() {
         List<ContainerEntry> entries = getCurrentEntries();
         for (ContainerEntry entry : entries) {
-            this.slotClicked(entry.slot(), entry.slot().index, 0, ClickType.QUICK_MOVE);
+            for (Slot slot : entry.slots()) {
+                if (slot.hasItem()) {
+                    this.slotClicked(slot, slot.index, 0, ClickType.QUICK_MOVE);
+                }
+            }
         }
     }
 

@@ -132,8 +132,8 @@ public final class SkyHud {
         HudNotifications.prune();
         Font font = mc.font;
 
-        // Top-left message log
-        int my = 6;
+        // Top-left message log (below compass bar)
+        int my = 32;
         for (HudNotifications.Entry e : HudNotifications.MESSAGES) {
             float age = e.age();
             int alpha = (int) (255 * Mth.clamp((1 - age) * 4, 0, 1));

@@ -44,6 +44,17 @@ public final class HudNotifications {
                 BANNERS.add(new Entry(msg, 0, durationOf(msg.kind())));
             }
         }
+
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.player != null) {
+            switch (msg.kind()) {
+                case LEVEL_UP -> mc.player.playSound(net.minecraft.sounds.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+                case SKILL_UP -> mc.player.playSound(net.minecraft.sounds.SoundEvents.PLAYER_LEVELUP, 0.8f, 1.2f);
+                case QUEST_COMPLETED -> mc.player.playSound(net.minecraft.sounds.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.9f, 1.1f);
+                case QUEST_UPDATED, QUEST_STARTED -> mc.player.playSound(net.minecraft.sounds.SoundEvents.EXPERIENCE_ORB_PICKUP, 0.8f, 1.0f);
+                default -> {}
+            }
+        }
     }
 
     private static long durationOf(NotifyKind kind) {
@@ -74,3 +85,4 @@ public final class HudNotifications {
         if (meter != null && now - meter.start > meter.duration) meter = null;
     }
 }
+

@@ -48,7 +48,22 @@ public final class PlayerDataEvents {
 
     @SubscribeEvent
     public static void login(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) fullSync(player);
+        if (event.getEntity() instanceof ServerPlayer player) {
+            fullSync(player);
+            PlayerData data = SkyData.get(player);
+            if (!data.module("core").getBoolean("spawn_placed")) {
+                data.module("core").putBoolean("spawn_placed", true);
+                data.markDirty();
+                net.minecraft.server.level.ServerLevel level = player.serverLevel();
+                if (level.dimension() == net.minecraft.world.level.Level.OVERWORLD) {
+                    net.minecraft.core.BlockPos village = com.skycraft.quest.Locate.nearestVillage(level, player.blockPosition());
+                    if (village != null) {
+                        int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, village.getX(), village.getZ());
+                        player.teleportTo(level, village.getX() + 0.5, Math.max(64, y), village.getZ() + 0.5, player.getYRot(), player.getXRot());
+                    }
+                }
+            }
+        }
     }
 
     @SubscribeEvent
@@ -79,8 +94,25 @@ public final class PlayerDataEvents {
         if (event.phase != TickEvent.Phase.END || !(event.player instanceof ServerPlayer player)) return;
         if (!SkyConfig.PROMPT_RACE.get()) return;
         PlayerData data = SkyData.get(player);
-        if (data.getRace() == null && player.tickCount % 600 == 60) {
+        if (data.getRace() == null && !com.skycraft.crime.Jail.isJailed(player) && player.tickCount % 600 == 60) {
             SkyNetwork.sendToPlayer(player, new CorePackets.OpenScreen(CorePackets.OpenScreen.RACE));
+        }
+    }
+
+    /** Invulnerable while choosing race / character */
+    @SubscribeEvent
+    public static void onHurt(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            PlayerData data = SkyData.get(player);
+            if (data.getRace() == null) event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onTarget(net.minecraftforge.event.entity.living.LivingChangeTargetEvent event) {
+        if (event.getNewTarget() instanceof Player player) {
+            PlayerData data = SkyData.get(player);
+            if (data.getRace() == null) event.setCanceled(true);
         }
     }
 
