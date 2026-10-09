@@ -78,6 +78,15 @@ public final class CraftingItems {
     public static final RegistryObject<Item> GOLD_RUBY_NECKLACE = jewelry("gold_ruby_necklace", 450);
     public static final RegistryObject<Item> GOLD_DIAMOND_RING = jewelry("gold_diamond_ring", 900);
 
+    public static final RegistryObject<Item> COPPER_CIRCLET = jewelry("copper_circlet", 180);
+    public static final RegistryObject<Item> SILVER_CIRCLET = jewelry("silver_circlet", 350);
+    public static final RegistryObject<Item> GOLD_CIRCLET = jewelry("gold_circlet", 550);
+    public static final RegistryObject<Item> JADE_CIRCLET = jewelry("jade_circlet", 750);
+    public static final RegistryObject<Item> AMULET_OF_TALOS = jewelry("amulet_of_talos", 300);
+    public static final RegistryObject<Item> AMULET_OF_MARA = jewelry("amulet_of_mara", 300);
+    public static final RegistryObject<Item> JADE_PENDANT = jewelry("jade_pendant", 280);
+    public static final RegistryObject<Item> SAPPHIRE_PENDANT = jewelry("sapphire_pendant", 450);
+
     // ------------------------------------------------------------------ weapons & armor
     static {
         for (SmithingTier tier : SmithingTier.values()) {

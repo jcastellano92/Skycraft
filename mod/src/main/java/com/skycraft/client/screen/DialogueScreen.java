@@ -26,10 +26,6 @@ public class DialogueScreen extends Screen {
         return false;
     }
 
-    private int lineY(int i) {
-        return height / 2 - dialogue.lines().size() * 7 + i * 14;
-    }
-
     private int listX() {
         return width / 2 + 30;
     }
@@ -61,7 +57,7 @@ public class DialogueScreen extends Screen {
             }
         }
 
-        // NPC name and line
+        // NPC name and greeting
         g.pose().pushPose();
         g.pose().translate(width / 2f, gy - 18, 0);
         g.pose().scale(1.4f, 1.4f, 1f);
@@ -76,22 +72,48 @@ public class DialogueScreen extends Screen {
 
         hovered = -1;
         List<DialoguePackets.Line> lines = dialogue.lines();
+        int x = listX();
+        int maxW = Math.max(120, width - x - 32);
+
+        // Precompute wrapped lines and heights so choices wrap cleanly rather than truncating
+        List<List<FormattedCharSequence>> wrappedList = new java.util.ArrayList<>();
+        int totalChoicesH = 0;
+        int gap = 4;
+        for (DialoguePackets.Line line : lines) {
+            List<FormattedCharSequence> wrapped = font.split(line.label(), maxW - 14);
+            wrappedList.add(wrapped);
+            totalChoicesH += wrapped.size() * 11 + gap;
+        }
+
+        int curY = Math.max(28, (height - 30 - totalChoicesH) / 2);
         for (int i = 0; i < lines.size(); i++) {
-            int y = lineY(i);
-            int x = listX();
-            int maxW = Math.max(100, width - x - 24);
-            String text = lines.get(i).label().getString();
-            if (font.width(text) > maxW) {
-                text = font.plainSubstrByWidth(text, maxW - font.width("...")) + "...";
+            List<FormattedCharSequence> wrapped = wrappedList.get(i);
+            int entryH = wrapped.size() * 11 + gap;
+            int boxY1 = curY - 2;
+            int boxY2 = curY + entryH - 2;
+
+            if (mouseX >= x - 12 && mouseX <= x + maxW && mouseY >= boxY1 && mouseY <= boxY2) {
+                hovered = i;
             }
-            int w = font.width(text);
-            if (mouseX >= x - 4 && mouseX <= x + w + 4 && mouseY >= y - 2 && mouseY <= y + 10) hovered = i;
-            boolean hi = hovered == i || hovered < 0 && selected == i;
+            boolean hi = (hovered == i || (hovered < 0 && selected == i));
+
             if (hi) {
-                g.fill(x - 6, y - 2, x + w + 6, y + 10, 0x40FFFFFF);
-                g.fill(x - 6, y - 2, x - 5, y + 10, 0xFFC8BC9A);
+                // Skyrim-style response focus: illuminated background banner and gold bar
+                g.fillGradient(x - 12, boxY1, x + maxW + 4, boxY2, 0x40FFFFFF, 0x10FFFFFF);
+                g.fill(x - 12, boxY1, x - 10, boxY2, 0xFFE5B83B);
+                // Focused indicator arrow
+                g.drawString(font, "▶", x - 7, curY, 0xFFE5B83B, true);
             }
-            g.drawString(font, text, x, y, hi ? 0xFFFFFFFF : 0xFFA8A090, true);
+
+            int textX = hi ? x + 4 : x;
+            int textY = curY;
+            int textColor = hi ? 0xFFFFFFFF : 0xFFA8A090;
+            for (FormattedCharSequence lineSeq : wrapped) {
+                g.drawString(font, lineSeq, textX, textY, textColor, true);
+                textY += 11;
+            }
+
+            curY += entryH;
         }
         super.render(g, mouseX, mouseY, partialTick);
     }

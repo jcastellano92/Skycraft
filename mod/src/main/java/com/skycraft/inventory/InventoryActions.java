@@ -73,6 +73,15 @@ public final class InventoryActions {
     /** The armor or offhand slot an item goes to, or null for "hold it in the right hand". */
     @Nullable
     public static EquipmentSlot equipSlotFor(ItemStack stack) {
+        if (com.skycraft.economy.ItemCategory.isJewelry(stack)) {
+            ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            if (key != null) {
+                String path = key.getPath();
+                if (path.contains("circlet")) return EquipmentSlot.HEAD;
+                if (path.contains("necklace") || path.contains("amulet") || path.contains("pendant")) return EquipmentSlot.CHEST;
+                if (path.contains("ring")) return EquipmentSlot.OFFHAND;
+            }
+        }
         EquipmentSlot forge = stack.getEquipmentSlot();
         if (forge != null && forge != EquipmentSlot.MAINHAND) return forge;
         Equipable eq = null;
@@ -134,6 +143,25 @@ public final class InventoryActions {
             return;
         }
         if (!isUsableEquipment(stack)) return;
+
+        if (com.skycraft.economy.ItemCategory.isJewelry(stack)) {
+            ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            String path = key != null ? key.getPath() : "";
+            String kind = path.contains("circlet") ? "circlet" : path.contains("ring") ? "ring" : "necklace";
+            com.skycraft.core.PlayerData data = com.skycraft.core.SkyData.get(player);
+            CompoundTag apparel = data.module("apparel");
+            String curWorn = apparel.getString(kind);
+            String thisId = key != null ? key.toString() : "";
+            if (thisId.equals(curWorn)) {
+                apparel.remove(kind);
+            } else {
+                apparel.putString(kind, thisId);
+            }
+            data.markDirty();
+            com.skycraft.core.PlayerDataEvents.fullSync(player);
+            return;
+        }
+
         EquipmentSlot target = equipSlotFor(stack);
         if (target != null && target.getType() == EquipmentSlot.Type.ARMOR) {
             wear(player, inv, slot, stack, target);

@@ -93,6 +93,7 @@ public final class InvEntry {
      */
     public boolean isUsableEquipment() {
         if (isArmor()) return true;
+        if (com.skycraft.economy.ItemCategory.isJewelry(stack)) return true;
         net.minecraft.world.item.Item it = stack.getItem();
         if (it instanceof net.minecraft.world.item.SwordItem || it instanceof net.minecraft.world.item.DiggerItem
                 || it instanceof net.minecraft.world.item.ProjectileWeaponItem || it instanceof net.minecraft.world.item.ShieldItem
@@ -122,6 +123,14 @@ public final class InvEntry {
             ItemStack s = inv.getItem(i);
             if (s.isEmpty()) continue;
             int equip = InventoryActions.isArmorSlot(i) ? WORN : i == InventoryActions.OFFHAND ? LEFT : i == inv.selected ? RIGHT : NONE;
+            if (equip == NONE && com.skycraft.economy.ItemCategory.isJewelry(s)) {
+                net.minecraft.nbt.CompoundTag apparel = com.skycraft.core.SkyData.get(player).module("apparel");
+                net.minecraft.resources.ResourceLocation key = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(s.getItem());
+                String itemId = key != null ? key.toString() : "";
+                if (itemId.equals(apparel.getString("necklace")) || itemId.equals(apparel.getString("ring")) || itemId.equals(apparel.getString("circlet"))) {
+                    equip = WORN;
+                }
+            }
             if (equip == NONE) {
                 InvEntry merged = null;
                 for (InvEntry e : out) {

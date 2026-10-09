@@ -22,6 +22,7 @@ public final class SocietyClient {
     public static final ModelLayerLocation NPC_LAYER = new ModelLayerLocation(new ResourceLocation(Skycraft.MODID, "npc"), "main");
     public static final ModelLayerLocation COSMETIC_LAYER = new ModelLayerLocation(new ResourceLocation(Skycraft.MODID, "society_cosmetic"), "main");
     public static final ModelLayerLocation COSMETIC_ARMORED_LAYER = new ModelLayerLocation(new ResourceLocation(Skycraft.MODID, "society_cosmetic"), "armored");
+    public static final ModelLayerLocation JEWELRY_LAYER = new ModelLayerLocation(new ResourceLocation(Skycraft.MODID, "jewelry"), "main");
 
     /** Opens the reputation screen (owned by the society module). */
     public static final KeyMapping REPUTATION = new KeyMapping("key.skycraft.reputation", KeyConflictContext.IN_GAME,
@@ -34,6 +35,7 @@ public final class SocietyClient {
         event.registerLayerDefinition(NPC_LAYER, NpcModel::createLayer);
         event.registerLayerDefinition(COSMETIC_LAYER, () -> CosmeticLayer.createLayer(false));
         event.registerLayerDefinition(COSMETIC_ARMORED_LAYER, () -> CosmeticLayer.createLayer(true));
+        event.registerLayerDefinition(JEWELRY_LAYER, JewelryLayer::createLayer);
     }
 
     @SubscribeEvent
@@ -46,7 +48,10 @@ public final class SocietyClient {
     public static void addLayers(EntityRenderersEvent.AddLayers event) {
         for (String skin : event.getSkins()) {
             PlayerRenderer renderer = event.getSkin(skin);
-            if (renderer != null) renderer.addLayer(new CosmeticLayer(renderer, event.getEntityModels()));
+            if (renderer != null) {
+                renderer.addLayer(new CosmeticLayer(renderer, event.getEntityModels()));
+                renderer.addLayer(new JewelryLayer(renderer, event.getEntityModels()));
+            }
         }
     }
 

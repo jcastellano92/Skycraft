@@ -132,22 +132,21 @@ public final class KillCamClient {
         return len < 1e-6 ? wanted : anchor.add(d.scale(Math.min(1.0, dist / len)));
     }
 
-    // ------------------------------------------------------------------ per tick
+    // ------------------------------------------------------------------ per tick & sub-tick
 
-    /** Positions the camera marker for the current tick. */
-    private static void update(float unused) {
+    /** Computes camera position at continuous progress t in [0, 1]. */
+    private static Vec3 computeCam(float progress) {
         ClientLevel level = Minecraft.getInstance().level;
-        if (level == null || marker == null) return;
+        if (level == null) return center;
         Vec3 cam;
-        Vec3 lookAt = center;
         if (kind == ArsenalPackets.KillCam.ARROW) {
-            if (tick <= ARROW_FLIGHT_TICKS) {
-                float t = tick / (float) ARROW_FLIGHT_TICKS;
+            float arrowFlightProgress = ARROW_FLIGHT_TICKS / (float) duration;
+            if (progress <= arrowFlightProgress) {
+                float t = progress / arrowFlightProgress;
                 float ease = 1f - (1f - t) * (1f - t);
                 cam = flightStart.add(flightEnd.subtract(flightStart).scale(ease));
             } else {
-                // hold behind the victim, drifting slowly sideways
-                float t = (tick - ARROW_FLIGHT_TICKS) / (float) (ARROW_TICKS - ARROW_FLIGHT_TICKS);
+                float t = (progress - arrowFlightProgress) / Math.max(0.001f, 1f - arrowFlightProgress);
                 Vec3 off = flightEnd.subtract(center);
                 double ang = Math.toRadians(12f * side * t);
                 double cos = Math.cos(ang), sin = Math.sin(ang);
@@ -155,13 +154,19 @@ public final class KillCamClient {
                 cam = clipBack(level, center, cam, 1.0);
             }
         } else {
-            float t = tick / (float) duration;
-            double ang = Math.toRadians(startAngle + sweep * t);
-            // yaw convention: direction (-sin, cos)
-            Vec3 wanted = center.add(-Math.sin(ang) * radius, 0.55 + 0.35 * t, Math.cos(ang) * radius);
+            double ang = Math.toRadians(startAngle + sweep * progress);
+            Vec3 wanted = center.add(-Math.sin(ang) * radius, 0.55 + 0.35 * progress, Math.cos(ang) * radius);
             cam = clipBack(level, center, wanted, 1.2);
         }
-        Vec3 d = lookAt.subtract(cam);
+        return cam;
+    }
+
+    /** Positions the camera marker for the current tick. */
+    private static void update(float unused) {
+        if (marker == null) return;
+        float t = Mth.clamp(tick / (float) duration, 0f, 1f);
+        Vec3 cam = computeCam(t);
+        Vec3 d = center.subtract(cam);
         double hd = Math.sqrt(d.x * d.x + d.z * d.z);
         float yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
         float pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.max(1e-4, hd)));
@@ -226,7 +231,17 @@ public final class KillCamClient {
     @SubscribeEvent
     public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
         if (!active || marker == null || Minecraft.getInstance().getCameraEntity() != marker) return;
-        float t = (float) Mth.clamp((tick + event.getPartialTick()) / duration, 0.0, 1.0);
+        float subTick = tick + (float) event.getPartialTick();
+        float t = (float) Mth.clamp(subTick / (float) duration, 0.0, 1.0);
+        Vec3 cam = computeCam(t);
+        Vec3 d = center.subtract(cam);
+        double hd = Math.sqrt(d.x * d.x + d.z * d.z);
+        float yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
+        float pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.max(1e-4, hd)));
+
+        event.setYaw(yaw);
+        event.setPitch(Mth.clamp(pitch, -89f, 89f));
+
         float max = (float) (double) ArsenalConfig.KILL_CAM_ROLL.get();
         float roll = kind == ArsenalPackets.KillCam.ARROW ? max * 0.4f * Mth.sin(t * (float) Math.PI) : max * Mth.sin(t * (float) Math.PI);
         event.setRoll(event.getRoll() + roll * side);

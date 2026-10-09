@@ -112,6 +112,37 @@ public final class PlayerDataEvents {
                 }
             }
         }
+        // Auto-clear corpse marker on map and compass when player reaches within 6 blocks of their corpse
+        if (player.tickCount % 20 == 0) {
+            PlayerData data = SkyData.get(player);
+            net.minecraft.nbt.ListTag discovered = com.skycraft.world.WorldData.discovered(data);
+            boolean removedCorpse = false;
+            String curDim = player.level().dimension().location().toString();
+            for (int i = discovered.size() - 1; i >= 0; i--) {
+                net.minecraft.nbt.CompoundTag loc = discovered.getCompound(i);
+                String name = loc.getString("name");
+                String id = loc.getString("id");
+                if ("Your Corpse".equals(name) || id.startsWith("corpse|")) {
+                    String dim = loc.getString("dim");
+                    if (curDim.equals(dim)) {
+                        double cx = loc.getInt("x");
+                        double cy = loc.getInt("y");
+                        double cz = loc.getInt("z");
+                        if (player.distanceToSqr(cx + 0.5, cy + 0.5, cz + 0.5) <= 36.0) {
+                            discovered.remove(i);
+                            removedCorpse = true;
+                        }
+                    }
+                }
+            }
+            if (removedCorpse) {
+                data.markDirty();
+                fullSync(player);
+                Notifier.send(player, com.skycraft.network.NotifyKind.LOCATION_CLEARED,
+                        net.minecraft.network.chat.Component.literal("Corpse Reached"),
+                        net.minecraft.network.chat.Component.literal("Death marker cleared"));
+            }
+        }
         if (!SkyConfig.PROMPT_RACE.get()) return;
         PlayerData data = SkyData.get(player);
         if (data.getRace() == null && !com.skycraft.crime.Jail.isJailed(player) && player.tickCount % 600 == 60) {

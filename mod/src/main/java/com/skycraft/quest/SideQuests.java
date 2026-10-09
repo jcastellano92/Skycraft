@@ -51,7 +51,8 @@ public final class SideQuests {
         ServerLevel level = (ServerLevel) player.level();
         String dim = level.dimension().location().toString();
         BlockPos at = player.blockPosition();
-        BlockPos dungeon = Locate.dungeon(level, at, player.getRandom());
+        BlockPos dungeon = Locate.mountainDungeon(level, at, player.getRandom());
+        if (dungeon == null) dungeon = Locate.dungeon(level, at, player.getRandom());
         if (dungeon == null) dungeon = Locate.randomSpot(level, player.getRandom(), at, 200, 450);
 
         Quest q = new Quest("side_golden_claw", Quest.Category.SIDE,
@@ -216,19 +217,27 @@ public final class SideQuests {
         PlayerData data = SkyData.get(player);
         if (data.getLevel() < 1) return;
 
-        // The Golden Claw — offered strictly by merchants (shopkeepers like Lucan) during shop hours
+        // The Golden Claw — offered strictly by the first merchant encountered in the world (like Lucan) during shop hours
         if (!hasSideQuest(player, "side_golden_claw")) {
             boolean isMerchant = com.skycraft.economy.Merchants.isMerchant(npc);
             boolean openHours = com.skycraft.economy.Shop.isOpen(player.level());
             if (isMerchant && openHours) {
-                out.add(new DialogueOption("quest.side.golden_claw",
-                        tr("dialogue.skycraft.quest.ask_golden_claw"), 320, (pl, n) -> {
-                    if (startGoldenClaw(pl, n)) {
-                        Dialogue.open(pl, n, tr("dialogue.skycraft.quest.pitch_golden_claw"));
-                    } else {
-                        Dialogue.open(pl, n, tr("quest.skycraft.reply.too_busy"));
-                    }
-                }));
+                QuestStore qs = QuestStore.get(player.server);
+                java.util.UUID designated = qs.getDesignatedGiver("side_golden_claw");
+                if (designated == null) {
+                    qs.setDesignatedGiver("side_golden_claw", npc.getUUID());
+                    designated = npc.getUUID();
+                }
+                if (designated.equals(npc.getUUID())) {
+                    out.add(new DialogueOption("quest.side.golden_claw",
+                            tr("dialogue.skycraft.quest.ask_golden_claw"), 320, (pl, n) -> {
+                        if (startGoldenClaw(pl, n)) {
+                            Dialogue.open(pl, n, tr("dialogue.skycraft.quest.pitch_golden_claw"));
+                        } else {
+                            Dialogue.open(pl, n, tr("quest.skycraft.reply.too_busy"));
+                        }
+                    }));
+                }
             }
         }
 

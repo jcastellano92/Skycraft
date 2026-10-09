@@ -19,6 +19,9 @@ import net.minecraftforge.fml.common.Mod;
 public final class DialogueCamera {
     private static int targetEntityId = -1;
     private static boolean active = false;
+    private static float startYaw = 0.0f;
+    private static float startPitch = 0.0f;
+    private static float prevEaseProgress = 0.0f;
     private static float easeProgress = 0.0f;
 
     private DialogueCamera() {}
@@ -26,6 +29,13 @@ public final class DialogueCamera {
     public static void start(int entityId) {
         targetEntityId = entityId;
         active = true;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            startYaw = mc.player.getYRot();
+            startPitch = mc.player.getXRot();
+        }
+        easeProgress = 0.0f;
+        prevEaseProgress = 0.0f;
     }
 
     public static void stop() {
@@ -35,13 +45,14 @@ public final class DialogueCamera {
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
+        prevEaseProgress = easeProgress;
         if (active) {
             if (easeProgress < 1.0f) {
-                easeProgress = Math.min(1.0f, easeProgress + 0.1f);
+                easeProgress = Math.min(1.0f, easeProgress + 0.08f);
             }
         } else {
             if (easeProgress > 0.0f) {
-                easeProgress = Math.max(0.0f, easeProgress - 0.12f);
+                easeProgress = Math.max(0.0f, easeProgress - 0.10f);
                 if (easeProgress <= 0.0f) {
                     targetEntityId = -1;
                 }
@@ -51,15 +62,18 @@ public final class DialogueCamera {
 
     @SubscribeEvent
     public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
-        if (easeProgress <= 0.0f || targetEntityId < 0) return;
+        float partial = (float) event.getPartialTick();
+        float progress = Mth.clamp(Mth.lerp(partial, prevEaseProgress, easeProgress), 0.0f, 1.0f);
+        if (progress <= 0.0001f || targetEntityId < 0) return;
+
         Minecraft mc = Minecraft.getInstance();
         Player player = mc.player;
         if (player == null || mc.level == null) return;
         Entity target = mc.level.getEntity(targetEntityId);
         if (target == null) return;
 
-        Vec3 playerEye = player.getEyePosition((float) event.getPartialTick());
-        Vec3 targetEye = target.getEyePosition((float) event.getPartialTick());
+        Vec3 playerEye = player.getEyePosition(partial);
+        Vec3 targetEye = target.getEyePosition(partial);
         Vec3 diff = targetEye.subtract(playerEye);
         double distHoriz = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
         if (distHoriz < 0.001) return;
@@ -67,12 +81,11 @@ public final class DialogueCamera {
         float wantedYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0F;
         float wantedPitch = (float) -(Mth.atan2(diff.y, distHoriz) * (180.0 / Math.PI));
 
-        float smoothFactor = Mth.sin(easeProgress * (float) (Math.PI / 2.0));
-        float currentYaw = event.getYaw();
-        float currentPitch = event.getPitch();
+        // Smooth cosine ease curve (eliminates tick-rate stepping jitter)
+        float smoothFactor = 0.5f - 0.5f * Mth.cos(progress * (float) Math.PI);
 
-        float blendedYaw = Mth.rotLerp(smoothFactor, currentYaw, wantedYaw);
-        float blendedPitch = Mth.rotLerp(smoothFactor, currentPitch, wantedPitch);
+        float blendedYaw = Mth.rotLerp(smoothFactor, startYaw, wantedYaw);
+        float blendedPitch = Mth.lerp(smoothFactor, startPitch, wantedPitch);
 
         event.setYaw(blendedYaw);
         event.setPitch(blendedPitch);
@@ -80,8 +93,11 @@ public final class DialogueCamera {
 
     @SubscribeEvent
     public static void onComputeFov(ViewportEvent.ComputeFov event) {
-        if (easeProgress <= 0.0f) return;
-        float smoothFactor = Mth.sin(easeProgress * (float) (Math.PI / 2.0));
+        float partial = (float) event.getPartialTick();
+        float progress = Mth.clamp(Mth.lerp(partial, prevEaseProgress, easeProgress), 0.0f, 1.0f);
+        if (progress <= 0.0001f) return;
+
+        float smoothFactor = 0.5f - 0.5f * Mth.cos(progress * (float) Math.PI);
         double baseFov = event.getFOV();
         // Zoom in by ~18% (Skyrim conversation zoom)
         double targetFov = baseFov * 0.82;

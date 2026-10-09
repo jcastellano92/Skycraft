@@ -272,7 +272,9 @@ public class DragonEntity extends Monster {
     @Override
     public void startSeenByPlayer(ServerPlayer player) {
         super.startSeenByPlayer(player);
-        this.bossEvent.addPlayer(player);
+        if (player.distanceToSqr(this) <= 64.0 * 64.0) {
+            this.bossEvent.addPlayer(player);
+        }
     }
 
     @Override
@@ -359,6 +361,18 @@ public class DragonEntity extends Monster {
         if (!initialized) initDragon();
         if (anchor == null) anchor = this.position();
         this.bossEvent.setProgress(this.getHealth() / this.getMaxHealth());
+        if (this.tickCount % 20 == 0 && this.level() instanceof ServerLevel sl) {
+            double rangeSq = 64.0 * 64.0;
+            for (ServerPlayer player : sl.players()) {
+                boolean inRange = player.isAlive() && !player.isSpectator() && player.distanceToSqr(this) <= rangeSq;
+                boolean tracking = this.bossEvent.getPlayers().contains(player);
+                if (inRange && !tracking) {
+                    this.bossEvent.addPlayer(player);
+                } else if (!inRange && tracking) {
+                    this.bossEvent.removePlayer(player);
+                }
+            }
+        }
         if (tickDespawn()) return;
 
         LivingEntity target = this.getTarget();

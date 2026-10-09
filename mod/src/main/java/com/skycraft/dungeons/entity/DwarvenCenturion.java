@@ -95,6 +95,18 @@ public class DwarvenCenturion extends Automaton {
     protected void customServerAiStep() {
         super.customServerAiStep();
         this.bossEvent.setProgress(this.getHealth() / this.getMaxHealth());
+        if (this.tickCount % 20 == 0 && this.level() instanceof ServerLevel sl) {
+            double rangeSq = 48.0 * 48.0;
+            for (ServerPlayer player : sl.players()) {
+                boolean inRange = player.isAlive() && !player.isSpectator() && player.distanceToSqr(this) <= rangeSq;
+                boolean tracking = this.bossEvent.getPlayers().contains(player);
+                if (inRange && !tracking) {
+                    this.bossEvent.addPlayer(player);
+                } else if (!inRange && tracking) {
+                    this.bossEvent.removePlayer(player);
+                }
+            }
+        }
         LivingEntity target = this.getTarget();
         if (steamCooldown > 0) steamCooldown--;
         if (steamTicks > 0) {
@@ -165,7 +177,9 @@ public class DwarvenCenturion extends Automaton {
     @Override
     public void startSeenByPlayer(ServerPlayer player) {
         super.startSeenByPlayer(player);
-        this.bossEvent.addPlayer(player);
+        if (player.distanceToSqr(this) <= 48.0 * 48.0) {
+            this.bossEvent.addPlayer(player);
+        }
     }
 
     @Override

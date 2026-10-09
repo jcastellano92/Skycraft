@@ -55,6 +55,34 @@ public final class Locate {
         return d;
     }
 
+    /** Finds an elevated mountain barrow/dungeon structure or mountain summit. */
+    @Nullable
+    public static BlockPos mountainDungeon(ServerLevel level, BlockPos from, RandomSource r) {
+        BlockPos best = null;
+        int highestY = 75;
+        for (int i = 0; i < 4; i++) {
+            BlockPos probe = randomSpot(level, r, from, 150 + i * 50, 350 + i * 50);
+            BlockPos d = structure(level, DUNGEONS, probe, 32);
+            if (d != null) {
+                int surfaceY = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, d.getX(), d.getZ());
+                if (surfaceY > highestY) {
+                    highestY = surfaceY;
+                    best = new BlockPos(d.getX(), surfaceY, d.getZ());
+                }
+            }
+        }
+        if (best != null && highestY >= 90) return best;
+        for (int i = 0; i < 8; i++) {
+            BlockPos probe = randomSpot(level, r, from, 220, 420);
+            int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, probe.getX(), probe.getZ());
+            if (y > highestY) {
+                highestY = y;
+                best = new BlockPos(probe.getX(), y, probe.getZ());
+            }
+        }
+        return best != null ? best : dungeon(level, from, r);
+    }
+
     /** A spot {@code min..max} blocks away in a random direction, inside the world border. Y is a guess (64). */
     public static BlockPos randomSpot(ServerLevel level, RandomSource r, BlockPos origin, int min, int max) {
         BlockPos result = origin;

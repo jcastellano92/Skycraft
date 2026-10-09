@@ -79,7 +79,9 @@ public class BanditChiefEntity extends BanditEntity {
     @Override
     public void startSeenByPlayer(ServerPlayer player) {
         super.startSeenByPlayer(player);
-        this.bossEvent.addPlayer(player);
+        if (player.distanceToSqr(this) <= 48.0 * 48.0) {
+            this.bossEvent.addPlayer(player);
+        }
     }
 
     @Override
@@ -104,6 +106,18 @@ public class BanditChiefEntity extends BanditEntity {
     protected void customServerAiStep() {
         super.customServerAiStep();
         this.bossEvent.setProgress(this.getHealth() / this.getMaxHealth());
+        if (this.tickCount % 20 == 0 && this.level() instanceof net.minecraft.server.level.ServerLevel sl) {
+            double rangeSq = 48.0 * 48.0;
+            for (ServerPlayer player : sl.players()) {
+                boolean inRange = player.isAlive() && !player.isSpectator() && player.distanceToSqr(this) <= rangeSq;
+                boolean tracking = this.bossEvent.getPlayers().contains(player);
+                if (inRange && !tracking) {
+                    this.bossEvent.addPlayer(player);
+                } else if (!inRange && tracking) {
+                    this.bossEvent.removePlayer(player);
+                }
+            }
+        }
     }
 
     /** Two-handed blows knock the target back hard. */

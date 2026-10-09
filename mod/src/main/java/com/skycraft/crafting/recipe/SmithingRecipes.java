@@ -70,6 +70,7 @@ public final class SmithingRecipes {
         Supplier<Item> strips = CraftingItems.LEATHER_STRIPS;
         Supplier<Item> moonstone = () -> CraftingItems.ingot(SkyOre.MOONSTONE);
         Supplier<Item> silver = () -> CraftingItems.ingot(SkyOre.SILVER);
+        Supplier<Item> malachite = () -> CraftingItems.ingot(SkyOre.MALACHITE);
 
         // ---------------------------------------------------------------- forge: weapons
         for (SmithingTier tier : SmithingTier.values()) {
@@ -132,6 +133,22 @@ public final class SmithingRecipes {
                 List.of(Cost.of(gold, 2), Cost.of(CraftingItems.FLAWLESS_RUBY, 1)), null));
         out.add(recipe("forge/gold_diamond_ring", StationType.FORGE, "jewelry", CraftingItems.GOLD_DIAMOND_RING, 1,
                 List.of(Cost.of(gold, 1), Cost.of(CraftingItems.FLAWLESS_DIAMOND, 1)), null));
+        out.add(recipe("forge/copper_circlet", StationType.FORGE, "jewelry", CraftingItems.COPPER_CIRCLET, 1,
+                List.of(Cost.of(() -> Items.COPPER_INGOT, 2)), null));
+        out.add(recipe("forge/silver_circlet", StationType.FORGE, "jewelry", CraftingItems.SILVER_CIRCLET, 1,
+                List.of(Cost.of(silver, 2)), null));
+        out.add(recipe("forge/gold_circlet", StationType.FORGE, "jewelry", CraftingItems.GOLD_CIRCLET, 1,
+                List.of(Cost.of(gold, 2)), null));
+        out.add(recipe("forge/jade_circlet", StationType.FORGE, "jewelry", CraftingItems.JADE_CIRCLET, 1,
+                List.of(Cost.of(gold, 2), Cost.of(malachite, 2)), null));
+        out.add(recipe("forge/amulet_of_talos", StationType.FORGE, "jewelry", CraftingItems.AMULET_OF_TALOS, 1,
+                List.of(Cost.of(iron, 2), Cost.of(silver, 1)), null));
+        out.add(recipe("forge/amulet_of_mara", StationType.FORGE, "jewelry", CraftingItems.AMULET_OF_MARA, 1,
+                List.of(Cost.of(gold, 2), Cost.of(CraftingItems.GARNET, 1)), null));
+        out.add(recipe("forge/jade_pendant", StationType.FORGE, "jewelry", CraftingItems.JADE_PENDANT, 1,
+                List.of(Cost.of(silver, 1), Cost.of(malachite, 1)), null));
+        out.add(recipe("forge/sapphire_pendant", StationType.FORGE, "jewelry", CraftingItems.SAPPHIRE_PENDANT, 1,
+                List.of(Cost.of(silver, 1), Cost.of(CraftingItems.SAPPHIRE, 1)), null));
 
         // ---------------------------------------------------------------- smelter
         for (SkyOre ore : SkyOre.values()) {
