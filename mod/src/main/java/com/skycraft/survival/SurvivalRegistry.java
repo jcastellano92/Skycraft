@@ -5,7 +5,6 @@ import com.skycraft.survival.block.CheeseWheelBlock;
 import com.skycraft.survival.block.CookingPotBlock;
 import com.skycraft.survival.block.DepletedOreBlock;
 import com.skycraft.survival.block.DepletedOreBlockEntity;
-import com.skycraft.survival.block.NirnrootBlock;
 import com.skycraft.survival.block.ShrineBlock;
 import com.skycraft.survival.block.SkyCropBlock;
 import com.skycraft.survival.cooking.CookingMenu;
@@ -53,9 +52,6 @@ public final class SurvivalRegistry {
     public static final RegistryObject<Block> DEPLETED_ORE = BLOCKS.register("depleted_ore",
             () -> new DepletedOreBlock(BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(-1.0f, 3600000.0f)
                     .noLootTable().randomTicks().sound(SoundType.STONE).pushReaction(PushReaction.BLOCK)));
-    public static final RegistryObject<Block> NIRNROOT_BLOCK = BLOCKS.register("nirnroot",
-            () -> new NirnrootBlock(BlockBehaviour.Properties.of().mapColor(MapColor.PLANT)
-                    .noCollission().instabreak().sound(SoundType.GRASS).lightLevel(s -> 6).offsetType(BlockBehaviour.OffsetType.XZ)));
     public static final Map<Divine, RegistryObject<Block>> SHRINES = new EnumMap<>(Divine.class);
 
     // crops (the produce/seed items are below; suppliers resolve lazily)
@@ -87,8 +83,6 @@ public final class SurvivalRegistry {
             () -> new BlockItem(COOKING_POT.get(), new Item.Properties()));
     public static final RegistryObject<Item> CHEESE_WHEEL = ITEMS.register("cheese_wheel",
             () -> new BlockItem(CHEESE_WHEEL_BLOCK.get(), new Item.Properties().stacksTo(16).food(FoodSpec.plain(6, 0.6f).properties(false))));
-    public static final RegistryObject<Item> NIRNROOT = ITEMS.register("nirnroot",
-            () -> new BlockItem(NIRNROOT_BLOCK.get(), new Item.Properties().food(FoodSpec.plain(1, 0.1f).properties(false))));
 
     static {
         for (Divine d : Divine.values()) {

@@ -1,8 +1,8 @@
 package com.skycraft.survival.world;
 
 import com.mojang.serialization.Codec;
-import com.skycraft.survival.SurvivalRegistry;
-import com.skycraft.survival.block.NirnrootBlock;
+import com.skycraft.crafting.arcane.ArcaneRegistry;
+import com.skycraft.crafting.arcane.block.IngredientPlantBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.FluidTags;
@@ -53,7 +53,7 @@ public class NirnrootFeature extends Feature<NoneFeatureConfiguration> {
             }
 
             if (nearWater) {
-                level.setBlock(target, SurvivalRegistry.NIRNROOT_BLOCK.get().defaultBlockState().setValue(NirnrootBlock.HARVESTED, false), 2);
+                level.setBlock(target, ArcaneRegistry.NIRNROOT.get().defaultBlockState().setValue(IngredientPlantBlock.HARVESTED, false), 2);
                 placedAny = true;
             }
         }

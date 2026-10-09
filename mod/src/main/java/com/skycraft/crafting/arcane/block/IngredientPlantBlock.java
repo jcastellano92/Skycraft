@@ -86,9 +86,15 @@ public class IngredientPlantBlock extends FlowerBlock {
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
         // Nirnroot glitters and hums
-        if (glowing && !state.getValue(HARVESTED) && random.nextInt(4) == 0) {
-            level.addParticle(ParticleTypes.END_ROD, pos.getX() + 0.3 + random.nextDouble() * 0.4, pos.getY() + 0.4 + random.nextDouble() * 0.5,
-                    pos.getZ() + 0.3 + random.nextDouble() * 0.4, 0, 0.01, 0);
+        if (glowing && !state.getValue(HARVESTED)) {
+            if (random.nextInt(4) == 0) {
+                level.addParticle(ParticleTypes.END_ROD, pos.getX() + 0.3 + random.nextDouble() * 0.4, pos.getY() + 0.4 + random.nextDouble() * 0.5,
+                        pos.getZ() + 0.3 + random.nextDouble() * 0.4, 0, 0.01, 0);
+            }
+            if (random.nextInt(35) == 0) {
+                level.playLocalSound(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                        com.skycraft.world.WorldSounds.WORLD_NIRNROOT_HUM.get(), net.minecraft.sounds.SoundSource.BLOCKS, 0.6f, 1.0f, false);
+            }
         }
     }
 }

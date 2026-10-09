@@ -20,12 +20,19 @@ FORGE_VERSION = "47.4.10"
 
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
+CACHE_DIR = os.path.join(DIST_DIR, ".cache")
+
 def download_file(target_path, url, expected_hash=None, hash_format=None):
-    if os.path.exists(target_path):
-        return target_path, True
-    
+    os.makedirs(CACHE_DIR, exist_ok=True)
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
-    temp_path = target_path + ".tmp"
+    cache_key = hashlib.sha256(url.encode()).hexdigest()[:16] + "_" + os.path.basename(target_path)
+    cache_path = os.path.join(CACHE_DIR, cache_key)
+    
+    if os.path.exists(cache_path):
+        shutil.copyfile(cache_path, target_path)
+        return target_path, True
+
+    temp_path = cache_path + ".tmp"
     req = urllib.request.Request(url, headers=HEADERS)
     with urllib.request.urlopen(req) as resp, open(temp_path, "wb") as out:
         shutil.copyfileobj(resp, out)
@@ -45,7 +52,8 @@ def download_file(target_path, url, expected_hash=None, hash_format=None):
                 os.remove(temp_path)
                 raise ValueError(f"Hash mismatch for {target_path}: expected {expected_hash}, got {calc}")
                 
-    os.replace(temp_path, target_path)
+    os.replace(temp_path, cache_path)
+    shutil.copyfile(cache_path, target_path)
     return target_path, False
 
 def build_prism_package():
