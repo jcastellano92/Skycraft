@@ -191,6 +191,7 @@ public final class CorePackets {
         public static final int DODGE_ROLL = 7;
         public static final int CLIMB_TICK = 8;
         public static final int UNSTUCK = 9;
+        public static final int TAKE_WORLD_ITEM = 10;
 
         static void encode(Action m, FriendlyByteBuf buf) {
             buf.writeVarInt(m.action);

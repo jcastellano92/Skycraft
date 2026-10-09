@@ -63,6 +63,14 @@ public final class InventoryClientEvents {
 
         if (next.getClass() == InventoryScreen.class) {
             if (!player.isCreative() && !player.isSpectator()) {
+                // If looking at an item in the world, [E] takes/steals it without opening menus
+                var lookedItem = com.skycraft.crime.client.CrimeHud.getLookedAtItem(mc, 3.5);
+                if (lookedItem != null) {
+                    event.setCanceled(true);
+                    com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.TAKE_WORLD_ITEM, lookedItem.getId()));
+                    return;
+                }
+
                 if (mc.crosshairPickEntity instanceof net.minecraft.world.entity.LivingEntity le && le.isAlive()
                         && (le instanceof net.minecraft.world.entity.npc.AbstractVillager || le instanceof com.skycraft.society.entity.NpcEntity)
                         && !player.isShiftKeyDown()) {

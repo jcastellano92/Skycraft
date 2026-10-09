@@ -203,15 +203,9 @@ public final class PlayerDataEvents {
         }
     }
 
-    /** Septims go straight into the wallet. */
+    /** Walk-over auto-pickup is disabled so items require deliberate interaction ([E] / Take) like Skyrim. */
     @SubscribeEvent
     public static void pickup(EntityItemPickupEvent event) {
-        ItemStack stack = event.getItem().getItem();
-        long value = Currency.valueOf(stack);
-        if (value > 0 && !event.getEntity().level().isClientSide) {
-            Currency.give(event.getEntity(), value);
-            event.getItem().discard();
-            event.setCanceled(true);
-        }
+        event.setCanceled(true);
     }
 }

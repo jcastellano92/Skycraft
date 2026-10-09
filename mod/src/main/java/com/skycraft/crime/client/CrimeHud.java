@@ -62,14 +62,17 @@ public final class CrimeHud {
         int cx = width / 2;
         int cy = height / 2 + 10;
 
+        // Item entity under crosshair
+        net.minecraft.world.entity.item.ItemEntity item = getLookedAtItem(mc, 3.5);
+        if (item != null) {
+            boolean owned = Ownership.isOwnedByOther(mc.player, item);
+            Component prompt = Component.literal((owned ? "[E] Steal  " : "[E] Take  ") + item.getItem().getHoverName().getString());
+            drawSmall(g, font, prompt, cx, cy, 0.75f, owned ? (0xD0000000 | RED) : 0xD0E8E2D0);
+            return;
+        }
+
         // Entities under crosshair
         if (mc.crosshairPickEntity != null) {
-            if (mc.crosshairPickEntity instanceof net.minecraft.world.entity.item.ItemEntity item) {
-                boolean owned = Ownership.isOwnedByOther(mc.player, item);
-                Component prompt = Component.literal((owned ? "Steal  " : "Take  ") + item.getItem().getHoverName().getString());
-                drawSmall(g, font, prompt, cx, cy, 0.75f, owned ? (0xD0000000 | RED) : 0xD0E8E2D0);
-                return;
-            }
             if (mc.crosshairPickEntity instanceof com.skycraft.creatures.entity.CorpseEntity corpse) {
                 Component prompt = Component.literal("Search  " + corpse.getDisplayName().getString());
                 drawSmall(g, font, prompt, cx, cy, 0.75f, 0xD0E8E2D0);
@@ -333,5 +336,27 @@ public final class CrimeHud {
             }
         }
         return null;
+    }
+
+    public static net.minecraft.world.entity.item.ItemEntity getLookedAtItem(Minecraft mc, double maxDist) {
+        if (mc.player == null || mc.level == null) return null;
+        net.minecraft.world.phys.Vec3 eyePos = mc.player.getEyePosition(1.0f);
+        net.minecraft.world.phys.Vec3 viewVec = mc.player.getViewVector(1.0f);
+        net.minecraft.world.phys.Vec3 endPos = eyePos.add(viewVec.scale(maxDist));
+        net.minecraft.world.phys.AABB box = mc.player.getBoundingBox().expandTowards(viewVec.scale(maxDist)).inflate(1.0);
+        net.minecraft.world.entity.item.ItemEntity closest = null;
+        double closestDist = maxDist * maxDist;
+        for (net.minecraft.world.entity.item.ItemEntity item : mc.level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box, net.minecraft.world.entity.item.ItemEntity::isAlive)) {
+            net.minecraft.world.phys.AABB hitBox = item.getBoundingBox().inflate(0.35);
+            java.util.Optional<net.minecraft.world.phys.Vec3> hit = hitBox.clip(eyePos, endPos);
+            if (hit.isPresent()) {
+                double d = eyePos.distanceToSqr(hit.get());
+                if (d < closestDist) {
+                    closest = item;
+                    closestDist = d;
+                }
+            }
+        }
+        return closest;
     }
 }

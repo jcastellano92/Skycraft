@@ -51,8 +51,112 @@ public final class ActionHandler {
             case Action.DODGE_ROLL -> handleDodgeRoll(player);
             case Action.CLIMB_TICK -> handleClimbTick(player);
             case Action.UNSTUCK -> handleUnstuck(player);
+            case Action.TAKE_WORLD_ITEM -> handleTakeWorldItem(player, arg);
             default -> {
             }
+        }
+    }
+
+    private static void handleTakeWorldItem(ServerPlayer player, int entityId) {
+        net.minecraft.world.entity.Entity entity = player.serverLevel().getEntity(entityId);
+        if (!(entity instanceof net.minecraft.world.entity.item.ItemEntity itemEntity) || !itemEntity.isAlive()) return;
+        if (player.distanceToSqr(itemEntity) > 25.0) return; // within 5 blocks
+
+        ItemStack stack = itemEntity.getItem();
+        if (stack.isEmpty()) return;
+
+        // Check if item is currency (Septims)
+        long coinVal = com.skycraft.core.Currency.valueOf(stack);
+        if (coinVal > 0) {
+            com.skycraft.core.Currency.give(player, coinVal);
+            player.serverLevel().playSound(null, player.blockPosition(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.6f, 1.2f);
+            itemEntity.discard();
+            return;
+        }
+
+        // Check ownership & theft
+        boolean owned = com.skycraft.crime.Ownership.isOwnedByOther(player, itemEntity);
+        if (owned) {
+            com.skycraft.crime.Bounty.markStolen(stack);
+            com.skycraft.crime.Bounty.increment(player, "items_stolen", stack.getCount());
+            net.minecraft.world.entity.LivingEntity witness = com.skycraft.crime.Crimes.findWitness(player, null);
+            if (witness != null) {
+                int bounty = (int) Math.max(com.skycraft.crime.Bounty.MIN_THEFT,
+                        Math.min(100000, com.skycraft.economy.ItemValues.get(stack) * stack.getCount() / 2));
+                com.skycraft.crime.Theft.handleWitnessedTheft(player, witness, itemEntity.blockPosition(), bounty);
+            }
+        }
+
+        // Put item into storage slots (slots 9-35) or non-active slots so it NEVER equips into the active hand!
+        net.minecraft.world.entity.player.Inventory inv = player.getInventory();
+        int activeSlot = inv.selected;
+        int origCount = stack.getCount();
+
+        // 1. Try to merge into existing matching stacks in storage (9..35)
+        for (int i = 9; i < 36; i++) {
+            ItemStack inSlot = inv.getItem(i);
+            if (ItemStack.isSameItemSameTags(inSlot, stack)) {
+                int space = inSlot.getMaxStackSize() - inSlot.getCount();
+                if (space > 0) {
+                    int move = Math.min(space, stack.getCount());
+                    inSlot.grow(move);
+                    stack.shrink(move);
+                    if (stack.isEmpty()) break;
+                }
+            }
+        }
+
+        // 2. Try empty storage slots (9..35)
+        if (!stack.isEmpty()) {
+            for (int i = 9; i < 36; i++) {
+                if (inv.getItem(i).isEmpty()) {
+                    inv.setItem(i, stack.copy());
+                    stack.setCount(0);
+                    break;
+                }
+            }
+        }
+
+        // 3. Try hotbar slots that are NOT activeSlot
+        if (!stack.isEmpty()) {
+            for (int i = 0; i < 9; i++) {
+                if (i == activeSlot) continue;
+                ItemStack inSlot = inv.getItem(i);
+                if (ItemStack.isSameItemSameTags(inSlot, stack)) {
+                    int space = inSlot.getMaxStackSize() - inSlot.getCount();
+                    if (space > 0) {
+                        int move = Math.min(space, stack.getCount());
+                        inSlot.grow(move);
+                        stack.shrink(move);
+                        if (stack.isEmpty()) break;
+                    }
+                }
+            }
+        }
+        if (!stack.isEmpty()) {
+            for (int i = 0; i < 9; i++) {
+                if (i == activeSlot) continue;
+                if (inv.getItem(i).isEmpty()) {
+                    inv.setItem(i, stack.copy());
+                    stack.setCount(0);
+                    break;
+                }
+            }
+        }
+
+        // 4. Last resort: if storage is completely full
+        if (!stack.isEmpty()) {
+            inv.add(stack);
+        }
+
+        if (stack.getCount() < origCount) {
+            player.serverLevel().playSound(null, player.blockPosition(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.5f, 1.1f);
+            if (stack.isEmpty()) {
+                itemEntity.discard();
+            } else {
+                itemEntity.setItem(stack);
+            }
+            player.inventoryMenu.broadcastChanges();
         }
     }
 

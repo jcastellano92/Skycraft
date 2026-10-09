@@ -17,7 +17,6 @@ public final class Sheathe {
 
     public static boolean isSheathed(Player player) {
         if (player == null) return true;
-        if (player.getMainHandItem().isEmpty() && player.getOffhandItem().isEmpty()) return true;
         PlayerData data = SkyData.get(player);
         if (data == null) return false;
         return data.module("combat").getBoolean("sheathed");

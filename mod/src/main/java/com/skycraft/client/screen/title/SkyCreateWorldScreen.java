@@ -48,6 +48,15 @@ public class SkyCreateWorldScreen extends Screen {
 
     @Override
     protected void init() {
+        if (this.minecraft != null) {
+            try {
+                java.lang.reflect.Field mcField = Screen.class.getDeclaredField("minecraft");
+                mcField.setAccessible(true);
+                mcField.set(underlying, this.minecraft);
+            } catch (Exception ignored) {}
+            underlying.init(this.minecraft, this.width, this.height);
+        }
+
         int cx = width / 2;
         int startY = Math.max(45, height / 5);
 
@@ -125,6 +134,15 @@ public class SkyCreateWorldScreen extends Screen {
         state.setGenerateStructures(true);
         state.setDifficulty(selectedDifficulty);
 
+        // Ensure underlying has valid minecraft reference before onCreate
+        if (this.minecraft != null) {
+            try {
+                java.lang.reflect.Field mcField = Screen.class.getDeclaredField("minecraft");
+                mcField.setAccessible(true);
+                mcField.set(underlying, this.minecraft);
+            } catch (Exception ignored) {}
+        }
+
         // Invoke onCreate on underlying CreateWorldScreen
         try {
             Method onCreate = null;
@@ -189,3 +207,4 @@ public class SkyCreateWorldScreen extends Screen {
         underlying.popScreen();
     }
 }
+

@@ -27,6 +27,9 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import net.minecraftforge.client.event.RenderHandEvent;
+import net.minecraftforge.client.event.InputEvent;
+
 /** Forge-bus client events for the core: keys, sprint exhaustion, climbing, dodge, sheathing, hiding vanilla HUD bars, bow zoom. */
 @Mod.EventBusSubscriber(modid = Skycraft.MODID, value = Dist.CLIENT)
 public final class ClientEvents {
@@ -35,6 +38,9 @@ public final class ClientEvents {
     private static int climbResend;
     private static boolean isWallClinging;
     private static net.minecraft.core.Direction wallFacing;
+    private static boolean punchLeftNext = false;
+    private static float offhandFistSwing = 0f;
+    private static float prevOffhandFistSwing = 0f;
 
     private ClientEvents() {}
 
@@ -240,6 +246,109 @@ public final class ClientEvents {
             mc.player.setSprinting(false);
             mc.options.keySprint.setDown(false);
         }
+
+        // Offhand fist swing animation decay
+        prevOffhandFistSwing = offhandFistSwing;
+        if (offhandFistSwing > 0f) {
+            offhandFistSwing = Math.max(0f, offhandFistSwing - 0.16f);
+        }
+    }
+
+    /** Alternating punches when unarmed and not sheathed */
+    @SubscribeEvent
+    public static void onAttackInput(InputEvent.InteractionKeyMappingTriggered event) {
+        if (!event.isAttack()) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.screen != null) return;
+        if (com.skycraft.combat.Sheathe.isSheathed(mc.player)) {
+            // Unsheathe on attack attempt
+            SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+        }
+        if (mc.player.getMainHandItem().isEmpty() && mc.player.getOffhandItem().isEmpty()) {
+            if (punchLeftNext) {
+                event.setCanceled(true);
+                mc.player.swing(net.minecraft.world.InteractionHand.OFF_HAND, false);
+                offhandFistSwing = 1.0f;
+                prevOffhandFistSwing = 1.0f;
+                // Attack raycast or hit entity with offhand punch
+                if (mc.gameMode != null) {
+                    if (mc.crosshairPickEntity != null) {
+                        mc.gameMode.attack(mc.player, mc.crosshairPickEntity);
+                    }
+                }
+                punchLeftNext = false;
+            } else {
+                punchLeftNext = true;
+            }
+        }
+    }
+
+    /** First-person hand rendering: hide hands when sheathed; show both fists in combat stance when drawn and unarmed. */
+    @SubscribeEvent
+    public static void onRenderHand(RenderHandEvent event) {
+        Minecraft mc = Minecraft.getInstance();
+        var player = mc.player;
+        if (player == null) return;
+
+        // When sheathed, hands and weapons are lowered / put away
+        if (com.skycraft.combat.Sheathe.isSheathed(player)) {
+            event.setCanceled(true);
+            return;
+        }
+
+        // When unarmed and drawn, render offhand fist so player sees both fists up like a Skyrim brawler
+        if (event.getHand() == net.minecraft.world.InteractionHand.OFF_HAND && event.getItemStack().isEmpty() && player.getMainHandItem().isEmpty()) {
+            var poseStack = event.getPoseStack();
+            var buffer = event.getMultiBufferSource();
+            int light = event.getPackedLight();
+            float pt = event.getPartialTick();
+            float swing = prevOffhandFistSwing + (offhandFistSwing - prevOffhandFistSwing) * pt;
+            boolean blocking = wasBlocking;
+
+            poseStack.pushPose();
+            float f1 = net.minecraft.util.Mth.sqrt(swing);
+            float f2 = -0.25F * net.minecraft.util.Mth.sin(f1 * (float) Math.PI);
+            float f3 = 0.35F * net.minecraft.util.Mth.sin(f1 * ((float) Math.PI * 2F));
+            float f4 = -0.35F * net.minecraft.util.Mth.sin(swing * (float) Math.PI);
+
+            // Stance positioning
+            poseStack.translate(-(f2 + 0.58F), f3 + -0.52F, f4 + -0.68F);
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-40.0F));
+
+            if (blocking) {
+                // Defensive guard pose (raise fists to protect face)
+                poseStack.translate(0.18F, 0.22F, -0.15F);
+                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-25.0F));
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(35.0F));
+            }
+
+            float f5 = net.minecraft.util.Mth.sin(swing * swing * (float) Math.PI);
+            float f6 = net.minecraft.util.Mth.sin(f1 * (float) Math.PI);
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-f6 * 60.0F));
+            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(f5 * -18.0F));
+            poseStack.translate(0.9F, 3.4F, 3.3F);
+            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-120.0F));
+            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(200.0F));
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(135.0F));
+            poseStack.translate(-5.4F, 0.0F, 0.0F);
+
+            var renderer = (net.minecraft.client.renderer.entity.player.PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(player);
+            renderer.renderLeftHand(poseStack, buffer, light, player);
+            poseStack.popPose();
+            event.setCanceled(true);
+        } else if (event.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND && event.getItemStack().isEmpty() && wasBlocking) {
+            // Guard pose on right fist when blocking
+            var poseStack = event.getPoseStack();
+            poseStack.pushPose();
+            poseStack.translate(-0.15F, 0.18F, -0.12F);
+            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(20.0F));
+            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(30.0F));
+            // Let vanilla render the right hand with this modified pose
+            var renderer = (net.minecraft.client.renderer.entity.player.PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(player);
+            renderer.renderRightHand(poseStack, event.getMultiBufferSource(), event.getPackedLight(), player);
+            poseStack.popPose();
+            event.setCanceled(true);
+        }
     }
 
     @SubscribeEvent
@@ -294,7 +403,7 @@ public final class ClientEvents {
         }
     }
 
-    /** Intercept screens: replace vanilla title, create world, options, and load screens with Skyrim suite. */
+    /** Intercept screens: replace vanilla title, create world, and load screens with Skyrim suite. OptionsScreen is left unmodified so shaders and mod settings remain fully accessible. */
     @SubscribeEvent
     public static void onScreenOpen(ScreenEvent.Opening event) {
         net.minecraft.client.gui.screens.Screen screen = event.getNewScreen();
@@ -317,11 +426,6 @@ public final class ClientEvents {
 
         if (screen instanceof net.minecraft.client.gui.screens.worldselection.SelectWorldScreen && !(screen instanceof com.skycraft.client.screen.title.SkyLoadWorldScreen)) {
             event.setNewScreen(new com.skycraft.client.screen.title.SkyLoadWorldScreen(new com.skycraft.client.screen.title.SkyTitleScreen()));
-            return;
-        }
-
-        if (screen instanceof net.minecraft.client.gui.screens.OptionsScreen && !(screen instanceof com.skycraft.client.screen.title.SkyOptionsScreen)) {
-            event.setNewScreen(new com.skycraft.client.screen.title.SkyOptionsScreen(Minecraft.getInstance().screen, Minecraft.getInstance().options));
         }
     }
 }

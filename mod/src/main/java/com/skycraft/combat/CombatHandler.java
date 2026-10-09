@@ -333,11 +333,12 @@ public final class CombatHandler {
             return 0;
         }
 
-        // Weapon blocking (hold the block key with a melee weapon and no shield).
+        // Weapon and unarmed blocking (hold block key or RMB with weapon or fists).
         if (armorApplies && attacker != null && ActionHandler.isWeaponBlocking(player) && facing(player, attacker)) {
             WeaponClass wc = WeaponClass.of(player.getMainHandItem());
-            if (wc.skill == Skill.ONE_HANDED || wc.skill == Skill.TWO_HANDED) {
-                float pct = Math.min(0.7f, 0.3f + data.getSkill(Skill.BLOCK) * 0.002f + 0.05f * Perks.rank(player, "block.shield_wall"));
+            if (wc.skill == Skill.ONE_HANDED || wc.skill == Skill.TWO_HANDED || wc == WeaponClass.UNARMED) {
+                float basePct = wc == WeaponClass.UNARMED ? 0.2f : 0.3f;
+                float pct = Math.min(0.7f, basePct + data.getSkill(Skill.BLOCK) * 0.002f + 0.05f * Perks.rank(player, "block.shield_wall"));
                 float blocked = amount * pct;
                 if (!Vitals.consumeStamina(player, blocked * SKYRIM_SCALE * 0.4f, true)) blocked *= 0.5f;
                 amount -= blocked;

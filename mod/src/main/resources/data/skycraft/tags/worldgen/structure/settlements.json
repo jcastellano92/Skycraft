@@ -27,7 +27,6 @@
     {"id": "towns_and_towers:village_jungle", "required": false},
     {"id": "towns_and_towers:village_mountain", "required": false},
     {"id": "towns_and_towers:village_mushroom", "required": false},
-    {"id": "towns_and_towers:village_ocean", "required": false},
     {"id": "towns_and_towers:village_plains", "required": false},
     {"id": "towns_and_towers:village_savanna", "required": false},
     {"id": "towns_and_towers:village_snowy", "required": false},

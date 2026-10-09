@@ -1,5 +1,9 @@
 package com.skycraft.client.screen.title;
 
+import net.minecraft.client.renderer.PanoramaRenderer;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.gui.screens.OptionsScreen;
+import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ConfirmScreen;
@@ -17,9 +21,8 @@ import java.util.List;
 
 /**
  * Authentic Skyrim-themed Main Title Screen:
- * Dark Nordic slate aesthetic, gold dragon emblem styling,
- * Skyrim vertical menu (CONTINUE, NEW GAME, LOAD, SETTINGS, QUIT),
- * instant single-click continue of last save, and complete removal of vanilla Minecraft clutter.
+ * Atmospheric revolving 3D world panorama background showing off the Skycraft world,
+ * gold Nordic styling, vertical menu with Continue, New Game, Load, Multiplayer, Settings, and Quit.
  */
 public class SkyTitleScreen extends Screen {
     private static final int COLOR_GOLD = 0xFFE8C060;
@@ -27,10 +30,13 @@ public class SkyTitleScreen extends Screen {
     private static final int COLOR_NORMAL = 0xFF9E9689;
     private static final int COLOR_DIM = 0xFF605A50;
 
+    private final PanoramaRenderer panorama = new PanoramaRenderer(TitleScreen.CUBE_MAP);
+
     private enum MenuItem {
         CONTINUE("menu.skycraft.continue", "Continue Journey"),
         NEW_GAME("menu.skycraft.new_game", "New Game"),
         LOAD("menu.skycraft.load", "Load Game"),
+        MULTIPLAYER("menu.skycraft.multiplayer", "Multiplayer"),
         SETTINGS("menu.skycraft.settings", "Settings"),
         QUIT("menu.skycraft.quit", "Quit");
 
@@ -110,6 +116,7 @@ public class SkyTitleScreen extends Screen {
         if (mostRecentSave != null) {
             menuItems.add(MenuItem.LOAD);
         }
+        menuItems.add(MenuItem.MULTIPLAYER);
         menuItems.add(MenuItem.SETTINGS);
         menuItems.add(MenuItem.QUIT);
 
@@ -126,8 +133,12 @@ public class SkyTitleScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        // Deep Nordic slate background
-        g.fillGradient(0, 0, width, height, 0xFF080808, 0xFF141210);
+        // Rotating 3D world scene showing off the Skycraft landscape
+        panorama.render(partialTick, 1.0f);
+
+        // Deep Nordic slate vignette over the panorama for readable text & Skyrim aesthetic
+        g.fillGradient(0, 0, width, height, 0x85050505, 0xB5141210);
+        g.fillGradient(0, 0, Math.min(260, width / 2), height, 0x75000000, 0x10000000);
 
         // Subtle mountain / mist ambient layers at bottom
         for (int i = 0; i < 4; i++) {
@@ -252,8 +263,11 @@ public class SkyTitleScreen extends Screen {
             case LOAD -> {
                 mc.setScreen(new SkyLoadWorldScreen(this));
             }
+            case MULTIPLAYER -> {
+                mc.setScreen(new JoinMultiplayerScreen(this));
+            }
             case SETTINGS -> {
-                mc.setScreen(new SkyOptionsScreen(this, mc.options));
+                mc.setScreen(new OptionsScreen(this, mc.options));
             }
             case QUIT -> {
                 confirmQuit();
@@ -278,3 +292,4 @@ public class SkyTitleScreen extends Screen {
         ));
     }
 }
+
