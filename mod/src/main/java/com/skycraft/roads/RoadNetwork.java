@@ -97,9 +97,40 @@ public final class RoadNetwork {
             if (tick % RoadsConfig.PLAN_INTERVAL_TICKS.get() == 0) startPlanning(level, data);
             Paver.tick(level, data, tick);
             Travelers.tick(level, data, tick);
+            if (tick % 100 == 13) clearRoadSnow(level, data);
             if (tick % 200 == 17) RoadsPackets.sendMarkers(level, data);
         } catch (RuntimeException e) {
             Skycraft.LOGGER.error("Skycraft roads tick failed", e);
+        }
+    }
+
+    /** Clears snow settling on active road chunks near players so the road surface is always visible. */
+    private static void clearRoadSnow(ServerLevel level, RoadsData data) {
+        for (net.minecraft.server.level.ServerPlayer player : level.players()) {
+            ChunkPos cp = player.chunkPosition();
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    long c = ChunkPos.asLong(cp.x + dx, cp.z + dz);
+                    if (data.paved.contains(c)) {
+                        LevelChunk chunk = level.getChunkSource().getChunkNow(cp.x + dx, cp.z + dz);
+                        if (chunk == null) continue;
+                        for (int bx = 0; bx < 16; bx += 2) {
+                            for (int bz = 0; bz < 16; bz += 2) {
+                                int x = (cp.x + dx) * 16 + bx;
+                                int z = (cp.z + dz) * 16 + bz;
+                                int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+                                net.minecraft.core.BlockPos above = new net.minecraft.core.BlockPos(x, y - 1, z);
+                                if (level.getBlockState(above).is(net.minecraft.world.level.block.Blocks.SNOW)) {
+                                    net.minecraft.world.level.block.state.BlockState ground = level.getBlockState(above.below());
+                                    if (Paver.isRoadMaterial(ground)) {
+                                        level.setBlock(above, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

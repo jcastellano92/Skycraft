@@ -58,15 +58,22 @@ final class RoadLayout {
         int spacing = RoadsConfig.LANTERN_SPACING.get();
         if (RoadsConfig.LANTERNS.get() && spacing > 0) {
             int step = Math.max(4, (int) Math.round(spacing / RoadPlanner.SPACING));
+            int townStep = Math.max(2, (int) Math.round(24.0 / RoadPlanner.SPACING)); // more frequent in towns
             int side = 1;
-            for (int i = first + step / 2; i <= last - 8; i += step) {
-                if (inZone[i] || road.flags[i] != 0) continue;
-                double[] r = right(road, i);
-                int x = (int) Math.round(road.xs[i] + r[0] * LANTERN_OFFSET * side);
-                int z = (int) Math.round(road.zs[i] + r[1] * LANTERN_OFFSET * side);
-                side = -side;
-                if (data.signpostNear(x, z, 8) != null || near(created, x, z, 8)) continue;
-                touched.add(data.addFeature(new RoadFeature(RoadFeature.LANTERN, x, z, road.id)));
+            for (int i = 2; i < n - 2; ) {
+                boolean inTown = inZone[i];
+                int currentStep = inTown ? townStep : step;
+                if (road.flags[i] == 0) {
+                    double[] r = right(road, i);
+                    int offset = inTown ? 2 : LANTERN_OFFSET;
+                    int x = (int) Math.round(road.xs[i] + r[0] * offset * side);
+                    int z = (int) Math.round(road.zs[i] + r[1] * offset * side);
+                    side = -side;
+                    if (data.signpostNear(x, z, 8) == null && !near(created, x, z, 8)) {
+                        touched.add(data.addFeature(new RoadFeature(RoadFeature.LANTERN, x, z, road.id)));
+                    }
+                }
+                i += currentStep;
             }
         }
         return touched;
