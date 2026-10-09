@@ -29,6 +29,9 @@ public class RaceScreen extends Screen {
     private Race selected = Race.NORD;
     private float descScroll = 0f;
     private int maxDescScroll = 0;
+    private float modelYawOffset = 0f;
+    private boolean isDraggingModel = false;
+    private double lastDragX = 0;
 
     public RaceScreen() {
         super(Component.translatable("screen.skycraft.race"));
@@ -90,12 +93,25 @@ public class RaceScreen extends Screen {
 
         // Center: Live 3D Character Preview Model
         int modelCenterX = (listX + listWidth + infoX) / 2;
-        int modelCenterY = height - 35;
-        int modelScale = Math.min(85, (height - 50) / 2);
+        int modelScale = Math.min(65, (int) (height * 0.32f));
+        int modelCenterY = height - 38;
 
         if (minecraft.player != null) {
-            g.fill(modelCenterX - 24, modelCenterY - 2, modelCenterX + 24, modelCenterY, 0x40000000);
-            InventoryScreen.renderEntityInInventoryFollowsMouse(g, modelCenterX, modelCenterY, modelScale, (float) (modelCenterX - mouseX), (float) (modelCenterY - 55 - mouseY), minecraft.player);
+            // Skyrim circular stone dais under feet
+            int daisRadius = (int) (modelScale * 0.55f);
+            g.fill(modelCenterX - daisRadius, modelCenterY - 3, modelCenterX + daisRadius, modelCenterY + 2, 0x50000000);
+            g.fill(modelCenterX - daisRadius + 4, modelCenterY - 2, modelCenterX + daisRadius - 4, modelCenterY + 1, 0x80353028);
+            drawHLine(g, modelCenterX - daisRadius + 2, modelCenterX + daisRadius - 2, modelCenterY - 1, 0x60E8C060);
+
+            // Compute head eye position and mouse pitch/yaw angles
+            int headY = modelCenterY - (int) (1.55f * modelScale);
+            float yawLook = (float) (modelCenterX - mouseX) + modelYawOffset;
+            float pitchLook = (float) (headY - mouseY);
+
+            InventoryScreen.renderEntityInInventoryFollowsMouse(g, modelCenterX, modelCenterY, modelScale, yawLook, pitchLook, minecraft.player);
+
+            // Subtle rotation helper hint
+            g.drawCenteredString(font, Component.literal("⟳ Drag to Rotate"), modelCenterX, height - 16, 0x809E9689);
         }
 
         // Info Background Panel
@@ -201,8 +217,38 @@ public class RaceScreen extends Screen {
                 confirmSelection();
                 return true;
             }
+
+            // Check Character Model Click to start drag rotation
+            int infoWidth = 150;
+            int infoX = width - infoWidth - 14;
+            int modelCenterX = (listX + listWidth + infoX) / 2;
+            int modelScale = Math.min(65, (int) (height * 0.32f));
+            int modelCenterY = height - 38;
+            if (mx >= modelCenterX - 55 && mx <= modelCenterX + 55 && my >= modelCenterY - (int) (1.8f * modelScale) && my <= modelCenterY + 10) {
+                isDraggingModel = true;
+                lastDragX = mx;
+                return true;
+            }
         }
         return super.mouseClicked(mx, my, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mx, double my, int button, double dragX, double dragY) {
+        if (isDraggingModel && button == 0) {
+            modelYawOffset += (float) (mx - lastDragX) * 1.8f;
+            lastDragX = mx;
+            return true;
+        }
+        return super.mouseDragged(mx, my, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mx, double my, int button) {
+        if (button == 0) {
+            isDraggingModel = false;
+        }
+        return super.mouseReleased(mx, my, button);
     }
 
     @Override

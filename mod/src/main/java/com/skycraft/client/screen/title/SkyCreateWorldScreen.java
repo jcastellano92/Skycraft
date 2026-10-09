@@ -136,35 +136,51 @@ public class SkyCreateWorldScreen extends Screen {
 
         // Ensure underlying has valid minecraft reference before onCreate
         if (this.minecraft != null) {
-            try {
-                java.lang.reflect.Field mcField = Screen.class.getDeclaredField("minecraft");
-                mcField.setAccessible(true);
-                mcField.set(underlying, this.minecraft);
-            } catch (Exception ignored) {}
+            for (Class<?> cl = underlying.getClass(); cl != null && cl != Object.class; cl = cl.getSuperclass()) {
+                for (java.lang.reflect.Field f : cl.getDeclaredFields()) {
+                    if (f.getType() == net.minecraft.client.Minecraft.class) {
+                        try {
+                            f.setAccessible(true);
+                            f.set(underlying, this.minecraft);
+                        } catch (Throwable ignored) {}
+                    }
+                }
+            }
         }
 
         // Invoke onCreate on underlying CreateWorldScreen
         try {
             Method onCreate = null;
-            try {
-                onCreate = CreateWorldScreen.class.getDeclaredMethod("onCreate");
-            } catch (NoSuchMethodException ignored) {
-                for (Method m : CreateWorldScreen.class.getDeclaredMethods()) {
-                    if (m.getParameterCount() == 0 && m.getReturnType() == void.class && m.getName().toLowerCase().contains("create")) {
-                        onCreate = m;
-                        break;
-                    }
-                }
+            for (String name : new String[]{"onCreate", "m_100972_", "C"}) {
+                try {
+                    onCreate = CreateWorldScreen.class.getDeclaredMethod(name);
+                    if (onCreate != null) break;
+                } catch (Throwable ignored) {}
+            }
+            if (onCreate == null) {
+                try {
+                    onCreate = net.minecraftforge.fml.util.ObfuscationReflectionHelper.findMethod(CreateWorldScreen.class, "m_100972_");
+                } catch (Throwable ignored) {}
             }
             if (onCreate != null) {
                 onCreate.setAccessible(true);
                 onCreate.invoke(underlying);
-            } else {
-                underlying.onClose();
+                return;
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
+
+            // Fallback: trigger Create button on underlying screen
+            for (net.minecraft.client.gui.components.events.GuiEventListener child : underlying.children()) {
+                if (child instanceof Button b && b.getMessage().getString().toLowerCase(java.util.Locale.ROOT).contains("create")) {
+                    b.onPress();
+                    return;
+                }
+            }
             underlying.onClose();
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+            if (this.minecraft != null) {
+                this.minecraft.setScreen(new SkyTitleScreen());
+            }
         }
     }
 
@@ -204,7 +220,9 @@ public class SkyCreateWorldScreen extends Screen {
 
     @Override
     public void onClose() {
-        underlying.popScreen();
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(new SkyTitleScreen());
+        }
     }
 }
 

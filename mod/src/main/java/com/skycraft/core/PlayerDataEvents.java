@@ -59,29 +59,37 @@ public final class PlayerDataEvents {
                 net.minecraft.server.level.ServerLevel level = player.serverLevel();
                 if (level.dimension() == net.minecraft.world.level.Level.OVERWORLD) {
                     net.minecraft.core.BlockPos village = com.skycraft.quest.Locate.nearestVillage(level, player.blockPosition());
-                    if (village != null) {
-                        // Find a safe spot with solid ground beneath and 2 air blocks above, avoiding water/ocean
-                        net.minecraft.core.BlockPos.MutableBlockPos safe = new net.minecraft.core.BlockPos.MutableBlockPos(village.getX(), 64, village.getZ());
-                        boolean foundSafe = false;
-                        for (int dx = -4; dx <= 4 && !foundSafe; dx += 2) {
-                            for (int dz = -4; dz <= 4 && !foundSafe; dz += 2) {
-                                int testX = village.getX() + dx;
-                                int testZ = village.getZ() + dz;
-                                int surfaceY = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, testX, testZ);
-                                safe.set(testX, surfaceY, testZ);
-                                if (!level.getFluidState(safe).isEmpty() || !level.getFluidState(safe.below()).isEmpty()) continue;
-                                if (!level.getBlockState(safe.below()).isSolid()) continue;
-                                if (level.getBlockState(safe).isAir() && level.getBlockState(safe.above()).isAir()) {
-                                    foundSafe = true;
+                    if (village != null && (level.getBiome(village).is(net.minecraft.tags.BiomeTags.IS_OCEAN) || level.getBiome(village).is(net.minecraft.tags.BiomeTags.IS_DEEP_OCEAN))) {
+                        village = null;
+                    }
+                    net.minecraft.core.BlockPos targetPos = village != null ? village : level.getSharedSpawnPos();
+                    level.getChunk(targetPos.getX() >> 4, targetPos.getZ() >> 4, net.minecraft.world.level.chunk.ChunkStatus.FULL, true);
+
+                    net.minecraft.core.BlockPos.MutableBlockPos safe = new net.minecraft.core.BlockPos.MutableBlockPos(targetPos.getX(), 64, targetPos.getZ());
+                    boolean foundSafe = false;
+                    for (int r = 0; r <= 8 && !foundSafe; r += 2) {
+                        for (int dx = -r; dx <= r && !foundSafe; dx += 2) {
+                            for (int dz = -r; dz <= r && !foundSafe; dz += 2) {
+                                int testX = targetPos.getX() + dx;
+                                int testZ = targetPos.getZ() + dz;
+                                int topY = Math.min(level.getMaxBuildHeight() - 3, level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, testX, testZ) + 2);
+                                for (int y = topY; y >= Math.max(level.getMinBuildHeight() + 2, 60); y--) {
+                                    safe.set(testX, y, testZ);
+                                    boolean groundSolid = level.getBlockState(safe.below()).isSolid() && level.getFluidState(safe.below()).isEmpty();
+                                    boolean feetAir = level.getBlockState(safe).getCollisionShape(level, safe).isEmpty() && level.getFluidState(safe).isEmpty();
+                                    boolean headAir = level.getBlockState(safe.above()).getCollisionShape(level, safe.above()).isEmpty() && level.getFluidState(safe.above()).isEmpty();
+                                    if (groundSolid && feetAir && headAir) {
+                                        foundSafe = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
-                        if (foundSafe) {
-                            player.teleportTo(level, safe.getX() + 0.5, safe.getY() + 0.1, safe.getZ() + 0.5, player.getYRot(), player.getXRot());
-                        } else {
-                            int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, village.getX(), village.getZ());
-                            player.teleportTo(level, village.getX() + 0.5, Math.max(64, y) + 1.0, village.getZ() + 0.5, player.getYRot(), player.getXRot());
-                        }
+                    }
+                    if (foundSafe) {
+                        player.teleportTo(level, safe.getX() + 0.5, safe.getY() + 0.05, safe.getZ() + 0.5, player.getYRot(), player.getXRot());
+                        player.fallDistance = 0f;
+                        player.setDeltaMovement(0, 0, 0);
                     }
                 }
             }

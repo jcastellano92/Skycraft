@@ -31,7 +31,16 @@ public final class Locate {
     @Nullable
     public static BlockPos nearestVillage(ServerLevel level, BlockPos from) {
         BlockPos s = structure(level, com.skycraft.roads.RoadNetwork.SETTLEMENTS, from, 64);
-        return s != null ? s : structure(level, StructureTags.VILLAGE, from, 64);
+        if (s != null && (level.getBiome(s).is(net.minecraft.tags.BiomeTags.IS_OCEAN) || level.getBiome(s).is(net.minecraft.tags.BiomeTags.IS_DEEP_OCEAN))) {
+            s = null;
+        }
+        if (s == null) {
+            s = structure(level, StructureTags.VILLAGE, from, 64);
+            if (s != null && (level.getBiome(s).is(net.minecraft.tags.BiomeTags.IS_OCEAN) || level.getBiome(s).is(net.minecraft.tags.BiomeTags.IS_DEEP_OCEAN))) {
+                s = null;
+            }
+        }
+        return s;
     }
 
     /** A village at least {@code minDist} blocks away (for couriers), or null. */

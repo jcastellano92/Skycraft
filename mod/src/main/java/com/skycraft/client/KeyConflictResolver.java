@@ -33,16 +33,26 @@ public final class KeyConflictResolver {
 
     private KeyConflictResolver() {}
 
+    private static int checkTicks = 0;
+
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (done || event.phase != TickEvent.Phase.END) return;
+        if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.options == null) return;
-        done = true;
-        try {
+        if (!done || (++checkTicks % 40 == 0)) {
+            done = true;
+            try {
+                resolve(mc);
+            } catch (Exception e) {
+                Skycraft.LOGGER.warn("Could not resolve key conflicts", e);
+            }
+        }
+    }
+
+    public static void enforceKeys(Minecraft mc) {
+        if (mc != null && mc.options != null) {
             resolve(mc);
-        } catch (Exception e) {
-            Skycraft.LOGGER.warn("Could not resolve key conflicts", e);
         }
     }
 

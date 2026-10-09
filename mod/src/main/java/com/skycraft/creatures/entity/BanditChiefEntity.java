@@ -151,4 +151,16 @@ public class BanditChiefEntity extends BanditEntity {
     public Component rankName(int level) {
         return null;
     }
+
+    @Override
+    public void die(DamageSource source) {
+        super.die(source);
+        this.bossEvent.removeAllPlayers();
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        super.remove(reason);
+        this.bossEvent.removeAllPlayers();
+    }
 }

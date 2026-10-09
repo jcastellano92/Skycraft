@@ -805,6 +805,18 @@ public class DragonEntity extends Monster {
         this.bossEvent.setName(this.getDisplayName());
     }
 
+    @Override
+    public void die(DamageSource source) {
+        super.die(source);
+        this.bossEvent.removeAllPlayers();
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        super.remove(reason);
+        this.bossEvent.removeAllPlayers();
+    }
+
     /** Leaves pitch alone while flying (the flight code steers the head); normal look control on the ground. */
     private static class DragonLookControl extends LookControl {
         private final DragonEntity dragon;

@@ -108,6 +108,8 @@ public final class QuestDialogue {
     // ------------------------------------------------------------------ provider
 
     static void addOptions(ServerPlayer player, LivingEntity npc, List<DialogueOption> out) {
+        String hold = com.skycraft.core.Holds.holdAt(player.level(), player.blockPosition());
+        if (com.skycraft.crime.Crimes.isGuard(npc) && com.skycraft.crime.Bounty.get(player, hold) > 0) return;
         MinecraftServer server = player.server;
         // 1. turn-ins for current objectives
         for (Quests.Ref ref : Quests.active(server, player.getUUID())) {

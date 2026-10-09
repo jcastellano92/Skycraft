@@ -13,6 +13,7 @@ import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.LevelSummary;
+import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -30,6 +31,8 @@ public class SkyTitleScreen extends Screen {
     private static final int COLOR_NORMAL = 0xFF9E9689;
     private static final int COLOR_DIM = 0xFF605A50;
 
+    private static final ResourceLocation TITLE_BACKGROUND = new ResourceLocation("skycraft", "textures/gui/title_background.png");
+
     private final PanoramaRenderer panorama = new PanoramaRenderer(TitleScreen.CUBE_MAP);
 
     private enum MenuItem {
@@ -37,7 +40,9 @@ public class SkyTitleScreen extends Screen {
         NEW_GAME("menu.skycraft.new_game", "New Game"),
         LOAD("menu.skycraft.load", "Load Game"),
         MULTIPLAYER("menu.skycraft.multiplayer", "Multiplayer"),
+        FRIENDS("menu.skycraft.friends", "Friends & Host (Essential)"),
         SETTINGS("menu.skycraft.settings", "Settings"),
+        MODS("menu.skycraft.mods", "Mods"),
         QUIT("menu.skycraft.quit", "Quit");
 
         final String key;
@@ -117,7 +122,9 @@ public class SkyTitleScreen extends Screen {
             menuItems.add(MenuItem.LOAD);
         }
         menuItems.add(MenuItem.MULTIPLAYER);
+        menuItems.add(MenuItem.FRIENDS);
         menuItems.add(MenuItem.SETTINGS);
+        menuItems.add(MenuItem.MODS);
         menuItems.add(MenuItem.QUIT);
 
         if (selectedIndex >= menuItems.size()) {
@@ -133,17 +140,18 @@ public class SkyTitleScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        // Rotating 3D world scene showing off the Skycraft landscape
-        panorama.render(partialTick, 1.0f);
+        // Draw the cinematic Skycraft Skyrim landscape backdrop
+        g.blit(TITLE_BACKGROUND, 0, 0, 0, 0, width, height, width, height);
 
-        // Deep Nordic slate vignette over the panorama for readable text & Skyrim aesthetic
-        g.fillGradient(0, 0, width, height, 0x85050505, 0xB5141210);
-        g.fillGradient(0, 0, Math.min(260, width / 2), height, 0x75000000, 0x10000000);
+        // Subtle overall atmosphere vignette
+        g.fillGradient(0, 0, width, height, 0x10000000, 0x40000000);
+        // Nordic slate gradient behind left menu column for sharp text contrast
+        g.fillGradient(0, 0, Math.min(340, width / 2 + 60), height, 0xD0080808, 0x15080808);
 
         // Subtle mountain / mist ambient layers at bottom
-        for (int i = 0; i < 4; i++) {
-            int alpha = (i + 1) * 8;
-            int mistY = height - 40 - i * 16;
+        for (int i = 0; i < 3; i++) {
+            int alpha = (i + 1) * 6;
+            int mistY = height - 30 - i * 14;
             g.fill(0, mistY, width, height, (alpha << 24) | 0x1E1A16);
         }
 
@@ -266,8 +274,24 @@ public class SkyTitleScreen extends Screen {
             case MULTIPLAYER -> {
                 mc.setScreen(new JoinMultiplayerScreen(this));
             }
+            case FRIENDS -> {
+                try {
+                    Class<?> socialMenu = Class.forName("gg.essential.gui.friends.SocialMenu");
+                    java.lang.reflect.Method m = socialMenu.getMethod("getInstance");
+                    Screen s = (Screen) m.invoke(null);
+                    if (s != null) {
+                        mc.setScreen(s);
+                        return;
+                    }
+                } catch (Throwable t) {
+                    mc.setScreen(new JoinMultiplayerScreen(this));
+                }
+            }
             case SETTINGS -> {
                 mc.setScreen(new OptionsScreen(this, mc.options));
+            }
+            case MODS -> {
+                mc.setScreen(new net.minecraftforge.client.gui.ModListScreen(this));
             }
             case QUIT -> {
                 confirmQuit();

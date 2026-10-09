@@ -38,6 +38,7 @@ public final class ClientEvents {
     private static int climbResend;
     private static boolean isWallClinging;
     private static net.minecraft.core.Direction wallFacing;
+    private static boolean jumpWasDown;
     private static boolean punchLeftNext = false;
     private static float offhandFistSwing = 0f;
     private static float prevOffhandFistSwing = 0f;
@@ -57,10 +58,10 @@ public final class ClientEvents {
             if (SkyData.get(mc.player).getRace() == null) mc.setScreen(new RaceScreen());
             else mc.setScreen(new SkillsScreen());
         }
-        while (SkyKeys.SHOUT.consumeClick()) {
-            SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.USE_POWER, 0));
-        }
+        // SHOUT key is handled by MagicClientEvents with charge levels & Shouting.executeVoice
         while (SkyKeys.SHEATHE.consumeClick()) {
+            boolean nowSheathed = !com.skycraft.combat.Sheathe.isSheathed(mc.player);
+            com.skycraft.combat.Sheathe.setSheathed(mc.player, nowSheathed);
             SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
         }
 
@@ -88,12 +89,20 @@ public final class ClientEvents {
             mc.player.setMaxUpStep(1.0625f);
         }
 
+        // Prevent toggle crouch flipping state
+        if (mc.options.toggleCrouch().get()) {
+            mc.options.toggleCrouch().set(false);
+        }
+
         // BotW / AC-style wall climbing & sticking:
         // Transition ON: intentionally crouch (Shift) and jump towards a wall so you don't stick automatically
         boolean crouching = mc.options.keyShift.isDown();
         boolean jumping = mc.options.keyJump.isDown();
+        boolean jumpTriggered = jumping && !jumpWasDown;
+        jumpWasDown = jumping;
+
         boolean movingBack = mc.options.keyDown.isDown();
-        boolean movingUp = mc.options.keyUp.isDown() || jumping;
+        boolean movingUp = mc.options.keyUp.isDown();
         boolean exhausted = ClientState.has(CorePackets.SyncVitals.EXHAUSTED);
         boolean canClimb = !mc.player.isInWater() && !mc.player.isPassenger()
                 && !mc.player.isCreative() && !mc.player.isSpectator() && !mc.player.onClimbable();
@@ -101,35 +110,31 @@ public final class ClientEvents {
         Direction playerFace = mc.player.getDirection();
         BlockPos playerPos = mc.player.blockPosition();
 
-        // Check if facing or touching a solid wall block
-        boolean touchingWall = mc.player.horizontalCollision;
-        if (mc.level != null) {
-            BlockPos front = playerPos.relative(playerFace);
-            BlockPos headFront = playerPos.above().relative(playerFace);
-            if (mc.level.getBlockState(front).isSolid() || mc.level.getBlockState(headFront).isSolid()) {
-                touchingWall = true;
-            }
-        }
-
         if (!isWallClinging) {
-            // Intentional mount: crouch + jump while physically touching a solid wall
-            if (canClimb && !exhausted && crouching && jumping && touchingWall) {
+            // Check if physically touching or facing a solid wall block within arm reach
+            boolean solidFront = isSolidWall(mc.level, playerPos.relative(playerFace))
+                    || isSolidWall(mc.level, playerPos.above().relative(playerFace));
+            boolean touchingWall = mc.player.horizontalCollision || solidFront;
+
+            // Intentional mount: fresh jump press while crouching (Shift) facing a solid wall
+            if (canClimb && !exhausted && crouching && jumpTriggered && touchingWall) {
                 isWallClinging = true;
                 wallFacing = playerFace;
             }
         } else {
             // Dismount conditions:
-            boolean wallInFront = false;
-            if (mc.level != null && wallFacing != null) {
-                BlockPos front = playerPos.relative(wallFacing);
-                BlockPos headFront = playerPos.above().relative(wallFacing);
-                BlockPos aboveFront = playerPos.above(2).relative(wallFacing);
-                if (mc.level.getBlockState(front).isSolid() || mc.level.getBlockState(headFront).isSolid() || mc.level.getBlockState(aboveFront).isSolid()) {
-                    wallInFront = true;
-                }
-            }
+            boolean solidAtFeet = isSolidWall(mc.level, playerPos.relative(wallFacing));
+            boolean solidAtChest = isSolidWall(mc.level, playerPos.above().relative(wallFacing));
+            boolean wallInFront = solidAtFeet || solidAtChest;
 
             if (!canClimb || exhausted || !wallInFront) {
+                // Reached top of wall: mantle forward onto the ledge top instead of floating
+                if (mc.level != null && wallFacing != null && !solidAtChest && !solidAtFeet) {
+                    BlockPos ledge = playerPos.below().relative(wallFacing);
+                    if (isSolidWall(mc.level, ledge)) {
+                        mc.player.setDeltaMovement(wallFacing.getStepX() * 0.25, 0.20, wallFacing.getStepZ() * 0.25);
+                    }
+                }
                 isWallClinging = false;
             } else if (movingBack && jumping) {
                 // Leap backward off the wall!
@@ -161,8 +166,8 @@ public final class ClientEvents {
             }
 
             // Horizontal strafe along wall face
-            double vx = wallFacing.getStepX() * 0.05; // Lightly stick into wall surface
-            double vz = wallFacing.getStepZ() * 0.05;
+            double vx = wallFacing.getStepX() * 0.04; // Lightly stick into wall surface
+            double vz = wallFacing.getStepZ() * 0.04;
 
             if (mc.options.keyLeft.isDown()) {
                 Direction leftDir = wallFacing.getCounterClockWise();
@@ -177,11 +182,11 @@ public final class ClientEvents {
             // Underhang & 1-block outward overhang handling:
             if (movingUp && mc.level != null) {
                 BlockPos head = playerPos.above(2);
-                boolean ceilingAbove = mc.level.getBlockState(head).isSolid();
+                boolean ceilingAbove = isSolidWall(mc.level, head);
                 if (ceilingAbove) {
                     // 1-block overhang / eave ceiling directly above head
                     BlockPos behindHead = head.relative(wallFacing.getOpposite());
-                    if (!mc.level.getBlockState(behindHead).isSolid()) {
+                    if (!isSolidWall(mc.level, behindHead)) {
                         // Nudge slightly outward away from wall around the lip
                         vx -= wallFacing.getStepX() * 0.22;
                         vz -= wallFacing.getStepZ() * 0.22;
@@ -191,8 +196,8 @@ public final class ClientEvents {
                     // Check if reached top of wall/ledge to mantle onto it
                     BlockPos ledge = playerPos.above().relative(wallFacing);
                     BlockPos aboveLedge = ledge.above();
-                    if (mc.level.getBlockState(ledge).isSolid() && !mc.level.getBlockState(aboveLedge).isSolid()
-                            && !mc.level.getBlockState(aboveLedge.above()).isSolid()) {
+                    if (isSolidWall(mc.level, ledge) && !isSolidWall(mc.level, aboveLedge)
+                            && !isSolidWall(mc.level, aboveLedge.above())) {
                         // Mantle onto ledge top!
                         vx += wallFacing.getStepX() * 0.25;
                         vz += wallFacing.getStepZ() * 0.25;
@@ -296,59 +301,80 @@ public final class ClientEvents {
             return;
         }
 
-        // When unarmed and drawn, render offhand fist so player sees both fists up like a Skyrim brawler
-        if (event.getHand() == net.minecraft.world.InteractionHand.OFF_HAND && event.getItemStack().isEmpty() && player.getMainHandItem().isEmpty()) {
+        // When unarmed and drawn, render BOTH fists in brawler stance during MAIN_HAND pass
+        if (event.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND
+                && event.getItemStack().isEmpty() && player.getOffhandItem().isEmpty()) {
+            event.setCanceled(true);
             var poseStack = event.getPoseStack();
             var buffer = event.getMultiBufferSource();
             int light = event.getPackedLight();
             float pt = event.getPartialTick();
-            float swing = prevOffhandFistSwing + (offhandFistSwing - prevOffhandFistSwing) * pt;
-            boolean blocking = wasBlocking;
+            var renderer = (net.minecraft.client.renderer.entity.player.PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(player);
 
+            // 1. Render Left Fist (Offhand)
             poseStack.pushPose();
-            float f1 = net.minecraft.util.Mth.sqrt(swing);
-            float f2 = -0.25F * net.minecraft.util.Mth.sin(f1 * (float) Math.PI);
-            float f3 = 0.35F * net.minecraft.util.Mth.sin(f1 * ((float) Math.PI * 2F));
-            float f4 = -0.35F * net.minecraft.util.Mth.sin(swing * (float) Math.PI);
+            float leftSwing = prevOffhandFistSwing + (offhandFistSwing - prevOffhandFistSwing) * pt;
+            float lf1 = net.minecraft.util.Mth.sqrt(leftSwing);
+            float lf2 = -0.25F * net.minecraft.util.Mth.sin(lf1 * (float) Math.PI);
+            float lf3 = 0.35F * net.minecraft.util.Mth.sin(lf1 * ((float) Math.PI * 2F));
+            float lf4 = -0.35F * net.minecraft.util.Mth.sin(leftSwing * (float) Math.PI);
 
-            // Stance positioning
-            poseStack.translate(-(f2 + 0.58F), f3 + -0.52F, f4 + -0.68F);
-            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-40.0F));
-
-            if (blocking) {
+            // Left hand stance & punch jab positioning
+            poseStack.translate(-(lf2 + 0.45F), lf3 - 0.35F, lf4 - 0.55F);
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-25.0F));
+            if (wasBlocking) {
                 // Defensive guard pose (raise fists to protect face)
-                poseStack.translate(0.18F, 0.22F, -0.15F);
-                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-25.0F));
-                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(35.0F));
+                poseStack.translate(0.12F, 0.15F, -0.10F);
+                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-20.0F));
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(25.0F));
             }
-
-            float f5 = net.minecraft.util.Mth.sin(swing * swing * (float) Math.PI);
-            float f6 = net.minecraft.util.Mth.sin(f1 * (float) Math.PI);
-            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-f6 * 60.0F));
-            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(f5 * -18.0F));
+            float lf5 = net.minecraft.util.Mth.sin(leftSwing * leftSwing * (float) Math.PI);
+            float lf6 = net.minecraft.util.Mth.sin(lf1 * (float) Math.PI);
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-lf6 * 45.0F));
+            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(lf5 * -15.0F));
             poseStack.translate(0.9F, 3.4F, 3.3F);
             poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-120.0F));
             poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(200.0F));
             poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(135.0F));
             poseStack.translate(-5.4F, 0.0F, 0.0F);
-
-            var renderer = (net.minecraft.client.renderer.entity.player.PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(player);
             renderer.renderLeftHand(poseStack, buffer, light, player);
             poseStack.popPose();
-            event.setCanceled(true);
-        } else if (event.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND && event.getItemStack().isEmpty() && wasBlocking) {
-            // Guard pose on right fist when blocking
-            var poseStack = event.getPoseStack();
+
+            // 2. Render Right Fist (Main hand)
             poseStack.pushPose();
-            poseStack.translate(-0.15F, 0.18F, -0.12F);
-            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(20.0F));
-            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(30.0F));
-            // Let vanilla render the right hand with this modified pose
-            var renderer = (net.minecraft.client.renderer.entity.player.PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(player);
-            renderer.renderRightHand(poseStack, event.getMultiBufferSource(), event.getPackedLight(), player);
+            float rightSwing = player.getAttackAnim(pt);
+            float rf1 = net.minecraft.util.Mth.sqrt(rightSwing);
+            float rf2 = 0.25F * net.minecraft.util.Mth.sin(rf1 * (float) Math.PI);
+            float rf3 = 0.35F * net.minecraft.util.Mth.sin(rf1 * ((float) Math.PI * 2F));
+            float rf4 = -0.35F * net.minecraft.util.Mth.sin(rightSwing * (float) Math.PI);
+
+            // Right hand stance & punch cross positioning
+            poseStack.translate(rf2 + 0.45F, rf3 - 0.35F, rf4 - 0.55F);
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(25.0F));
+            if (wasBlocking) {
+                // Defensive guard pose
+                poseStack.translate(-0.12F, 0.15F, -0.10F);
+                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(20.0F));
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(25.0F));
+            }
+            float rf5 = net.minecraft.util.Mth.sin(rightSwing * rightSwing * (float) Math.PI);
+            float rf6 = net.minecraft.util.Mth.sin(rf1 * (float) Math.PI);
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(rf6 * 45.0F));
+            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(rf5 * 15.0F));
+            poseStack.translate(-0.9F, 3.4F, 3.3F);
+            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(120.0F));
+            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(200.0F));
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-135.0F));
+            poseStack.translate(5.4F, 0.0F, 0.0F);
+            renderer.renderRightHand(poseStack, buffer, light, player);
             poseStack.popPose();
-            event.setCanceled(true);
         }
+    }
+
+    private static boolean isSolidWall(net.minecraft.world.level.Level level, BlockPos pos) {
+        if (level == null || pos == null) return false;
+        var state = level.getBlockState(pos);
+        return !state.isAir() && state.isSolid() && state.getFluidState().isEmpty();
     }
 
     @SubscribeEvent
@@ -414,6 +440,11 @@ public final class ClientEvents {
             return;
         }
 
+        if (screen instanceof PauseScreen && !(screen instanceof com.skycraft.client.screen.title.SkyPauseScreen)) {
+            event.setNewScreen(new com.skycraft.client.screen.title.SkyPauseScreen());
+            return;
+        }
+
         if (screen instanceof net.minecraft.client.gui.screens.TitleScreen && !(screen instanceof com.skycraft.client.screen.title.SkyTitleScreen)) {
             event.setNewScreen(new com.skycraft.client.screen.title.SkyTitleScreen());
             return;
@@ -426,6 +457,14 @@ public final class ClientEvents {
 
         if (screen instanceof net.minecraft.client.gui.screens.worldselection.SelectWorldScreen && !(screen instanceof com.skycraft.client.screen.title.SkyLoadWorldScreen)) {
             event.setNewScreen(new com.skycraft.client.screen.title.SkyLoadWorldScreen(new com.skycraft.client.screen.title.SkyTitleScreen()));
+        }
+    }
+
+    @SubscribeEvent
+    public static void onKeyInput(InputEvent.Key event) {
+        if (event.getKey() == org.lwjgl.glfw.GLFW.GLFW_KEY_Z) {
+            Minecraft mc = Minecraft.getInstance();
+            KeyConflictResolver.enforceKeys(mc);
         }
     }
 }
