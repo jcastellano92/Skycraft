@@ -160,6 +160,15 @@ public final class RoadNetwork {
             Optional<ResourceKey<Structure>> key = registry.getResourceKey(f.structure());
             if (key.isEmpty()) continue;
             boolean settlement = registry.getHolder(key.get()).map(h -> h.is(SETTLEMENTS)).orElse(false);
+            if (!settlement) {
+                String path = key.get().location().getPath().toLowerCase();
+                String ns = key.get().location().getNamespace().toLowerCase();
+                if (path.contains("village") || path.contains("town") || path.contains("tavern") || path.contains("settlement")
+                        || path.contains("inn") || path.contains("hamlet") || path.contains("outpost")
+                        || ns.equals("ctov") || ns.equals("towns_and_towers") || ns.equals("dungeons_and_taverns")) {
+                    settlement = true;
+                }
+            }
             if (!settlement) continue;
             register(level, data, f, key.get().location());
         }

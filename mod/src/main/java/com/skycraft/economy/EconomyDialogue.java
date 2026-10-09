@@ -41,7 +41,7 @@ public final class EconomyDialogue {
             }
 
             if (Perks.has(player, "speech.investor") && !Shop.of(npc).invested()) {
-                out.add(new DialogueOption("economy.invest", Component.translatable("dialogue.skycraft.economy.invest", Shop.INVEST_COST), 150,
+                out.add(new DialogueOption("economy.invest", Component.translatable("dialogue.skycraft.economy.invest", Currency.formatCompact(Shop.INVEST_COST)), 150,
                         EconomyDialogue::invest));
             }
         }
@@ -49,7 +49,7 @@ public final class EconomyDialogue {
         Skill skill = Trainers.skillFor(npc);
         if (skill != null) {
             int cost = Trainers.cost(SkyData.get(player).getSkill(skill));
-            out.add(new DialogueOption("economy.train", Component.translatable("dialogue.skycraft.economy.train", skill.displayName(), cost), 200,
+            out.add(new DialogueOption("economy.train", Component.translatable("dialogue.skycraft.economy.train", skill.displayName(), Currency.formatCompact(cost)), 200,
                     Trainers::train));
         }
 
@@ -58,14 +58,14 @@ public final class EconomyDialogue {
         Houses.HouseDef house = Houses.houseForHold(hold);
         if (house != null && (npc.getType().getDescriptionId().contains("villager") || npc.getType().getDescriptionId().contains("guard") || npc.getType().getDescriptionId().contains("humanoid"))) {
             if (!Houses.isHouseOwner(player, house)) {
-                out.add(new DialogueOption("economy.buy_house", Component.translatable("dialogue.skycraft.economy.house.buy", house.cost()), 250,
+                out.add(new DialogueOption("economy.buy_house", Component.translatable("dialogue.skycraft.economy.house.buy", Currency.formatCompact(house.cost())), 250,
                         (p, n) -> Houses.purchaseHouse(p, p.serverLevel(), house, null)));
             } else {
                 Houses.HousesData data = Houses.HousesData.get(player.server.overworld().getServer());
                 for (Houses.Furnishing furn : Houses.UPGRADES) {
                     if (!data.hasFurnishing(house.id(), furn.id())) {
                         out.add(new DialogueOption("economy.furnish." + furn.id(),
-                                Component.translatable("dialogue.skycraft.economy.house.furnish_option", furn.name(), furn.cost()), 260,
+                                Component.translatable("dialogue.skycraft.economy.house.furnish_option", furn.name(), Currency.formatCompact(furn.cost())), 260,
                                 (p, n) -> Houses.purchaseFurnishing(p, p.serverLevel(), house, furn)));
                     }
                 }

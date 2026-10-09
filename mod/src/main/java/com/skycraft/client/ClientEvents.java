@@ -13,6 +13,8 @@ import com.skycraft.perk.Perks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -31,6 +33,8 @@ public final class ClientEvents {
     private static boolean wasBlocking;
     private static int powerAttackResend;
     private static int climbResend;
+    private static boolean isWallClinging;
+    private static net.minecraft.core.Direction wallFacing;
 
     private ClientEvents() {}
 
@@ -73,21 +77,114 @@ public final class ClientEvents {
             }
         }
 
-        // BotW-style climbing: holding Space against a wall
+        // Smooth step assist over blocks without constant jumping
+        if (mc.player.maxUpStep() < 1.0625f) {
+            mc.player.setMaxUpStep(1.0625f);
+        }
+
+        // BotW / AC-style wall climbing & sticking:
+        // Transition ON: intentionally crouch (Shift) and jump towards a wall so you don't stick automatically
+        boolean crouching = mc.options.keyShift.isDown();
         boolean jumping = mc.options.keyJump.isDown();
-        if (jumping && mc.player.horizontalCollision && !mc.player.isInWater() && !mc.player.isPassenger()
-                && !mc.player.isCreative() && !mc.player.isSpectator() && !mc.player.onClimbable()) {
-            if (!ClientState.has(CorePackets.SyncVitals.EXHAUSTED)) {
-                double ySpeed = 0.16;
-                if (Perks.has(mc.player, "athletics.climber")) ySpeed += 0.05;
-                Vec3 v = mc.player.getDeltaMovement();
-                mc.player.setDeltaMovement(v.x * 0.4, ySpeed, v.z * 0.4);
-                mc.player.resetFallDistance();
-                if (climbResend-- <= 0) {
-                    SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.CLIMB_TICK, 0));
-                    climbResend = 4;
+        boolean movingBack = mc.options.keyDown.isDown();
+        boolean movingUp = mc.options.keyUp.isDown() || jumping;
+        boolean exhausted = ClientState.has(CorePackets.SyncVitals.EXHAUSTED);
+        boolean canClimb = !mc.player.isInWater() && !mc.player.isPassenger()
+                && !mc.player.isCreative() && !mc.player.isSpectator() && !mc.player.onClimbable();
+
+        Direction playerFace = mc.player.getDirection();
+        BlockPos playerPos = mc.player.blockPosition();
+
+        // Check if facing or touching a solid wall block
+        boolean touchingWall = mc.player.horizontalCollision;
+        if (!touchingWall && mc.level != null) {
+            BlockPos front = playerPos.relative(playerFace);
+            if (mc.level.getBlockState(front).isSolid() || mc.level.getBlockState(front.above()).isSolid()) {
+                touchingWall = true;
+            }
+        }
+
+        if (!isWallClinging) {
+            // Intentional mount: crouch + jump while at a solid wall
+            if (canClimb && !exhausted && crouching && jumping && touchingWall) {
+                isWallClinging = true;
+                wallFacing = playerFace;
+            }
+        } else {
+            // Check dismount conditions:
+            if (!canClimb || exhausted) {
+                isWallClinging = false;
+            } else if (movingBack && jumping) {
+                // Leap backward off the wall!
+                isWallClinging = false;
+                Vec3 leap = new Vec3(-wallFacing.getStepX() * 0.45, 0.35, -wallFacing.getStepZ() * 0.45);
+                mc.player.setDeltaMovement(leap);
+            } else if (mc.player.onGround() && !movingUp) {
+                // Landed on solid ground
+                isWallClinging = false;
+            }
+        }
+
+        if (isWallClinging && canClimb && !exhausted) {
+            mc.player.resetFallDistance();
+
+            // Continuously drain stamina to hold or climb
+            if (climbResend-- <= 0) {
+                SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.CLIMB_TICK, 0));
+                climbResend = 4;
+            }
+
+            double climbSpeed = Perks.has(mc.player, "athletics.climber") ? 0.22 : 0.16;
+            double vy = 0.0; // Sticking to wall in place if no vertical input!
+
+            if (movingUp) {
+                vy = climbSpeed;
+            } else if (movingBack) {
+                vy = -climbSpeed;
+            }
+
+            // Horizontal strafe along wall face
+            double vx = wallFacing.getStepX() * 0.05; // Lightly stick into wall surface
+            double vz = wallFacing.getStepZ() * 0.05;
+
+            if (mc.options.keyLeft.isDown()) {
+                Direction leftDir = wallFacing.getCounterClockWise();
+                vx += leftDir.getStepX() * 0.12;
+                vz += leftDir.getStepZ() * 0.12;
+            } else if (mc.options.keyRight.isDown()) {
+                Direction rightDir = wallFacing.getClockWise();
+                vx += rightDir.getStepX() * 0.12;
+                vz += rightDir.getStepZ() * 0.12;
+            }
+
+            // Underhang & 1-block outward overhang handling:
+            if (movingUp && mc.level != null) {
+                BlockPos head = playerPos.above(2);
+                boolean ceilingAbove = mc.level.getBlockState(head).isSolid();
+                if (ceilingAbove) {
+                    // 1-block overhang / eave ceiling directly above head
+                    BlockPos behindHead = head.relative(wallFacing.getOpposite());
+                    if (!mc.level.getBlockState(behindHead).isSolid()) {
+                        // Nudge slightly outward away from wall around the lip
+                        vx -= wallFacing.getStepX() * 0.22;
+                        vz -= wallFacing.getStepZ() * 0.22;
+                        vy = 0.18;
+                    }
+                } else {
+                    // Check if reached top of wall/ledge to mantle onto it
+                    BlockPos ledge = playerPos.above().relative(wallFacing);
+                    BlockPos aboveLedge = ledge.above();
+                    if (mc.level.getBlockState(ledge).isSolid() && !mc.level.getBlockState(aboveLedge).isSolid()
+                            && !mc.level.getBlockState(aboveLedge.above()).isSolid()) {
+                        // Mantle onto ledge top!
+                        vx += wallFacing.getStepX() * 0.25;
+                        vz += wallFacing.getStepZ() * 0.25;
+                        vy = 0.28;
+                    }
                 }
             }
+
+            mc.player.setDeltaMovement(vx, vy, vz);
         } else {
             climbResend = 0;
         }

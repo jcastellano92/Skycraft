@@ -128,9 +128,9 @@ public class BarterScreen extends Screen {
         g.drawCenteredString(font, state.merchantName(), 0, 0, 0xFFF5EBC8);
         g.pose().popPose();
 
-        Component gold = Component.translatable("barter.skycraft.your_gold", state.playerGold())
+        Component gold = Component.translatable("barter.skycraft.your_gold", com.skycraft.core.Currency.formatGold(state.playerGold()))
                 .append(Component.literal("   |   "))
-                .append(Component.translatable("barter.skycraft.merchant_gold", state.merchantGold()));
+                .append(Component.translatable("barter.skycraft.merchant_gold", com.skycraft.core.Currency.formatGold(state.merchantGold())));
         g.drawCenteredString(font, gold, width / 2, 22, GOLD);
 
         // BUY / SELL Mode Buttons
@@ -193,8 +193,8 @@ public class BarterScreen extends Screen {
             int alpha = age < 4000 ? 0xFF : (int) (0xFF * (5000 - age) / 1000f);
             g.drawCenteredString(font, message, width / 2, height - 26, (Math.max(8, alpha) << 24) | 0xF0E6C8);
         }
-        g.drawString(font, Component.literal("Your Gold: " + state.playerGold() + "g"), 12, height - 14, GOLD, true);
-        Component mGold = Component.literal("Merchant Gold: " + state.merchantGold() + "g");
+        g.drawString(font, Component.literal("Your Gold: " + com.skycraft.core.Currency.formatGold(state.playerGold())), 12, height - 14, GOLD, true);
+        Component mGold = Component.literal("Merchant Gold: " + com.skycraft.core.Currency.formatGold(state.merchantGold()));
         g.drawString(font, mGold, width - font.width(mGold) - 12, height - 14, GOLD, true);
         g.drawCenteredString(font, Component.translatable("barter.skycraft.hint"), width / 2, height - 12, 0xFF8A8478);
 
@@ -203,11 +203,11 @@ public class BarterScreen extends Screen {
         if (hoveredEntry != null) {
             List<Component> lines = new ArrayList<>(Screen.getTooltipFromItem(minecraft, hoveredEntry.stack()));
             lines.add(Component.translatable(hoveredBuy ? "barter.skycraft.tooltip.buy" : "barter.skycraft.tooltip.sell",
-                    hoveredEntry.price()).withStyle(ChatFormatting.GOLD));
+                    com.skycraft.core.Currency.formatCompact(hoveredEntry.price())).withStyle(ChatFormatting.GOLD));
             if (hoveredBuy) {
                 int carrying = countCarrying(hoveredEntry.stack());
                 lines.add(Component.literal("Carrying: " + carrying).withStyle(ChatFormatting.GRAY));
-                lines.add(Component.literal("Your Gold: " + state.playerGold() + "g").withStyle(ChatFormatting.YELLOW));
+                lines.add(Component.literal("Your Gold: " + com.skycraft.core.Currency.formatGold(state.playerGold())).withStyle(ChatFormatting.YELLOW));
             }
             if (hoveredEntry.status() == Barter.STATUS_NOT_DEALT) {
                 lines.add(Component.translatable("barter.skycraft.status.not_dealt").withStyle(ChatFormatting.RED));
@@ -254,7 +254,7 @@ public class BarterScreen extends Screen {
             ItemStack stack = e.stack();
             g.renderItem(stack, x + 4, y + 2);
 
-            String price = e.price() + "g";
+            String price = com.skycraft.core.Currency.formatCompact(e.price()) + "g";
             int priceW = font.width(price);
             boolean ok = e.status() == Barter.STATUS_OK;
             boolean affordable = !buy || state.playerGold() >= e.price();

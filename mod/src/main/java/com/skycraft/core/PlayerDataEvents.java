@@ -43,12 +43,14 @@ public final class PlayerDataEvents {
             now.setMagicka(now.maxMagicka());
             now.setStamina(now.maxStamina());
         }
+        event.getEntity().setMaxUpStep(1.0625f);
         original.invalidateCaps();
     }
 
     @SubscribeEvent
     public static void login(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            player.setMaxUpStep(1.0625f);
             fullSync(player);
             PlayerData data = SkyData.get(player);
             if (!data.module("core").getBoolean("spawn_placed")) {
@@ -68,7 +70,10 @@ public final class PlayerDataEvents {
 
     @SubscribeEvent
     public static void respawn(PlayerEvent.PlayerRespawnEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) fullSync(player);
+        if (event.getEntity() instanceof ServerPlayer player) {
+            player.setMaxUpStep(1.0625f);
+            fullSync(player);
+        }
     }
 
     @SubscribeEvent

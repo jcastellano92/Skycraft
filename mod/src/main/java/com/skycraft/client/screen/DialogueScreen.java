@@ -42,6 +42,25 @@ public class DialogueScreen extends Screen {
         int gy = Math.max(height / 2 + 40, height - 16 - totalGH);
         g.fillGradient(0, gy - 32, width, height, 0x00000000, 0xC0000000);
 
+        // Player's Current Gold in top-right
+        if (minecraft != null && minecraft.player != null) {
+            long playerGold = com.skycraft.core.Currency.balance(minecraft.player);
+            String goldLabel = "Gold: ";
+            String goldCompact = com.skycraft.core.Currency.formatCompact(playerGold) + "g";
+            String goldFull = playerGold >= 1000 ? " (" + com.skycraft.core.Currency.formatFull(playerGold) + ")" : "";
+            int totalW = font.width(goldLabel) + font.width(goldCompact) + font.width(goldFull);
+            int gx = width - totalW - 20;
+            int gBoxY = 14;
+
+            g.fill(gx - 8, gBoxY - 4, width - 12, gBoxY + 14, 0x90000000);
+            g.fill(gx - 8, gBoxY - 4, gx - 6, gBoxY + 14, 0xFFE0B020);
+            g.drawString(font, goldLabel, gx, gBoxY, 0xFFD8D0B8, true);
+            g.drawString(font, goldCompact, gx + font.width(goldLabel), gBoxY, 0xFFE0B020, true);
+            if (!goldFull.isEmpty()) {
+                g.drawString(font, goldFull, gx + font.width(goldLabel) + font.width(goldCompact), gBoxY, 0xFFA09880, false);
+            }
+        }
+
         // NPC name and line
         g.pose().pushPose();
         g.pose().translate(width / 2f, gy - 18, 0);

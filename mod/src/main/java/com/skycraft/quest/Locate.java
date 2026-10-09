@@ -30,7 +30,8 @@ public final class Locate {
 
     @Nullable
     public static BlockPos nearestVillage(ServerLevel level, BlockPos from) {
-        return structure(level, StructureTags.VILLAGE, from, 64);
+        BlockPos s = structure(level, com.skycraft.roads.RoadNetwork.SETTLEMENTS, from, 64);
+        return s != null ? s : structure(level, StructureTags.VILLAGE, from, 64);
     }
 
     /** A village at least {@code minDist} blocks away (for couriers), or null. */
@@ -38,7 +39,8 @@ public final class Locate {
     public static BlockPos farVillage(ServerLevel level, BlockPos from, int minDist, RandomSource r) {
         for (int attempt = 0; attempt < 4; attempt++) {
             BlockPos probe = randomSpot(level, r, from, minDist + 100, minDist + 500);
-            BlockPos v = structure(level, StructureTags.VILLAGE, probe, 24);
+            BlockPos v = structure(level, com.skycraft.roads.RoadNetwork.SETTLEMENTS, probe, 24);
+            if (v == null) v = structure(level, StructureTags.VILLAGE, probe, 24);
             if (v != null && horizontalDist(v, from) >= minDist) return v;
         }
         return null;

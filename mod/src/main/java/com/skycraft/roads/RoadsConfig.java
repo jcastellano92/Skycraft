@@ -54,7 +54,7 @@ public final class RoadsConfig {
         MAX_BRIDGE_LENGTH = b.comment("Water crossings longer than this (blocks) get no bridge; the road simply stops at the shore.")
                 .defineInRange("maxBridgeLength", 64, 0, 512);
         LANTERN_SPACING = b.comment("Distance in blocks between lantern posts along a road (0 = none).")
-                .defineInRange("lanternSpacing", 96, 0, 4096);
+                .defineInRange("lanternSpacing", 40, 0, 4096);
         SIGNPOSTS = b.comment("Place signposts at settlement exits and road junctions.").define("signposts", true);
         LANTERNS = b.comment("Place lantern posts along roads.").define("lanterns", true);
         b.pop();

@@ -140,7 +140,7 @@ public final class Guards {
         boolean violent = Bounty.violent(player, hold);
         boolean triedPersuasion = Bounty.state(player).getInt("persuade_" + hold) == bounty;
 
-        out.add(new DialogueOption("crime.pay", Component.translatable("dialogue.skycraft.crime.pay", bounty), 1,
+        out.add(new DialogueOption("crime.pay", Component.translatable("dialogue.skycraft.crime.pay", Currency.formatCompact(bounty)), 1,
                 (p, n) -> pay(p, n, hold)));
         out.add(new DialogueOption("crime.jail", Component.translatable("dialogue.skycraft.crime.jail"), 2,
                 (p, n) -> Jail.send(p, hold)));
@@ -151,7 +151,7 @@ public final class Guards {
         }
         if (Perks.has(player, "speech.bribery")) {
             int cost = bribeCost(bounty);
-            out.add(new DialogueOption("crime.bribe", Component.translatable("dialogue.skycraft.crime.bribe", cost), 4,
+            out.add(new DialogueOption("crime.bribe", Component.translatable("dialogue.skycraft.crime.bribe", Currency.formatCompact(cost)), 4,
                     (p, n) -> bribe(p, n, hold)));
         }
         if (!violent && bounty <= 500 && Perks.has(player, "speech.intimidation") && !triedPersuasion) {
