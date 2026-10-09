@@ -102,7 +102,7 @@ public final class NpcDialogue {
 
     static void addOptions(ServerPlayer player, LivingEntity entity, List<DialogueOption> out) {
         if (!(entity instanceof NpcEntity npc) || npc.isHostileTo(player)) return;
-        String hold = com.skycraft.core.Holds.holdAt(player.level(), player.blockPosition());
+        String hold = com.skycraft.crime.Holds.holdAt(player.level(), player.blockPosition());
         if (com.skycraft.crime.Crimes.isGuard(npc) && com.skycraft.crime.Bounty.get(player, hold) > 0) return;
         NpcRole role = npc.role();
         if (npc.isPrisoner()) {

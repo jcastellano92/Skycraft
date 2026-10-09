@@ -207,6 +207,7 @@ public class SkyPauseScreen extends Screen {
                     if (confirmed) {
                         if (mc.level != null) mc.level.disconnect();
                         if (single) mc.clearLevel(new net.minecraft.client.gui.screens.GenericDirtMessageScreen(Component.translatable("menu.savingLevel")));
+                        else mc.disconnect();
                         else mc.clearLevel();
                         mc.setScreen(new SkyTitleScreen());
                     } else {
