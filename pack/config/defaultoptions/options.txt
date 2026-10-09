@@ -11,4 +11,15 @@ key_key.hotbar.6:key.keyboard.unknown
 key_key.hotbar.7:key.keyboard.unknown
 key_key.hotbar.8:key.keyboard.unknown
 key_key.hotbar.9:key.keyboard.unknown
+key_key.skycraft.hub:key.keyboard.tab
+key_key.skycraft.journal:key.keyboard.j
+key_key.skycraft.magic_menu:key.keyboard.p
+key_key.skycraft.skills:key.keyboard.k
+key_key.skycraft.wait:key.keyboard.i
+key_key.skycraft.map:key.keyboard.m
+key_key.skycraft.shout:key.keyboard.z
+key_key.skycraft.sheathe:key.keyboard.r
+key_key.skycraft.dodge:key.keyboard.left.alt
+key_key.skycraft.call_horse:key.keyboard.h
+
 

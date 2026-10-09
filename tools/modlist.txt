@@ -57,6 +57,7 @@ mr:yungs-extras
 # --- Survival: fishing, cooking, gear, backpacks, sleeping ---
 cf:aquaculture | mr:aquaculture     # fishing overhaul (feeds the Fishing skill)
 mr:comforts                         # sleeping bags and hammocks for camping
+mr:treechop                         # falling tree physics: tree topples as one physical object and crumbles
 
 # --- Shaders (optional, client) ---
 mr:complementary-reimagined         # shader pack with Distant Horizons support
