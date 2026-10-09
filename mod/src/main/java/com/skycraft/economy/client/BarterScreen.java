@@ -193,6 +193,9 @@ public class BarterScreen extends Screen {
             int alpha = age < 4000 ? 0xFF : (int) (0xFF * (5000 - age) / 1000f);
             g.drawCenteredString(font, message, width / 2, height - 26, (Math.max(8, alpha) << 24) | 0xF0E6C8);
         }
+        g.drawString(font, Component.literal("Your Gold: " + state.playerGold() + "g"), 12, height - 14, GOLD, true);
+        Component mGold = Component.literal("Merchant Gold: " + state.merchantGold() + "g");
+        g.drawString(font, mGold, width - font.width(mGold) - 12, height - 14, GOLD, true);
         g.drawCenteredString(font, Component.translatable("barter.skycraft.hint"), width / 2, height - 12, 0xFF8A8478);
 
         super.render(g, mouseX, mouseY, partialTick);
@@ -201,6 +204,11 @@ public class BarterScreen extends Screen {
             List<Component> lines = new ArrayList<>(Screen.getTooltipFromItem(minecraft, hoveredEntry.stack()));
             lines.add(Component.translatable(hoveredBuy ? "barter.skycraft.tooltip.buy" : "barter.skycraft.tooltip.sell",
                     hoveredEntry.price()).withStyle(ChatFormatting.GOLD));
+            if (hoveredBuy) {
+                int carrying = countCarrying(hoveredEntry.stack());
+                lines.add(Component.literal("Carrying: " + carrying).withStyle(ChatFormatting.GRAY));
+                lines.add(Component.literal("Your Gold: " + state.playerGold() + "g").withStyle(ChatFormatting.YELLOW));
+            }
             if (hoveredEntry.status() == Barter.STATUS_NOT_DEALT) {
                 lines.add(Component.translatable("barter.skycraft.status.not_dealt").withStyle(ChatFormatting.RED));
             } else if (hoveredEntry.status() == Barter.STATUS_STOLEN) {
@@ -208,6 +216,15 @@ public class BarterScreen extends Screen {
             }
             g.renderComponentTooltip(font, lines, mouseX, mouseY);
         }
+    }
+
+    private int countCarrying(ItemStack target) {
+        if (minecraft == null || minecraft.player == null) return 0;
+        int count = 0;
+        for (ItemStack s : minecraft.player.getInventory().items) {
+            if (!s.isEmpty() && s.getItem() == target.getItem()) count += s.getCount();
+        }
+        return count;
     }
 
     private void drawCatalog(GuiGraphics g, int x, int w, Component title, List<EconomyPackets.Entry> entries, int scroll,

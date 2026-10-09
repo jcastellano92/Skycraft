@@ -37,31 +37,42 @@ public class DialogueScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         g.fillGradient(width / 2, 0, width, height, 0x00000000, 0xA0000000);
-        g.fillGradient(0, height - 80, width, height, 0x00000000, 0xB0000000);
+        List<FormattedCharSequence> greetingLines = font.split(dialogue.greeting(), Math.min(460, width - 60));
+        int totalGH = greetingLines.size() * 11;
+        int gy = Math.max(height / 2 + 40, height - 16 - totalGH);
+        g.fillGradient(0, gy - 32, width, height, 0x00000000, 0xC0000000);
+
         // NPC name and line
         g.pose().pushPose();
-        g.pose().translate(width / 2f, height - 64, 0);
+        g.pose().translate(width / 2f, gy - 18, 0);
         g.pose().scale(1.4f, 1.4f, 1f);
         g.drawCenteredString(font, dialogue.npcName(), 0, 0, 0xFFF5EBC8);
         g.pose().popPose();
-        int gy = height - 46;
-        for (FormattedCharSequence line : font.split(dialogue.greeting(), Math.min(400, width - 40))) {
-            g.drawCenteredString(font, line, width / 2, gy, 0xFFD8D0B8);
-            gy += 10;
+
+        int curGy = gy;
+        for (FormattedCharSequence line : greetingLines) {
+            g.drawCenteredString(font, line, width / 2, curGy, 0xFFD8D0B8);
+            curGy += 11;
         }
+
         hovered = -1;
         List<DialoguePackets.Line> lines = dialogue.lines();
         for (int i = 0; i < lines.size(); i++) {
             int y = lineY(i);
             int x = listX();
-            int w = font.width(lines.get(i).label());
+            int maxW = Math.max(100, width - x - 24);
+            String text = lines.get(i).label().getString();
+            if (font.width(text) > maxW) {
+                text = font.plainSubstrByWidth(text, maxW - font.width("...")) + "...";
+            }
+            int w = font.width(text);
             if (mouseX >= x - 4 && mouseX <= x + w + 4 && mouseY >= y - 2 && mouseY <= y + 10) hovered = i;
             boolean hi = hovered == i || hovered < 0 && selected == i;
             if (hi) {
                 g.fill(x - 6, y - 2, x + w + 6, y + 10, 0x40FFFFFF);
                 g.fill(x - 6, y - 2, x - 5, y + 10, 0xFFC8BC9A);
             }
-            g.drawString(font, lines.get(i).label(), x, y, hi ? 0xFFFFFFFF : 0xFFA8A090, true);
+            g.drawString(font, text, x, y, hi ? 0xFFFFFFFF : 0xFFA8A090, true);
         }
         super.render(g, mouseX, mouseY, partialTick);
     }

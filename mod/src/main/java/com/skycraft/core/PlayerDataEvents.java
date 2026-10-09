@@ -92,6 +92,21 @@ public final class PlayerDataEvents {
     @SubscribeEvent
     public static void tick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END || !(event.player instanceof ServerPlayer player)) return;
+        if (player.isCrouching() && player.tickCount % 10 == 0) {
+            int sneakSkill = SkyData.get(player).getSkill(Skill.SNEAK);
+            int light = player.level().getMaxLocalRawBrightness(player.blockPosition());
+            for (net.minecraft.world.entity.Mob mob : player.level().getEntitiesOfClass(net.minecraft.world.entity.Mob.class, player.getBoundingBox().inflate(24), m -> m.getTarget() == player)) {
+                boolean hasLos = mob.hasLineOfSight(player);
+                double dist = mob.distanceTo(player);
+                if (!hasLos && dist > 5.0) {
+                    mob.setTarget(null);
+                    mob.getNavigation().stop();
+                } else if (hasLos && light < 7 && dist > Math.max(4.0, 14.0 - sneakSkill * 0.1)) {
+                    mob.setTarget(null);
+                    mob.getNavigation().stop();
+                }
+            }
+        }
         if (!SkyConfig.PROMPT_RACE.get()) return;
         PlayerData data = SkyData.get(player);
         if (data.getRace() == null && !com.skycraft.crime.Jail.isJailed(player) && player.tickCount % 600 == 60) {
@@ -112,7 +127,23 @@ public final class PlayerDataEvents {
     public static void onTarget(net.minecraftforge.event.entity.living.LivingChangeTargetEvent event) {
         if (event.getNewTarget() instanceof Player player) {
             PlayerData data = SkyData.get(player);
-            if (data.getRace() == null) event.setCanceled(true);
+            if (data.getRace() == null) {
+                event.setCanceled(true);
+                return;
+            }
+            if (player.isCrouching() && event.getEntity() instanceof net.minecraft.world.entity.Mob mob) {
+                if (!mob.hasLineOfSight(player)) {
+                    event.setCanceled(true);
+                    return;
+                }
+                int sneakSkill = data.getSkill(Skill.SNEAK);
+                int light = player.level().getMaxLocalRawBrightness(player.blockPosition());
+                double dist = mob.distanceTo(player);
+                double detectDist = Math.max(3.0, 16.0 - (sneakSkill * 0.12) - (light < 8 ? 6.0 : 0.0));
+                if (dist > detectDist) {
+                    event.setCanceled(true);
+                }
+            }
         }
     }
 

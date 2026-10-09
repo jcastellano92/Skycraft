@@ -216,52 +216,69 @@ public final class SideQuests {
         PlayerData data = SkyData.get(player);
         if (data.getLevel() < 1) return;
 
-        // The Golden Claw — offered by traders/armorers/villagers
+        // The Golden Claw — offered strictly by merchants (shopkeepers like Lucan) during shop hours
         if (!hasSideQuest(player, "side_golden_claw")) {
-            out.add(new DialogueOption("quest.side.golden_claw",
-                    tr("dialogue.skycraft.quest.ask_golden_claw"), 320, (pl, n) -> {
-                if (startGoldenClaw(pl, n)) {
-                    Dialogue.open(pl, n, tr("dialogue.skycraft.quest.pitch_golden_claw"));
-                } else {
-                    Dialogue.open(pl, n, tr("quest.skycraft.reply.too_busy"));
-                }
-            }));
+            boolean isMerchant = com.skycraft.economy.Merchants.isMerchant(npc);
+            boolean openHours = com.skycraft.economy.Shop.isOpen(player.level());
+            if (isMerchant && openHours) {
+                out.add(new DialogueOption("quest.side.golden_claw",
+                        tr("dialogue.skycraft.quest.ask_golden_claw"), 320, (pl, n) -> {
+                    if (startGoldenClaw(pl, n)) {
+                        Dialogue.open(pl, n, tr("dialogue.skycraft.quest.pitch_golden_claw"));
+                    } else {
+                        Dialogue.open(pl, n, tr("quest.skycraft.reply.too_busy"));
+                    }
+                }));
+            }
         }
 
-        // In My Time of Need — offered by guards or wandering traders
+        // In My Time of Need — offered by guards or wandering traders (Redguard search)
         if (!hasSideQuest(player, "side_time_of_need") && data.getLevel() >= 3) {
-            out.add(new DialogueOption("quest.side.time_of_need",
-                    tr("dialogue.skycraft.quest.ask_time_of_need"), 321, (pl, n) -> {
-                if (startTimeOfNeed(pl, n)) {
-                    Dialogue.open(pl, n, tr("dialogue.skycraft.quest.pitch_time_of_need"));
-                } else {
-                    Dialogue.open(pl, n, tr("quest.skycraft.reply.too_busy"));
-                }
-            }));
+            boolean isGuardOrTrader = npc instanceof net.minecraft.world.entity.npc.WanderingTrader
+                    || (npc instanceof com.skycraft.society.entity.NpcEntity ne
+                    && (ne.role() == com.skycraft.society.NpcRole.IMPERIAL_SOLDIER || ne.role() == com.skycraft.society.NpcRole.STORMCLOAK_SOLDIER));
+            if (isGuardOrTrader) {
+                out.add(new DialogueOption("quest.side.time_of_need",
+                        tr("dialogue.skycraft.quest.ask_time_of_need"), 321, (pl, n) -> {
+                    if (startTimeOfNeed(pl, n)) {
+                        Dialogue.open(pl, n, tr("dialogue.skycraft.quest.pitch_time_of_need"));
+                    } else {
+                        Dialogue.open(pl, n, tr("quest.skycraft.reply.too_busy"));
+                    }
+                }));
+            }
         }
 
-        // Waking Nightmare — offered by priests/clerics or bartenders
+        // Waking Nightmare — offered by priests or innkeepers troubled by nightmares
         if (!hasSideQuest(player, "side_waking_nightmare") && data.getLevel() >= 5) {
-            out.add(new DialogueOption("quest.side.waking_nightmare",
-                    tr("dialogue.skycraft.quest.ask_waking_nightmare"), 322, (pl, n) -> {
-                if (startWakingNightmare(pl, n)) {
-                    Dialogue.open(pl, n, tr("dialogue.skycraft.quest.pitch_waking_nightmare"));
-                } else {
-                    Dialogue.open(pl, n, tr("quest.skycraft.reply.too_busy"));
-                }
-            }));
+            boolean isPriestOrInn = (npc instanceof com.skycraft.society.entity.NpcEntity ne
+                    && (ne.role() == com.skycraft.society.NpcRole.PRIEST || ne.role() == com.skycraft.society.NpcRole.INNKEEPER));
+            if (isPriestOrInn) {
+                out.add(new DialogueOption("quest.side.waking_nightmare",
+                        tr("dialogue.skycraft.quest.ask_waking_nightmare"), 322, (pl, n) -> {
+                    if (startWakingNightmare(pl, n)) {
+                        Dialogue.open(pl, n, tr("dialogue.skycraft.quest.pitch_waking_nightmare"));
+                    } else {
+                        Dialogue.open(pl, n, tr("quest.skycraft.reply.too_busy"));
+                    }
+                }));
+            }
         }
 
-        // The Forsworn Conspiracy Arc — offered in The Reach or level 6+
+        // The Forsworn Conspiracy Arc — offered in The Reach or by miners
         if (!hasSideQuest(player, "arc_forsworn_conspiracy") && data.getLevel() >= 6) {
-            out.add(new DialogueOption("quest.arc.forsworn",
-                    tr("dialogue.skycraft.quest.ask_forsworn"), 323, (pl, n) -> {
-                if (startForswornConspiracy(pl, n)) {
-                    Dialogue.open(pl, n, tr("dialogue.skycraft.quest.pitch_forsworn"));
-                } else {
-                    Dialogue.open(pl, n, tr("quest.skycraft.reply.too_busy"));
-                }
-            }));
+            boolean inReachOrMiner = "reach".equals(Holds.holdAt(player.serverLevel(), player.blockPosition()))
+                    || (npc instanceof com.skycraft.society.entity.NpcEntity ne && ne.role() == com.skycraft.society.NpcRole.MINER);
+            if (inReachOrMiner) {
+                out.add(new DialogueOption("quest.arc.forsworn",
+                        tr("dialogue.skycraft.quest.ask_forsworn"), 323, (pl, n) -> {
+                    if (startForswornConspiracy(pl, n)) {
+                        Dialogue.open(pl, n, tr("dialogue.skycraft.quest.pitch_forsworn"));
+                    } else {
+                        Dialogue.open(pl, n, tr("quest.skycraft.reply.too_busy"));
+                    }
+                }));
+            }
         }
     }
 

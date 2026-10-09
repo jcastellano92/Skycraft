@@ -35,12 +35,29 @@ public final class CrimeClientEvents {
         HitResult hit = mc.hitResult;
         if (!(hit instanceof BlockHitResult bhr) || hit.getType() != HitResult.Type.BLOCK) return;
         BlockPos pos = bhr.getBlockPos();
+        var block = mc.level.getBlockState(pos).getBlock();
         BlockEntity be = mc.level.getBlockEntity(pos);
-        if (!(be instanceof Container)) return;
+        if (!(be instanceof Container) && !(block instanceof net.minecraft.world.level.block.DoorBlock) && !(block instanceof net.minecraft.world.level.block.TrapDoorBlock)) return;
         if (!pos.equals(lastQuery) || sinceQuery > 40) {
             lastQuery = pos.immutable();
             sinceQuery = 0;
             SkyNetwork.sendToServer(new CrimePackets.QueryContainer(lastQuery));
+        }
+    }
+
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGH)
+    public static void onRightClickBlock(net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event) {
+        if (event.isCanceled()) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+        BlockPos cpos = event.getPos();
+        var cstate = mc.level.getBlockState(cpos);
+        if (cstate.getBlock() instanceof net.minecraft.world.level.block.DoorBlock || cstate.getBlock() instanceof net.minecraft.world.level.block.TrapDoorBlock) {
+            var info = CrimeClientHandlers.containerInfo;
+            if (info != null && (info.pos().equals(cpos) || info.pos().equals(cpos.below())) && info.lock() != com.skycraft.crime.Locks.NOT_LOCKED && !info.unlocked()) {
+                event.setCanceled(true);
+                event.setCancellationResult(net.minecraft.world.InteractionResult.FAIL);
+            }
         }
     }
 

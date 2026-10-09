@@ -596,9 +596,12 @@ public class SkyrimInventoryScreen extends Screen {
         List<Component> labels = new ArrayList<>();
         List<String> keys = new ArrayList<>();
         List<Runnable> runs = new ArrayList<>();
-        labels.add(Component.translatable("inventory.skycraft.action." + ClientInventoryHandlers.primaryLabelKey(e)));
-        keys.add("E");
-        runs.add(this::primary);
+        String primary = ClientInventoryHandlers.primaryLabelKey(e);
+        if (primary != null) {
+            labels.add(Component.translatable("inventory.skycraft.action." + primary));
+            keys.add("E");
+            runs.add(this::primary);
+        }
         if (e.equip == InvEntry.LEFT || (e.leftHandable() && e.equip != InvEntry.WORN)) {
             labels.add(Component.translatable(e.equip == InvEntry.LEFT ? "inventory.skycraft.action.unequip_left" : "inventory.skycraft.action.equip_left"));
             keys.add("");

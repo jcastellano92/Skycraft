@@ -36,7 +36,14 @@ public final class ArcaneModule {
     /** Server check that the player stands at a loaded station block of the given type. */
     public static boolean atStation(ServerPlayer player, BlockPos pos, Block block) {
         if (pos == null || !player.isAlive() || !player.level().isLoaded(pos)) return false;
-        if (!player.level().getBlockState(pos).is(block)) return false;
-        return player.distanceToSqr(Vec3.atCenterOf(pos)) <= 64.0;
+        var state = player.level().getBlockState(pos);
+        if (state.is(block)) return player.distanceToSqr(Vec3.atCenterOf(pos)) <= 64.0;
+        if (block == ArcaneRegistry.ARCANE_ENCHANTER.get() && state.is(net.minecraft.world.level.block.Blocks.ENCHANTING_TABLE)) {
+            return player.distanceToSqr(Vec3.atCenterOf(pos)) <= 64.0;
+        }
+        if (block == ArcaneRegistry.ALCHEMY_LAB.get() && state.is(net.minecraft.world.level.block.Blocks.BREWING_STAND)) {
+            return player.distanceToSqr(Vec3.atCenterOf(pos)) <= 64.0;
+        }
+        return false;
     }
 }

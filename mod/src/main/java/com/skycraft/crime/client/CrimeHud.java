@@ -75,11 +75,12 @@ public final class CrimeHud {
                 drawSmall(g, font, prompt, cx, cy, 0.75f, 0xD0E8E2D0);
                 return;
             }
-            if (mc.crosshairPickEntity instanceof AbstractVillager villager && villager.isAlive()) {
+            if (mc.crosshairPickEntity instanceof net.minecraft.world.entity.LivingEntity talker && talker.isAlive()
+                    && (talker instanceof AbstractVillager || talker instanceof com.skycraft.society.entity.NpcEntity)) {
                 if (mc.player.isShiftKeyDown()) {
-                    drawSmall(g, font, Component.literal("Pickpocket  " + villager.getDisplayName().getString()), cx, cy, 0.75f, 0xC0C8C0B0);
+                    drawSmall(g, font, Component.literal("Pickpocket  " + talker.getDisplayName().getString()), cx, cy, 0.75f, 0xC0C8C0B0);
                 } else {
-                    drawSmall(g, font, Component.literal("E  Talk  " + villager.getDisplayName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+                    drawSmall(g, font, Component.literal("Talk  " + talker.getDisplayName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
                 }
                 return;
             }
@@ -142,8 +143,18 @@ public final class CrimeHud {
                 boolean owned = Ownership.isOwnedByOther(mc.player, mc.level, bpos);
                 long dayTime = mc.level.getDayTime() % 24000L;
                 boolean night = dayTime >= 13000L && dayTime <= 23000L;
-                boolean locked = owned && night && (block instanceof net.minecraft.world.level.block.DoorBlock || block instanceof net.minecraft.world.level.block.TrapDoorBlock);
-                String t = locked ? "Locked  Door" : (owned ? "Open  Door (owned)" : "Open  Door");
+                boolean locked = (info != null && (info.pos().equals(bpos) || info.pos().equals(bpos.below())) && info.lock() != Locks.NOT_LOCKED && !info.unlocked())
+                        || (owned && night && (block instanceof net.minecraft.world.level.block.DoorBlock || block instanceof net.minecraft.world.level.block.TrapDoorBlock));
+                String est = getEstablishmentName(mc.level, bpos);
+                String label = est != null ? est : "Door";
+                String t;
+                if (locked) {
+                    t = "Locked  " + label + (owned ? " (Breaking & Entering)" : "");
+                } else if (owned) {
+                    t = "Open  " + label + " (owned)";
+                } else {
+                    t = "Open  " + label;
+                }
                 drawSmall(g, font, Component.literal(t), cx, cy, 0.75f, (owned || locked) ? (0xD0000000 | RED) : 0xD0E8E2D0);
                 return;
             }
@@ -279,5 +290,48 @@ public final class CrimeHud {
         g.pose().scale(scale, scale, 1f);
         g.drawCenteredString(font, text, 0, 0, argb);
         g.pose().popPose();
+    }
+
+    private static String getEstablishmentName(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
+        for (com.skycraft.economy.Houses.HouseDef h : com.skycraft.economy.Houses.HOUSES) {
+            if (pos.closerThan(h.approxPos(), h.radius())) {
+                return h.name();
+            }
+        }
+        var npcs = level.getEntitiesOfClass(com.skycraft.society.entity.NpcEntity.class, new net.minecraft.world.phys.AABB(pos).inflate(14));
+        for (var npc : npcs) {
+            var role = npc.role();
+            if (role == com.skycraft.society.NpcRole.INNKEEPER) {
+                return com.skycraft.survival.inn.Innkeepers.innName(npc).getString() + " (Inn)";
+            }
+            if (role == com.skycraft.society.NpcRole.PRIEST) return "Temple";
+        }
+        var villagers = level.getEntitiesOfClass(net.minecraft.world.entity.npc.Villager.class, new net.minecraft.world.phys.AABB(pos).inflate(14));
+        for (var v : villagers) {
+            var prof = v.getVillagerData().getProfession();
+            if (prof == net.minecraft.world.entity.npc.VillagerProfession.ARMORER || prof == net.minecraft.world.entity.npc.VillagerProfession.WEAPONSMITH || prof == net.minecraft.world.entity.npc.VillagerProfession.TOOLSMITH) {
+                return "Blacksmith";
+            }
+            if (prof == net.minecraft.world.entity.npc.VillagerProfession.CLERIC) return "Apothecary";
+            if (prof != net.minecraft.world.entity.npc.VillagerProfession.NONE && prof != net.minecraft.world.entity.npc.VillagerProfession.NITWIT) {
+                return "Shop";
+            }
+        }
+        net.minecraft.core.BlockPos.MutableBlockPos m = new net.minecraft.core.BlockPos.MutableBlockPos();
+        for (int dx = -7; dx <= 7; dx++) {
+            for (int dy = -2; dy <= 4; dy++) {
+                for (int dz = -7; dz <= 7; dz++) {
+                    m.set(pos.getX() + dx, pos.getY() + dy, pos.getZ() + dz);
+                    var b = level.getBlockState(m).getBlock();
+                    if (b instanceof net.minecraft.world.level.block.AnvilBlock || b == net.minecraft.world.level.block.Blocks.GRINDSTONE || b == net.minecraft.world.level.block.Blocks.BLAST_FURNACE) {
+                        return "Blacksmith";
+                    }
+                    if (b == net.minecraft.world.level.block.Blocks.BREWING_STAND) {
+                        return "Apothecary";
+                    }
+                }
+            }
+        }
+        return null;
     }
 }

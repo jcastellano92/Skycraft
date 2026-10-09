@@ -649,6 +649,8 @@ final class NpcGoals {
     static final class NightRest extends Goal {
         private final NpcEntity npc;
         private int cooldown;
+        private int warnTimer = 0;
+        private BlockPos bedPos = null;
 
         NightRest(NpcEntity npc) {
             this.npc = npc;
@@ -658,23 +660,116 @@ final class NpcGoals {
         @Override
         public boolean canUse() {
             if (npc.isBusy() || npc.getTarget() != null || !npc.role().civilian) return false;
-            BlockPos home = npc.getHome();
-            if (home == null) return false;
             return Npcs.isNight(npc.level());
         }
 
         @Override
+        public void start() {
+            warnTimer = 0;
+            cooldown = 0;
+        }
+
+        @Override
+        public void stop() {
+            if (npc.isSleeping()) {
+                npc.stopSleeping();
+            }
+        }
+
+        @Override
         public void tick() {
+            var level = npc.level();
+            if (!Npcs.isNight(level)) {
+                if (npc.isSleeping()) npc.stopSleeping();
+                return;
+            }
+
+            // Check for trespassers (players in the home who do not own it)
+            Player trespasser = findTrespasser();
+            if (trespasser != null) {
+                if (npc.isSleeping()) {
+                    npc.stopSleeping();
+                    npc.getLookControl().setLookAt(trespasser, 30f, 30f);
+                    Barks.say(npc, net.minecraft.network.chat.Component.literal("Who's there?! You're not supposed to be in here!"));
+                }
+                warnTimer++;
+                npc.getLookControl().setLookAt(trespasser, 30f, 30f);
+                if (warnTimer == 40) {
+                    Barks.say(npc, net.minecraft.network.chat.Component.literal("Leave now, or I'll call the guards!"));
+                } else if (warnTimer > 200) {
+                    Barks.say(npc, net.minecraft.network.chat.Component.literal("Guards! Help! An intruder!"));
+                    if (trespasser instanceof net.minecraft.server.level.ServerPlayer sp) {
+                        com.skycraft.crime.Crimes.report(sp, npc.blockPosition(), 25, true, null);
+                    }
+                    if (npc.role().combatant) {
+                        npc.setTarget(trespasser);
+                    }
+                    warnTimer = 0;
+                }
+                return;
+            } else {
+                warnTimer = 0;
+            }
+
+            if (npc.isSleeping()) return;
+
             if (--cooldown > 0) return;
             cooldown = 40;
+
             BlockPos home = npc.getHome();
-            if (home == null) return;
-            double distSq = npc.distanceToSqr(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
-            if (distSq > 4 * 4) {
-                npc.getNavigation().moveTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5, 0.7D);
-            } else {
-                npc.getNavigation().stop();
+            if (home == null) home = npc.blockPosition();
+
+            if (bedPos == null || !level.getBlockState(bedPos).is(BlockTags.BEDS)) {
+                bedPos = findNearbyBed(level, home, 12);
             }
+
+            if (bedPos != null) {
+                double distSq = npc.distanceToSqr(bedPos.getX() + 0.5, bedPos.getY(), bedPos.getZ() + 0.5);
+                if (distSq > 2.5 * 2.5) {
+                    npc.getNavigation().moveTo(bedPos.getX() + 0.5, bedPos.getY(), bedPos.getZ() + 0.5, 0.65D);
+                } else {
+                    npc.getNavigation().stop();
+                    try {
+                        npc.startSleeping(bedPos);
+                    } catch (Exception ignored) {}
+                }
+            } else {
+                double distSq = npc.distanceToSqr(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
+                if (distSq > 4 * 4) {
+                    npc.getNavigation().moveTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5, 0.7D);
+                } else {
+                    npc.getNavigation().stop();
+                }
+            }
+        }
+
+        private Player findTrespasser() {
+            BlockPos home = npc.getHome();
+            if (home == null) return null;
+            for (Player p : npc.level().getEntitiesOfClass(Player.class, npc.getBoundingBox().inflate(10))) {
+                if (!p.isSpectator() && !p.isCreative() && p.isAlive()) {
+                    if (com.skycraft.crime.Ownership.isOwnedByOther(p, npc.level(), npc.blockPosition())
+                            || com.skycraft.crime.Ownership.isOwnedByOther(p, npc.level(), home)) {
+                        return p;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static BlockPos findNearbyBed(net.minecraft.world.level.Level level, BlockPos center, int radius) {
+            BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dy = -2; dy <= 3; dy++) {
+                    for (int dz = -radius; dz <= radius; dz++) {
+                        m.set(center.getX() + dx, center.getY() + dy, center.getZ() + dz);
+                        if (level.getBlockState(m).is(BlockTags.BEDS)) {
+                            return m.immutable();
+                        }
+                    }
+                }
+            }
+            return null;
         }
     }
 }

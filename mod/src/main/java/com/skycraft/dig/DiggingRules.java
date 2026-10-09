@@ -60,6 +60,17 @@ public final class DiggingRules {
         if (state.is(ALWAYS)) return null;
         if (PlacedBlocks.isPlayerPlaced(player.level(), pos)) return null;
         ItemStack tool = player.getMainHandItem();
+        Block b = state.getBlock();
+        if (b instanceof net.minecraft.world.level.block.DoublePlantBlock
+                || b instanceof net.minecraft.world.level.block.FlowerBlock
+                || b instanceof net.minecraft.world.level.block.TallGrassBlock
+                || b instanceof net.minecraft.world.level.block.BushBlock
+                || b instanceof net.minecraft.world.level.block.SeaPickleBlock
+                || b instanceof net.minecraft.world.level.block.SeagrassBlock) {
+            if (!(tool.getItem() instanceof net.minecraft.world.item.ShearsItem || tool.getItem() instanceof net.minecraft.world.item.HoeItem)) {
+                return "message.skycraft.need_shears";
+            }
+        }
         if (SkyConfig.REQUIRE_CORRECT_TOOL.get()) {
             if (state.is(Tags.Blocks.ORES) && !(tool.getItem() instanceof PickaxeItem)) return "message.skycraft.need_pickaxe";
             if (state.is(BlockTags.LOGS) && !(tool.getItem() instanceof AxeItem)) return "message.skycraft.need_axe";

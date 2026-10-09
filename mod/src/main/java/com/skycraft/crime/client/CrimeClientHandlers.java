@@ -7,8 +7,8 @@ import net.minecraft.client.Minecraft;
 /** Client-side handlers for crime S2C packets (only ever class-loaded on the client). */
 public final class CrimeClientHandlers {
     /** Last answer about the container under the crosshair. */
-    static CrimePackets.ContainerInfo containerInfo;
-    static long containerInfoTime;
+    public static CrimePackets.ContainerInfo containerInfo;
+    public static long containerInfoTime;
 
     private CrimeClientHandlers() {}
 

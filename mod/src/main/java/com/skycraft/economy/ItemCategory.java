@@ -55,11 +55,21 @@ public enum ItemCategory {
         if (item instanceof PotionItem) return POTIONS;
         if (item instanceof SwordItem || item instanceof AxeItem || item instanceof TridentItem
                 || item instanceof ProjectileWeaponItem || item instanceof ArrowItem) return WEAPONS;
-        if (item instanceof ArmorItem || item instanceof ShieldItem || item instanceof ElytraItem) return APPAREL;
-        if (stack.is(INGREDIENTS_TAG)) return INGREDIENTS;
-        if (stack.isEdible()) return FOOD;
+        if (item instanceof ArmorItem || item instanceof ShieldItem || item instanceof ElytraItem || isJewelry(stack)) return APPAREL;
+        if (stack.is(INGREDIENTS_TAG) || com.skycraft.crafting.arcane.alchemy.Ingredients.isIngredient(stack)) return INGREDIENTS;
+        if (stack.isEdible() || stack.is(net.minecraft.world.item.Items.PUMPKIN)) return FOOD;
         if (!(item instanceof DiggerItem) && isWeaponLike(item)) return WEAPONS;
         return MISC;
+    }
+
+    /** Rings, amulets, necklaces, circlets, pendants and curios count as apparel and can be enchanted. */
+    public static boolean isJewelry(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        net.minecraft.resources.ResourceLocation key = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
+        if (key == null) return false;
+        String path = key.getPath();
+        return path.contains("ring") || path.contains("necklace") || path.contains("amulet")
+                || path.contains("circlet") || path.contains("pendant") || path.contains("curio");
     }
 
     /** Modded weapons that don't extend SwordItem: anything with a big main-hand damage bonus. */

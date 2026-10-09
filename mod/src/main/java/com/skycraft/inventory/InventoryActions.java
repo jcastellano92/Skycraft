@@ -244,6 +244,19 @@ public final class InventoryActions {
 
     private static void use(ServerPlayer player, Inventory inv, int slot, ItemStack stack) {
         if (!InvCategory.isConsumable(stack)) return;
+        com.skycraft.crafting.arcane.alchemy.Ingredients.Ingredient ing = com.skycraft.crafting.arcane.alchemy.Ingredients.get(stack);
+        if (ing != null && !stack.isEdible()) {
+            com.skycraft.crafting.arcane.alchemy.Alchemy.discoverByTasting(player, ing);
+            if (!player.getAbilities().instabuild) {
+                stack.shrink(1);
+            }
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.GENERIC_EAT, SoundSource.PLAYERS, 0.7f, 0.9f + player.getRandom().nextFloat() * 0.2f);
+            if (stack.isEmpty()) {
+                inv.setItem(slot, ItemStack.EMPTY);
+            }
+            return;
+        }
         if (stack.isEdible()) {
             FoodProperties food = stack.getFoodProperties(player);
             if (food != null && !player.canEat(food.canAlwaysEat())) {

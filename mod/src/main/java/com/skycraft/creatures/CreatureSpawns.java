@@ -85,6 +85,17 @@ public final class CreatureSpawns {
         ServerLevelAccessor level = event.getLevel();
         BlockPos pos = BlockPos.containing(event.getX(), event.getY(), event.getZ());
         MobSpawnType type = event.getSpawnType();
+        // Remove and cancel monster spawners: Skyrim dungeons are clearable
+        if (type == MobSpawnType.SPAWNER) {
+            event.setSpawnCancelled(true);
+            BlockPos spawnPos = BlockPos.containing(event.getX(), event.getY(), event.getZ());
+            for (BlockPos p : BlockPos.betweenClosed(spawnPos.offset(-4, -4, -4), spawnPos.offset(4, 4, 4))) {
+                if (level.getBlockState(p).is(net.minecraft.world.level.block.Blocks.SPAWNER)) {
+                    level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+                }
+            }
+            return;
+        }
 
         // 1. Suppress all hostiles spawning inside settlements or houses
         if (mob instanceof net.minecraft.world.entity.monster.Enemy && isSettlementOrHouse(level, pos)) {

@@ -68,6 +68,32 @@ public final class DeathHandler {
             }
         }
 
+        // 3. Place "Your Corpse" death marker on compass and map
+        CompoundTag corpseLoc = new CompoundTag();
+        String corpseId = "corpse|" + player.getStringUUID();
+        corpseLoc.putString("id", corpseId);
+        corpseLoc.putString("name", "Your Corpse");
+        corpseLoc.putString("type", "tomb");
+        corpseLoc.putInt("x", player.getBlockX());
+        corpseLoc.putInt("y", player.getBlockY());
+        corpseLoc.putInt("z", player.getBlockZ());
+        corpseLoc.putString("dim", player.level().dimension().location().toString());
+        corpseLoc.putLong("t", player.level().getGameTime());
+        corpseLoc.putInt("ax", player.getBlockX());
+        corpseLoc.putInt("ay", player.getBlockY());
+        corpseLoc.putInt("az", player.getBlockZ());
+        corpseLoc.putIntArray("box", new int[]{player.getBlockX() - 2, player.getBlockY() - 2, player.getBlockZ() - 2,
+                player.getBlockX() + 2, player.getBlockY() + 2, player.getBlockZ() + 2});
+        corpseLoc.putString("structure", "skycraft:player_corpse");
+
+        ListTag discovered = com.skycraft.world.WorldData.discovered(data);
+        for (int i = discovered.size() - 1; i >= 0; i--) {
+            if (discovered.getCompound(i).getString("name").equals("Your Corpse")) {
+                discovered.remove(i);
+            }
+        }
+        discovered.add(corpseLoc);
+
         keptTag.put("items", list);
         data.markDirty();
     }
@@ -94,7 +120,7 @@ public final class DeathHandler {
             ItemStack dropStack = drop.getItem();
             for (int i = 0; i < toKeep.size(); i++) {
                 ItemStack keep = toKeep.get(i);
-                if (ItemStack.isSameItemSameTags(dropStack, keep) && dropStack.getCount() == keep.getCount()) {
+                if (dropStack.getItem() == keep.getItem()) {
                     it.remove();
                     toKeep.remove(i);
                     break;
@@ -108,6 +134,11 @@ public final class DeathHandler {
         if (!event.isWasDeath() || !(event.getEntity() instanceof ServerPlayer newPlayer)) return;
         PlayerData data = SkyData.get(newPlayer);
         if (data == null) return;
+
+        // Reset negative status effects and cure diseases on respawn
+        newPlayer.removeAllEffects();
+        com.skycraft.survival.Diseases.cureAll(newPlayer);
+
         CompoundTag keptTag = data.module("death_kept");
         if (!keptTag.contains("items", Tag.TAG_LIST)) return;
 
@@ -121,7 +152,8 @@ public final class DeathHandler {
                 newPlayer.setItemSlot(slot, stack);
             } else if (entry.contains("inv_slot")) {
                 int slot = entry.getInt("inv_slot");
-                if (slot >= 0 && slot < newPlayer.getInventory().getContainerSize()) {
+                if (slot >= 0 && slot < newPlayer.getInventory().getContainerSize()
+                        && newPlayer.getInventory().getItem(slot).isEmpty()) {
                     newPlayer.getInventory().setItem(slot, stack);
                 } else {
                     newPlayer.getInventory().add(stack);

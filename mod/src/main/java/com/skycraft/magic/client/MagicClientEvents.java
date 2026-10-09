@@ -157,4 +157,60 @@ public final class MagicClientEvents {
         mc.level.addParticle(dust, p.x + (player.getRandom().nextDouble() - 0.5) * 0.15, p.y + (player.getRandom().nextDouble() - 0.5) * 0.15,
                 p.z + (player.getRandom().nextDouble() - 0.5) * 0.15, 0, 0.01, 0);
     }
+
+    /** Cancel normal punch/attack swing when right-hand spell is active. */
+    @SubscribeEvent
+    public static void onAttackKey(net.minecraftforge.client.event.InputEvent.InteractionKeyMappingTriggered event) {
+        if (!event.isAttack()) return;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.screen != null) return;
+        if (canStartRightCast(mc, player)) {
+            event.setCanceled(true);
+            event.setSwingHand(false);
+        }
+    }
+
+    /** Render the left/offhand arm in first person when wielding or casting magic with empty offhand. */
+    @SubscribeEvent
+    public static void onRenderHand(net.minecraftforge.client.event.RenderHandEvent event) {
+        if (event.getHand() != net.minecraft.world.InteractionHand.OFF_HAND) return;
+        if (!event.getItemStack().isEmpty()) return;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || player.isInvisible()) return;
+
+        String leftSpell = MagicData.leftSpell(player);
+        if (leftSpell.isEmpty()) leftSpell = MagicData.selectedSpell(player);
+        if (leftSpell.isEmpty() && !isCasting()) return;
+
+        var poseStack = event.getPoseStack();
+        var buffer = event.getMultiBufferSource();
+        int light = event.getPackedLight();
+        float partialTick = event.getPartialTick();
+        float swing = player.getAttackAnim(partialTick);
+        float equip = event.getEquipProgress();
+
+        poseStack.pushPose();
+        float f1 = net.minecraft.util.Mth.sqrt(swing);
+        float f2 = -0.3F * net.minecraft.util.Mth.sin(f1 * (float) Math.PI);
+        float f3 = 0.4F * net.minecraft.util.Mth.sin(f1 * ((float) Math.PI * 2F));
+        float f4 = -0.4F * net.minecraft.util.Mth.sin(swing * (float) Math.PI);
+        poseStack.translate(-(f2 + 0.64F), f3 + -0.6F + equip * -0.6F, f4 + -0.72F);
+        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-45.0F));
+        float f5 = net.minecraft.util.Mth.sin(swing * swing * (float) Math.PI);
+        float f6 = net.minecraft.util.Mth.sin(f1 * (float) Math.PI);
+        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-f6 * 70.0F));
+        poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(f5 * -20.0F));
+        poseStack.translate(1.0F, 3.6F, 3.5F);
+        poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-120.0F));
+        poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(200.0F));
+        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(135.0F));
+        poseStack.translate(-5.6F, 0.0F, 0.0F);
+
+        var renderer = (net.minecraft.client.renderer.entity.player.PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(player);
+        renderer.renderLeftHand(poseStack, buffer, light, player);
+        poseStack.popPose();
+        event.setCanceled(true);
+    }
 }

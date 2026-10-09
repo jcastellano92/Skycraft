@@ -250,22 +250,30 @@ public final class Locks {
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)) return;
+        if (event.isCanceled()) return;
+        if (event.getLevel().isClientSide) return;
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         BlockPos pos = normalizePos(level, event.getPos());
         BlockState state = level.getBlockState(pos);
         BlockEntity be = level.getBlockEntity(pos);
         boolean isDoor = state.getBlock() instanceof DoorBlock || state.getBlock() instanceof TrapDoorBlock;
         if (be == null && !isDoor) return;
-        // sneaking with something in hand places a block instead of opening the container
-        if (player.isSecondaryUseActive() && (!player.getMainHandItem().isEmpty() || !player.getOffhandItem().isEmpty())) return;
         if (!blocks(player, level, pos)) {
-            if (state.getBlock() instanceof DoorBlock door && state.is(net.minecraft.world.level.block.Blocks.IRON_DOOR)) {
-                boolean open = !state.getValue(DoorBlock.OPEN);
-                door.setOpen(player, level, state, pos, open);
-                level.playSound(null, pos, open ? SoundEvents.IRON_DOOR_OPEN : SoundEvents.IRON_DOOR_CLOSE, SoundSource.BLOCKS, 1f, 1f);
-                event.setCanceled(true);
-                event.setCancellationResult(InteractionResult.SUCCESS);
+            if (state.getBlock() instanceof DoorBlock door) {
+                if (state.is(net.minecraft.world.level.block.Blocks.IRON_DOOR)) {
+                    boolean open = !state.getValue(DoorBlock.OPEN);
+                    door.setOpen(player, level, state, pos, open);
+                    level.playSound(null, pos, open ? SoundEvents.IRON_DOOR_OPEN : SoundEvents.IRON_DOOR_CLOSE, SoundSource.BLOCKS, 1f, 1f);
+                    event.setCanceled(true);
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                } else if (player.isSecondaryUseActive()) {
+                    boolean open = !state.getValue(DoorBlock.OPEN);
+                    door.setOpen(player, level, state, pos, open);
+                    level.playSound(null, pos, open ? door.type().doorOpen() : door.type().doorClose(), SoundSource.BLOCKS, 1f, 1f);
+                    event.setCanceled(true);
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                }
             } else if (state.getBlock() instanceof TrapDoorBlock trapdoor && state.is(net.minecraft.world.level.block.Blocks.IRON_TRAPDOOR)) {
                 boolean open = !state.getValue(TrapDoorBlock.OPEN);
                 level.setBlock(pos, state.setValue(TrapDoorBlock.OPEN, open), 2);

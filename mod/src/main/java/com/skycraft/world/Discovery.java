@@ -173,6 +173,9 @@ public final class Discovery {
                 }
                 continue;
             }
+            if (WorldData.hasDiscoveredNear(data, level.dimension().location().toString(), pos.getX(), pos.getZ(), 64)) {
+                continue;
+            }
             discover(player, data, id, kind, key, start.getBoundingBox());
         }
     }

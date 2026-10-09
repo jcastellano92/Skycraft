@@ -88,10 +88,52 @@ public final class CraftingEvents {
                 new ItemStack(CraftingItems.HIDE.get())));
     }
 
-    /** The vanilla crafting table becomes a Skyrim armor workbench. */
+    /** The vanilla crafting stations open their Skyrim equivalents. */
     @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getLevel().getBlockState(event.getPos()).is(Blocks.CRAFTING_TABLE)) {
+        var state = event.getLevel().getBlockState(event.getPos());
+        var b = state.getBlock();
+        if (b instanceof net.minecraft.world.level.block.BushBlock
+                || b instanceof net.minecraft.world.level.block.DoublePlantBlock
+                || b instanceof net.minecraft.world.level.block.IronBarsBlock
+                || b instanceof net.minecraft.world.level.block.FenceBlock) {
+            Player player = event.getEntity();
+            net.minecraft.world.phys.Vec3 eye = player.getEyePosition();
+            net.minecraft.world.phys.Vec3 look = player.getViewVector(1.0f);
+            net.minecraft.world.phys.Vec3 end = eye.add(look.scale(4.5));
+            net.minecraft.world.phys.AABB searchBox = player.getBoundingBox().expandTowards(look.scale(4.5)).inflate(1.0);
+            var corpses = event.getLevel().getEntitiesOfClass(com.skycraft.creatures.entity.CorpseEntity.class, searchBox,
+                    c -> c.isAlive() && c.getBoundingBox().inflate(0.5).clip(eye, end).isPresent());
+            if (!corpses.isEmpty()) {
+                var res = corpses.get(0).interact(player, event.getHand());
+                event.setCancellationResult(res);
+                event.setCanceled(true);
+                return;
+            }
+        }
+
+        StationType stationType = null;
+        boolean isCooking = false;
+        boolean isEnchanter = false;
+        boolean isAlchemy = false;
+
+        if (b == Blocks.CRAFTING_TABLE || b == Blocks.SMITHING_TABLE) {
+            stationType = StationType.ARMOR_WORKBENCH;
+        } else if (b == Blocks.FURNACE || b == Blocks.BLAST_FURNACE) {
+            stationType = StationType.SMELTER;
+        } else if (b instanceof net.minecraft.world.level.block.AnvilBlock) {
+            stationType = StationType.FORGE;
+        } else if (b == Blocks.GRINDSTONE) {
+            stationType = StationType.GRINDSTONE;
+        } else if (b == Blocks.SMOKER || b == Blocks.CAMPFIRE || b == Blocks.SOUL_CAMPFIRE) {
+            isCooking = true;
+        } else if (b == Blocks.ENCHANTING_TABLE) {
+            isEnchanter = true;
+        } else if (b == Blocks.BREWING_STAND) {
+            isAlchemy = true;
+        }
+
+        if (stationType != null || isCooking || isEnchanter || isAlchemy) {
             event.setCanceled(true);
             event.setCancellationResult(InteractionResult.SUCCESS);
             if (event.getEntity() instanceof ServerPlayer sp) {
@@ -100,7 +142,17 @@ public final class CraftingEvents {
                     event.getLevel().playSound(null, event.getPos(), net.minecraft.sounds.SoundEvents.CHEST_LOCKED, net.minecraft.sounds.SoundSource.BLOCKS, 0.8f, 1.0f);
                     return;
                 }
-                StationMenu.open(sp, StationType.ARMOR_WORKBENCH, event.getPos());
+                if (stationType != null) {
+                    StationMenu.open(sp, stationType, event.getPos());
+                } else if (isCooking) {
+                    com.skycraft.survival.cooking.CookingMenu.open(sp, event.getPos());
+                } else if (isEnchanter) {
+                    com.skycraft.network.SkyNetwork.sendToPlayer(sp, new com.skycraft.crafting.arcane.ArcanePackets.OpenStation(
+                            com.skycraft.crafting.arcane.block.StationBlock.Kind.ENCHANTER.ordinal(), event.getPos()));
+                } else {
+                    com.skycraft.network.SkyNetwork.sendToPlayer(sp, new com.skycraft.crafting.arcane.ArcanePackets.OpenStation(
+                            com.skycraft.crafting.arcane.block.StationBlock.Kind.ALCHEMY.ordinal(), event.getPos()));
+                }
             }
         }
     }

@@ -16,29 +16,29 @@ import java.util.Set;
  */
 public enum LocationKind {
     // icon index = position in textures/gui/map_icons.png (8 per row)
-    TOWN("town", 0, false, false, 0xE8D8A8),
-    RUIN("ruin", 1, true, false, 0xC8B898),
+    TOWN("town", 0, false, true, 0xE8D8A8),
+    RUIN("ruin", 1, true, true, 0xC8B898),
     CAVE("cave", 2, true, true, 0xB0A890),
     MINE("mine", 3, true, true, 0xB8A070),
-    FORT("fort", 4, true, false, 0xC8C0A8),
-    TOWER("tower", 5, true, false, 0xC8C0A8),
-    CAMP("camp", 6, true, false, 0xD0A070),
+    FORT("fort", 4, true, true, 0xC8C0A8),
+    TOWER("tower", 5, true, true, 0xC8C0A8),
+    CAMP("camp", 6, true, true, 0xD0A070),
     BARROW("barrow", 7, true, true, 0xA8B0C0),
     DWEMER("dwemer", 8, true, true, 0xE0B050),
     SHRINE("shrine", 9, true, true, 0x80B0C8),
-    WRECK("wreck", 10, false, false, 0x90A8B8),
-    OBLIVION_GATE("oblivion_gate", 11, false, false, 0xE05030),
+    WRECK("wreck", 10, false, true, 0x90A8B8),
+    OBLIVION_GATE("oblivion_gate", 11, false, true, 0xE05030),
     CITADEL("citadel", 12, true, true, 0xE05030),
-    HUT("hut", 13, false, false, 0xC0A880),
-    MANOR("manor", 14, true, false, 0xD8C8A0),
-    TEMPLE("temple", 15, true, false, 0xE8E0C0),
-    INN("inn", 16, false, false, 0xE8C080),
-    LANDMARK("landmark", 17, false, false, 0xB8B8B0),
-    HALL_OF_VALOR("hall_of_valor", 18, true, false, 0xF0D060),
-    TOMB("tomb", 19, true, false, 0xE0C080),
+    HUT("hut", 13, false, true, 0xC0A880),
+    MANOR("manor", 14, true, true, 0xD8C8A0),
+    TEMPLE("temple", 15, true, true, 0xE8E0C0),
+    INN("inn", 16, false, true, 0xE8C080),
+    LANDMARK("landmark", 17, false, true, 0xB8B8B0),
+    HALL_OF_VALOR("hall_of_valor", 18, true, true, 0xF0D060),
+    TOMB("tomb", 19, true, true, 0xE0C080),
     SANCTUM("sanctum", 20, true, true, 0xA8B0C0),
-    BANDIT_CAMP("bandit_camp", 21, true, false, 0xD08060),
-    DAEDRIC_TOWER("daedric_tower", 22, true, false, 0xE05030);
+    BANDIT_CAMP("bandit_camp", 21, true, true, 0xD08060),
+    DAEDRIC_TOWER("daedric_tower", 22, true, true, 0xE05030);
 
     public static final int QUEST_ICON = 23;
     public static final int UNKNOWN_ICON = 24;

@@ -63,6 +63,15 @@ public final class InventoryClientEvents {
 
         if (next.getClass() == InventoryScreen.class) {
             if (!player.isCreative() && !player.isSpectator()) {
+                if (mc.crosshairPickEntity instanceof net.minecraft.world.entity.LivingEntity le && le.isAlive()
+                        && (le instanceof net.minecraft.world.entity.npc.AbstractVillager || le instanceof com.skycraft.society.entity.NpcEntity)
+                        && !player.isShiftKeyDown()) {
+                    event.setCanceled(true);
+                    if (mc.gameMode != null) {
+                        mc.gameMode.interact(player, le, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    }
+                    return;
+                }
                 event.setNewScreen(new SkyrimInventoryScreen());
             }
             return;

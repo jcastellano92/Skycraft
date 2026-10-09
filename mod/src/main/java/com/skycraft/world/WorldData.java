@@ -60,4 +60,19 @@ public final class WorldData {
         return x >= b[0] - margin && x < b[3] + 1 + margin && y >= b[1] - margin && y < b[4] + 1 + margin
                 && z >= b[2] - margin && z < b[5] + 1 + margin;
     }
+
+    /** Whether the player has already discovered a location in the same dimension within radius blocks. */
+    public static boolean hasDiscoveredNear(PlayerData data, String dim, int x, int z, int radius) {
+        ListTag list = discovered(data);
+        long r2 = (long) radius * radius;
+        for (int i = 0; i < list.size(); i++) {
+            CompoundTag t = list.getCompound(i);
+            if (t.getBoolean("known")) continue;
+            if (!t.getString("dim").equals(dim)) continue;
+            int dx = t.getInt("x") - x;
+            int dz = t.getInt("z") - z;
+            if ((long) dx * dx + (long) dz * dz <= r2) return true;
+        }
+        return false;
+    }
 }

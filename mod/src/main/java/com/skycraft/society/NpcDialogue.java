@@ -110,40 +110,19 @@ public final class NpcDialogue {
         out.add(new DialogueOption("society.job", opt("job"), 600,
                 (p, n) -> Dialogue.open(p, n, say("job." + role.id))));
 
-        // Rumor gathering with Speech checks
-        if (role.civilian && role != NpcRole.BEGGAR) {
-            out.add(new DialogueOption("society.rumor_persuade", opt("rumor_persuade"), 400, (p, n) -> {
-                if (SpeechChecks.checkPersuade(p, 35)) {
-                    Component loc = com.skycraft.world.Discovery.revealNear(p, p.blockPosition(), 1500);
-                    if (loc != null) {
-                        Dialogue.open(p, n, Component.translatable("society.skycraft.rumor.revealed", loc));
-                    } else {
-                        Dialogue.open(p, n, Component.translatable("society.skycraft.rumor.none"));
-                    }
-                } else {
-                    Dialogue.open(p, n, Component.translatable("society.skycraft.say.rumor_refuse"));
-                }
-            }));
-            out.add(new DialogueOption("society.rumor_intimidate", opt("rumor_intimidate"), 401, (p, n) -> {
-                if (SpeechChecks.checkIntimidate(p, 45)) {
-                    Component loc = com.skycraft.world.Discovery.revealNear(p, p.blockPosition(), 1500);
-                    if (loc != null) {
-                        Dialogue.open(p, n, Component.translatable("society.skycraft.rumor.revealed_fear", loc));
-                    } else {
-                        Dialogue.open(p, n, Component.translatable("society.skycraft.rumor.none_fear"));
-                    }
-                } else {
-                    Dialogue.open(p, n, Component.translatable("society.skycraft.say.intimidate_refuse"));
-                }
-            }));
-        }
-
         switch (role) {
             case BEGGAR -> out.add(new DialogueOption("society.coin", opt("coin"), 10, NpcDialogue::giveCoin));
-            case BARD -> out.add(new DialogueOption("society.song", opt("song"), 10, (p, n) -> {
-                if (n instanceof NpcEntity b) b.requestSong();
-                Dialogue.open(p, n, say("song"));
-            }));
+            case BARD -> {
+                boolean atInn = isNearInn(npc);
+                out.add(new DialogueOption("society.song", opt("song"), 10, (p, n) -> {
+                    if (atInn) {
+                        if (n instanceof NpcEntity b) b.requestSong();
+                        Dialogue.open(p, n, say("song"));
+                    } else {
+                        Dialogue.open(p, n, Component.literal("I only perform at taverns and inns, traveler. Look for me there."));
+                    }
+                }));
+            }
             // room, rumors and disease cures come from the survival module (it recognizes persistent "skycraft_role")
             case PRIEST -> out.add(new DialogueOption("society.heal", opt("heal"), 10, NpcDialogue::heal));
             case INNKEEPER -> out.add(new DialogueOption("society.drink", opt("drink", DRINK_PRICE), 97, NpcDialogue::buyDrink));
@@ -227,4 +206,10 @@ public final class NpcDialogue {
         prisoner.setDestination(net.minecraft.core.BlockPos.containing(prisoner.getX() + dx / len * 60, prisoner.getY(), prisoner.getZ() + dz / len * 60));
         Dialogue.open(player, prisoner, say("freed"));
     }
+
+    private static boolean isNearInn(LivingEntity npc) {
+        return !npc.level().getEntitiesOfClass(LivingEntity.class, npc.getBoundingBox().inflate(32),
+                e -> e != npc && com.skycraft.survival.inn.Innkeepers.isInnkeeper(e)).isEmpty();
+    }
 }
+
