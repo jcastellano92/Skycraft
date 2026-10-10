@@ -2,6 +2,7 @@ package com.skycraft.homestead;
 
 import com.skycraft.core.Notifier;
 import com.skycraft.network.SkyNetwork;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -150,7 +151,7 @@ public final class HomesteadPackets {
                 }
             }
             // Give
-            if (!player.getInventory().add(output)) {
+            if (!ActionHandler.addToBags(player, output)) {
                 player.drop(output, false);
             }
             player.level().playSound(null, player.getX(), player.getY(), player.getZ(),

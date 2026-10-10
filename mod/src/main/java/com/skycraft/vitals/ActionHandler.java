@@ -17,6 +17,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
@@ -122,10 +125,20 @@ public final class ActionHandler {
 
     /**
      * Routes items directly into backpack slots (9..35) or inactive hotbar slots.
+     * Auto-deposits currency directly into the player's gold wallet.
      * Never equips into the player's active held hand slot unless completely full.
      */
     public static boolean addToBags(Player player, ItemStack stack) {
         if (stack.isEmpty()) return true;
+
+        // Auto-deposit currency directly into gold wallet
+        long coinVal = com.skycraft.core.Currency.valueOf(stack);
+        if (coinVal > 0) {
+            com.skycraft.core.Currency.give(player, coinVal);
+            stack.setCount(0);
+            return true;
+        }
+
         net.minecraft.world.entity.player.Inventory inv = player.getInventory();
         int activeSlot = inv.selected;
 
@@ -143,7 +156,22 @@ public final class ActionHandler {
             }
         }
 
-        // 2. Try empty storage slots (9..35)
+        // 2. Try to merge into existing matching stacks in hotbar (except active slot)
+        for (int i = 0; i < 9; i++) {
+            if (i == activeSlot) continue;
+            ItemStack inSlot = inv.getItem(i);
+            if (ItemStack.isSameItemSameTags(inSlot, stack)) {
+                int space = inSlot.getMaxStackSize() - inSlot.getCount();
+                if (space > 0) {
+                    int move = Math.min(space, stack.getCount());
+                    inSlot.grow(move);
+                    stack.shrink(move);
+                    if (stack.isEmpty()) return true;
+                }
+            }
+        }
+
+        // 3. Try empty storage slots (9..35)
         if (!stack.isEmpty()) {
             for (int i = 9; i < 36; i++) {
                 if (inv.getItem(i).isEmpty()) {
@@ -154,22 +182,7 @@ public final class ActionHandler {
             }
         }
 
-        // 3. Try hotbar slots that are NOT activeSlot
-        if (!stack.isEmpty()) {
-            for (int i = 0; i < 9; i++) {
-                if (i == activeSlot) continue;
-                ItemStack inSlot = inv.getItem(i);
-                if (ItemStack.isSameItemSameTags(inSlot, stack)) {
-                    int space = inSlot.getMaxStackSize() - inSlot.getCount();
-                    if (space > 0) {
-                        int move = Math.min(space, stack.getCount());
-                        inSlot.grow(move);
-                        stack.shrink(move);
-                        if (stack.isEmpty()) return true;
-                    }
-                }
-            }
-        }
+        // 4. Try empty hotbar slots (except active slot)
         if (!stack.isEmpty()) {
             for (int i = 0; i < 9; i++) {
                 if (i == activeSlot) continue;
@@ -181,7 +194,7 @@ public final class ActionHandler {
             }
         }
 
-        // 4. Fallback only if storage is completely full
+        // 5. Fallback only if all other 35 slots are completely full
         if (!stack.isEmpty()) {
             return inv.add(stack);
         }
@@ -248,5 +261,150 @@ public final class ActionHandler {
     public static void forget(UUID player) {
         POWER_ATTACK_ARMED.remove(player);
         BLOCKING.remove(player);
+    }
+
+    public static void handleContainerTake(ServerPlayer player, int containerId, int slotIndex, boolean all) {
+        if (player == null || !player.isAlive()) return;
+        AbstractContainerMenu menu = player.containerMenu;
+        if (menu == null || menu == player.inventoryMenu || menu.containerId != containerId) return;
+
+        int containerSlotCount = (menu instanceof ChestMenu cm)
+                ? cm.getRowCount() * 9
+                : Math.max(0, menu.slots.size() - 36);
+        if (containerSlotCount <= 0) return;
+
+        boolean takenAny = false;
+        if (all) {
+            for (int i = 0; i < containerSlotCount; i++) {
+                Slot slot = menu.getSlot(i);
+                if (slot != null && slot.hasItem()) {
+                    ItemStack stack = slot.getItem();
+                    int countBefore = stack.getCount();
+                    addToBags(player, stack);
+                    if (stack.getCount() < countBefore) {
+                        takenAny = true;
+                        if (stack.isEmpty()) {
+                            slot.set(ItemStack.EMPTY);
+                        } else {
+                            slot.setChanged();
+                        }
+                    }
+                }
+            }
+        } else {
+            if (slotIndex >= 0 && slotIndex < containerSlotCount) {
+                Slot slot = menu.getSlot(slotIndex);
+                if (slot != null && slot.hasItem()) {
+                    ItemStack stack = slot.getItem();
+                    int countBefore = stack.getCount();
+                    addToBags(player, stack);
+                    if (stack.getCount() < countBefore) {
+                        takenAny = true;
+                        if (stack.isEmpty()) {
+                            slot.set(ItemStack.EMPTY);
+                        } else {
+                            slot.setChanged();
+                        }
+                    }
+                }
+            }
+        }
+
+        if (takenAny) {
+            player.level().playSound(null, player.blockPosition(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.5f, 1.2f);
+            menu.broadcastChanges();
+            player.inventoryMenu.broadcastChanges();
+            player.getInventory().setChanged();
+        }
+    }
+
+    public static void handleContainerStore(ServerPlayer player, int containerId, int slotIndex, boolean all) {
+        if (player == null || !player.isAlive()) return;
+        AbstractContainerMenu menu = player.containerMenu;
+        if (menu == null || menu == player.inventoryMenu || menu.containerId != containerId) return;
+
+        int containerSlotCount = (menu instanceof ChestMenu cm)
+                ? cm.getRowCount() * 9
+                : Math.max(0, menu.slots.size() - 36);
+        if (containerSlotCount <= 0) return;
+
+        boolean storedAny = false;
+        if (all) {
+            for (int i = containerSlotCount; i < menu.slots.size(); i++) {
+                Slot pSlot = menu.getSlot(i);
+                if (pSlot != null && pSlot.hasItem()) {
+                    ItemStack stack = pSlot.getItem();
+                    // Don't store actively held mainhand or offhand item when storing all
+                    if (stack == player.getMainHandItem() || stack == player.getOffhandItem()) {
+                        continue;
+                    }
+                    if (storeIntoContainerSlots(menu, containerSlotCount, stack)) {
+                        storedAny = true;
+                        if (stack.isEmpty()) {
+                            pSlot.set(ItemStack.EMPTY);
+                        } else {
+                            pSlot.setChanged();
+                        }
+                    }
+                }
+            }
+        } else {
+            if (slotIndex >= containerSlotCount && slotIndex < menu.slots.size()) {
+                Slot pSlot = menu.getSlot(slotIndex);
+                if (pSlot != null && pSlot.hasItem()) {
+                    ItemStack stack = pSlot.getItem();
+                    if (storeIntoContainerSlots(menu, containerSlotCount, stack)) {
+                        storedAny = true;
+                        if (stack.isEmpty()) {
+                            pSlot.set(ItemStack.EMPTY);
+                        } else {
+                            pSlot.setChanged();
+                        }
+                    }
+                }
+            }
+        }
+
+        if (storedAny) {
+            player.level().playSound(null, player.blockPosition(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.4f, 0.9f);
+            menu.broadcastChanges();
+            player.inventoryMenu.broadcastChanges();
+            player.getInventory().setChanged();
+        }
+    }
+
+    private static boolean storeIntoContainerSlots(AbstractContainerMenu menu, int containerSlotCount, ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        int orig = stack.getCount();
+        // 1. Merge into matching existing stacks in container
+        for (int i = 0; i < containerSlotCount; i++) {
+            Slot s = menu.getSlot(i);
+            if (s != null && s.hasItem() && s.mayPlace(stack)) {
+                ItemStack inSlot = s.getItem();
+                if (ItemStack.isSameItemSameTags(inSlot, stack)) {
+                    int space = Math.min(s.getMaxStackSize(stack), inSlot.getMaxStackSize()) - inSlot.getCount();
+                    if (space > 0) {
+                        int move = Math.min(space, stack.getCount());
+                        inSlot.grow(move);
+                        stack.shrink(move);
+                        s.setChanged();
+                        if (stack.isEmpty()) return true;
+                    }
+                }
+            }
+        }
+        // 2. Put into empty container slots
+        for (int i = 0; i < containerSlotCount; i++) {
+            Slot s = menu.getSlot(i);
+            if (s != null && !s.hasItem() && s.mayPlace(stack)) {
+                int max = Math.min(s.getMaxStackSize(stack), stack.getMaxStackSize());
+                int move = Math.min(max, stack.getCount());
+                ItemStack placed = stack.split(move);
+                s.set(placed);
+                s.setChanged();
+                if (stack.isEmpty()) return true;
+            }
+        }
+        return stack.getCount() < orig;
     }
 }

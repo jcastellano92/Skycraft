@@ -5,6 +5,7 @@ import com.skycraft.core.Notifier;
 import com.skycraft.core.PlayerData;
 import com.skycraft.core.SkyData;
 import com.skycraft.core.Skill;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
@@ -325,7 +326,7 @@ public final class Jail {
                 ItemStack s = chest.getItem(i);
                 if (!s.isEmpty()) {
                     if (!Bounty.isStolen(s)) {
-                        if (!player.getInventory().add(s)) player.drop(s, false);
+                        if (!ActionHandler.addToBags(player, s)) player.drop(s, false);
                     }
                     chest.setItem(i, ItemStack.EMPTY);
                 }

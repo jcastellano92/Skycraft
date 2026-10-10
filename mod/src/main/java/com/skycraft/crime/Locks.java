@@ -8,6 +8,7 @@ import com.skycraft.core.Skill;
 import com.skycraft.dig.PlacedBlocks;
 import com.skycraft.perk.Perks;
 import com.skycraft.skills.Progression;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -482,7 +483,7 @@ public final class Locks {
         List<ItemStack> bonusItems = lootTable.getRandomItems(params);
         for (ItemStack stack : bonusItems) {
             if (!stack.isEmpty()) {
-                if (!player.getInventory().add(stack)) {
+                if (!ActionHandler.addToBags(player, stack)) {
                     player.drop(stack, false);
                 }
             }

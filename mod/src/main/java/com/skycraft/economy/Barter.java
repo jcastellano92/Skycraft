@@ -5,6 +5,7 @@ import com.skycraft.core.Skill;
 import com.skycraft.dialogue.Dialogue;
 import com.skycraft.network.SkyNetwork;
 import com.skycraft.skills.Progression;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -82,7 +83,7 @@ public final class Barter {
 
         ItemStack give = stack.copy();
         give.setCount(affordable);
-        player.getInventory().add(give);
+        ActionHandler.addToBags(player, give);
         int bought = affordable - give.getCount();
         if (bought <= 0) return Component.translatable("message.skycraft.economy.inventory_full");
         int total = unit * bought;

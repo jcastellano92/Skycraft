@@ -3,6 +3,7 @@ package com.skycraft.society;
 import com.skycraft.core.Currency;
 import com.skycraft.core.Notifier;
 import com.skycraft.society.entity.NpcEntity;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -50,7 +51,7 @@ public final class Letters {
         String sender = NpcNames.generate(NpcNames.raceFor(NpcRole.JARL, r), r.nextBoolean(), r);
         int gold = kind == INHERITANCE ? 50 + r.nextInt(151) : 0;
         ItemStack letter = letter(kind, player, sender, gold);
-        if (!player.getInventory().add(letter)) player.drop(letter, false);
+        if (!ActionHandler.addToBags(player, letter)) player.drop(letter, false);
         player.level().playSound(null, player.blockPosition(), SoundEvents.BOOK_PAGE_TURN, SoundSource.PLAYERS, 1.0f, 1.0f);
         Notifier.message(player, Component.translatable("society.skycraft.letter.received"));
         if (gold > 0) Currency.give(player, gold);

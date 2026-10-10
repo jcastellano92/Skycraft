@@ -5,6 +5,7 @@ import com.skycraft.core.Notifier;
 import com.skycraft.core.PlayerData;
 import com.skycraft.core.SkyData;
 import com.skycraft.dig.PlacedBlocks;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -72,6 +73,6 @@ public final class LoreEvents {
         if (book == null) return;
         ItemStack stack = LoreBookItem.create(book);
         Notifier.message(sp, Component.translatable("message.skycraft.lore.shelf_found", book.title()));
-        if (!sp.getInventory().add(stack)) sp.drop(stack, false);
+        if (!ActionHandler.addToBags(sp, stack)) sp.drop(stack, false);
     }
 }

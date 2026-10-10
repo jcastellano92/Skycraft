@@ -34,6 +34,8 @@ public final class CorePackets {
         SkyNetwork.register(ChooseRace.class, NetworkDirection.PLAY_TO_SERVER, ChooseRace::encode, ChooseRace::decode, ChooseRace::handle);
         SkyNetwork.register(Action.class, NetworkDirection.PLAY_TO_SERVER, Action::encode, Action::decode, Action::handle);
         SkyNetwork.register(HarvestBlock.class, NetworkDirection.PLAY_TO_SERVER, HarvestBlock::encode, HarvestBlock::decode, HarvestBlock::handle);
+        SkyNetwork.register(ContainerTake.class, NetworkDirection.PLAY_TO_SERVER, ContainerTake::encode, ContainerTake::decode, ContainerTake::handle);
+        SkyNetwork.register(ContainerStore.class, NetworkDirection.PLAY_TO_SERVER, ContainerStore::encode, ContainerStore::decode, ContainerStore::handle);
     }
 
     // ------------------------------------------------------------------ S2C
@@ -224,6 +226,44 @@ public final class CorePackets {
         static void handle(HarvestBlock m, Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer player = ctx.get().getSender();
             if (player != null) com.skycraft.survival.Harvesting.harvest(player, m.pos);
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Take item or all items from an open container directly into bags without equipping to hand. */
+    public record ContainerTake(int containerId, int slotIndex, boolean all) {
+        static void encode(ContainerTake m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.containerId);
+            buf.writeVarInt(m.slotIndex);
+            buf.writeBoolean(m.all);
+        }
+
+        static ContainerTake decode(FriendlyByteBuf buf) {
+            return new ContainerTake(buf.readVarInt(), buf.readVarInt(), buf.readBoolean());
+        }
+
+        static void handle(ContainerTake m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            if (player != null) ActionHandler.handleContainerTake(player, m.containerId, m.slotIndex, m.all);
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Store item or all items from player inventory into an open container. */
+    public record ContainerStore(int containerId, int slotIndex, boolean all) {
+        static void encode(ContainerStore m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.containerId);
+            buf.writeVarInt(m.slotIndex);
+            buf.writeBoolean(m.all);
+        }
+
+        static ContainerStore decode(FriendlyByteBuf buf) {
+            return new ContainerStore(buf.readVarInt(), buf.readVarInt(), buf.readBoolean());
+        }
+
+        static void handle(ContainerStore m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            if (player != null) ActionHandler.handleContainerStore(player, m.containerId, m.slotIndex, m.all);
             ctx.get().setPacketHandled(true);
         }
     }

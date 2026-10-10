@@ -4,6 +4,7 @@ import com.skycraft.core.Notifier;
 import com.skycraft.core.SkyData;
 import com.skycraft.crafting.recipe.Cost;
 import com.skycraft.survival.block.CookingPotBlock;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -49,6 +50,6 @@ public final class Cooking {
     }
 
     private static void give(ServerPlayer player, ItemStack stack) {
-        if (!player.getInventory().add(stack) && !stack.isEmpty()) player.drop(stack, false);
+        if (!ActionHandler.addToBags(player, stack) && !stack.isEmpty()) player.drop(stack, false);
     }
 }

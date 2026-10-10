@@ -6,6 +6,7 @@ import com.skycraft.core.SkyData;
 import com.skycraft.core.Skill;
 import com.skycraft.dig.DiggingRules;
 import com.skycraft.perk.Perks;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -286,7 +287,7 @@ public final class LifeSkills {
             Progression.addSkillXp(player, Skill.FISHING, 100f);
         }
         for (ItemStack stack : extra) {
-            if (!player.getInventory().add(stack)) player.drop(stack, false);
+            if (!ActionHandler.addToBags(player, stack)) player.drop(stack, false);
         }
     }
 

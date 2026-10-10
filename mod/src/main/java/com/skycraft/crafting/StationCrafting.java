@@ -7,6 +7,7 @@ import com.skycraft.crafting.recipe.SmithingRecipe;
 import com.skycraft.crafting.recipe.SmithingRecipes;
 import com.skycraft.perk.Perks;
 import com.skycraft.skills.Progression;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -33,7 +34,7 @@ public final class StationCrafting {
         while (made < wanted && recipe.hasMaterials(player.getInventory())) {
             recipe.consume(player.getInventory());
             ItemStack result = recipe.resultStack();
-            player.getInventory().add(result);
+            ActionHandler.addToBags(player, result);
             if (!result.isEmpty()) player.drop(result, false);
             made++;
         }

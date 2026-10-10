@@ -1,6 +1,7 @@
 package com.skycraft.crafting.arcane.block;
 
 import com.skycraft.perk.Perks;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -62,7 +63,7 @@ public class IngredientPlantBlock extends FlowerBlock {
         if (state.getValue(HARVESTED)) return InteractionResult.PASS;
         if (!level.isClientSide) {
             ItemStack harvest = new ItemStack(this.asItem(), Perks.has(player, "alchemy.green_thumb") ? 2 : 1);
-            if (!player.getInventory().add(harvest)) Block.popResource(level, pos, harvest);
+            if (!ActionHandler.addToBags(player, harvest)) Block.popResource(level, pos, harvest);
             level.setBlock(pos, state.setValue(HARVESTED, true), Block.UPDATE_CLIENTS);
             level.playSound(null, pos, SoundEvents.SWEET_BERRY_BUSH_PICK_BERRIES, SoundSource.BLOCKS, 1.0f, 0.8f + level.random.nextFloat() * 0.4f);
             level.gameEvent(player, GameEvent.BLOCK_CHANGE, pos);

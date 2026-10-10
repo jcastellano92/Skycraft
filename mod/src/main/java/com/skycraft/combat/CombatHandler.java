@@ -284,7 +284,7 @@ public final class CombatHandler {
             target.addEffect(new MobEffectInstance(ModEffects.PARALYSIS.get(), 60));
         }
         if (Perks.has(player, "archery.hunters_discipline") && arrow.pickup == AbstractArrow.Pickup.ALLOWED && rnd.nextBoolean()) {
-            player.getInventory().add(new ItemStack(Items.ARROW));
+            ActionHandler.addToBags(player, new ItemStack(Items.ARROW));
         }
         mult *= huntingMultiplier(player, target);
         mult *= sneakMultiplier(player, target, WeaponClass.BOW);

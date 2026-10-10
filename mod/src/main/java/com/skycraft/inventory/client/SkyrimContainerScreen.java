@@ -6,6 +6,8 @@ import com.skycraft.combat.WeaponClass;
 import com.skycraft.crime.Ownership;
 import com.skycraft.economy.ItemValues;
 import com.skycraft.inventory.ItemWeights;
+import com.skycraft.network.CorePackets;
+import com.skycraft.network.SkyNetwork;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -355,7 +357,11 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
             ContainerEntry entry = entries.get(selectedIndex);
             for (Slot slot : entry.slots()) {
                 if (slot.hasItem()) {
-                    this.slotClicked(slot, slot.index, 0, ClickType.QUICK_MOVE);
+                    if (viewMode == 0) {
+                        SkyNetwork.sendToServer(new CorePackets.ContainerTake(menu.containerId, slot.index, false));
+                    } else {
+                        SkyNetwork.sendToServer(new CorePackets.ContainerStore(menu.containerId, slot.index, false));
+                    }
                     break;
                 }
             }
@@ -363,13 +369,10 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
     }
 
     private void takeOrStoreAll() {
-        List<ContainerEntry> entries = getCurrentEntries();
-        for (ContainerEntry entry : entries) {
-            for (Slot slot : entry.slots()) {
-                if (slot.hasItem()) {
-                    this.slotClicked(slot, slot.index, 0, ClickType.QUICK_MOVE);
-                }
-            }
+        if (viewMode == 0) {
+            SkyNetwork.sendToServer(new CorePackets.ContainerTake(menu.containerId, -1, true));
+        } else {
+            SkyNetwork.sendToServer(new CorePackets.ContainerStore(menu.containerId, -1, true));
         }
     }
 
@@ -445,6 +448,9 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
                 viewMode = 1;
                 selectedIndex = 0;
                 scrollOffset = 0;
+                return true;
+            }
+            case GLFW.GLFW_KEY_3, GLFW.GLFW_KEY_4, GLFW.GLFW_KEY_5, GLFW.GLFW_KEY_6, GLFW.GLFW_KEY_7, GLFW.GLFW_KEY_8, GLFW.GLFW_KEY_9 -> {
                 return true;
             }
             case GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_W -> {

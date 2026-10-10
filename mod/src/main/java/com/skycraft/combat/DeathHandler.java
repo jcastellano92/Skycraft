@@ -4,6 +4,7 @@ import com.skycraft.Skycraft;
 import com.skycraft.core.PlayerData;
 import com.skycraft.core.SkyData;
 import com.skycraft.quest.QuestItems;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -156,10 +157,10 @@ public final class DeathHandler {
                         && newPlayer.getInventory().getItem(slot).isEmpty()) {
                     newPlayer.getInventory().setItem(slot, stack);
                 } else {
-                    newPlayer.getInventory().add(stack);
+                    ActionHandler.addToBags(newPlayer, stack);
                 }
             } else {
-                newPlayer.getInventory().add(stack);
+                ActionHandler.addToBags(newPlayer, stack);
             }
         }
 

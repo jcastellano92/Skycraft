@@ -9,6 +9,7 @@ import com.skycraft.core.SkyData;
 import com.skycraft.dialogue.Dialogue;
 import com.skycraft.dialogue.DialogueOption;
 import com.skycraft.society.entity.NpcEntity;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -147,7 +148,7 @@ public final class NpcDialogue {
                 if (n instanceof NpcEntity fug) {
                     ItemStack gift = new ItemStack(Items.IRON_SWORD);
                     gift.setHoverName(Component.literal("Stolen Nordic Blade"));
-                    if (!p.getInventory().add(gift)) p.drop(gift, false);
+                    if (!ActionHandler.addToBags(p, gift)) p.drop(gift, false);
                     fug.getPersistentData().remove("skycraft_fugitive");
                     Notifier.message(p, Component.literal("The fugitive shoved a Stolen Nordic Blade into your hands and bolted!"));
                     Dialogue.open(p, n, Component.literal("Keep it safe! If you betray me, you'll regret it!"));
@@ -175,7 +176,7 @@ public final class NpcDialogue {
             out.add(new DialogueOption("society.reveler_drink", Component.literal("I'll share a drink with you! (Toast)"), 10, (p, n) -> {
                 ItemStack mead = new ItemStack(Items.HONEY_BOTTLE);
                 mead.setHoverName(Component.literal("Honningbrew Mead"));
-                if (!p.getInventory().add(mead)) p.drop(mead, false);
+                if (!ActionHandler.addToBags(p, mead)) p.drop(mead, false);
                 p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 20 * 60 * 3, 0));
                 p.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 20 * 15, 0));
                 Notifier.message(p, Component.literal("You shared a toast of Honningbrew Mead! (+Strength & Regeneration)"));
@@ -252,7 +253,7 @@ public final class NpcDialogue {
         }
         ItemStack mead = new ItemStack(Items.HONEY_BOTTLE);
         mead.setHoverName(Component.translatable("society.skycraft.item.mead"));
-        if (!player.getInventory().add(mead)) player.drop(mead, false);
+        if (!ActionHandler.addToBags(player, mead)) player.drop(mead, false);
         Dialogue.open(player, npc, say("drink"));
     }
 
