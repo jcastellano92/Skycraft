@@ -150,10 +150,11 @@ public final class KillCam {
             LivingEntity victim = event.getEntity();
             String typeName = victim.getType().getDescriptionId().toLowerCase(java.util.Locale.ROOT);
 
-            boolean isBoss = typeName.contains("dragon") || typeName.contains("giant")
+            boolean isBoss = !typeName.contains("dragonfly") && !typeName.contains("dartwing") && (
+                    typeName.contains("dragon") || typeName.contains("giant")
                     || typeName.contains("troll") || typeName.contains("chief")
                     || typeName.contains("deathlord") || typeName.contains("wisp")
-                    || typeName.contains("centurion") || typeName.contains("hagraven");
+                    || typeName.contains("centurion") || typeName.contains("hagraven"));
 
             if (isBoss) {
                 trigger(victim);
@@ -164,3 +165,4 @@ public final class KillCam {
         }
     }
 }
+

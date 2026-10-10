@@ -280,6 +280,12 @@ public final class Locks {
                 level.playSound(null, pos, open ? SoundEvents.IRON_TRAPDOOR_OPEN : SoundEvents.IRON_TRAPDOOR_CLOSE, SoundSource.BLOCKS, 1f, 1f);
                 event.setCanceled(true);
                 event.setCancellationResult(InteractionResult.SUCCESS);
+            } else if (player.isSecondaryUseActive() && be instanceof net.minecraft.world.MenuProvider mp) {
+                // In Skyrim, crouching to open containers and loot/steal is standard stealth gameplay.
+                // Vanilla blocks container opening while sneaking with held items; open menu directly!
+                player.openMenu(mp);
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
             }
             return;
         }

@@ -221,17 +221,50 @@ public final class SkyLoadingScreen {
         g.fill(barX - 1, barY - 1, barX + barW + 1, barY + 4, 0xFF2B2620);
         g.fill(barX, barY, barX + barW, barY + 3, 0xFF0D0B09);
 
-        // Animated subtle breathing pulse for loading progress
-        float pulse = 0.5f + 0.5f * (float) Math.sin(globalAnim * 0.1f);
-        int fillW = (int) (barW * (0.35f + 0.65f * pulse));
+        // Real progress from LevelLoadingScreen or smooth monotonic progression
+        float realProg = getProgressRatio(screen);
+        if (realProg >= 0.0f) {
+            displayedProgress = Math.max(displayedProgress, realProg);
+        } else {
+            displayedProgress = Math.min(0.96f, displayedProgress + 0.003f);
+        }
+        int pct = Math.round(displayedProgress * 100.0f);
+        int fillW = (int) (barW * displayedProgress);
         g.fill(barX, barY, barX + fillW, barY + 3, COLOR_GOLD);
 
         // Diamond pips on ends
         g.drawString(font, "◆", barX - 8, barY - 3, COLOR_GOLD, false);
         g.drawString(font, "◆", barX + barW + 2, barY - 3, COLOR_GOLD, false);
 
+        // Progress percentage centered above bar
+        String pctStr = pct + "%";
+        g.drawString(font, pctStr, (width - font.width(pctStr)) / 2, barY - 11, COLOR_GOLD, false);
+
         // Interactive instruction hint
         g.drawString(font, "Drag mouse to inspect artifact", width - 180, height - 20, 0x70807870, false);
+    }
+
+    private static float displayedProgress = 0.05f;
+
+    private static float getProgressRatio(Screen screen) {
+        if (screen instanceof LevelLoadingScreen lls) {
+            try {
+                for (java.lang.reflect.Field f : LevelLoadingScreen.class.getDeclaredFields()) {
+                    if (f.getType().getSimpleName().contains("ProgressListener")) {
+                        f.setAccessible(true);
+                        Object listener = f.get(lls);
+                        if (listener != null) {
+                            java.lang.reflect.Method m = listener.getClass().getMethod("getProgress");
+                            Object res = m.invoke(listener);
+                            if (res instanceof Number num) {
+                                return Mth.clamp(num.intValue() / 100.0f, 0.0f, 1.0f);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return -1f;
     }
 
     private static void render3dArtifact(Minecraft mc, GuiGraphics g, ItemStack stack, int x, int y, float scale) {
@@ -267,3 +300,4 @@ public final class SkyLoadingScreen {
         return list;
     }
 }
+

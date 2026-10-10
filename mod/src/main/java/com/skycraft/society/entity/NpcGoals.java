@@ -58,16 +58,17 @@ final class NpcGoals {
         }
     }
 
-    /** Non-combatants keep away from monsters and villains on the attack. */
+    /** Non-combatants keep away from monsters and villains on the attack, or feared players until they leave. */
     static final class Avoid extends AvoidEntityGoal<LivingEntity> {
         private final NpcEntity npc;
 
         Avoid(NpcEntity npc) {
-            super(npc, LivingEntity.class, 10.0F, 0.8D, 1.25D, e -> threat(npc, e));
+            super(npc, LivingEntity.class, 12.0F, 0.9D, 1.3D, e -> threat(npc, e));
             this.npc = npc;
         }
 
         private static boolean threat(NpcEntity npc, LivingEntity e) {
+            if (npc.getFearedPlayer() != null && e.getUUID().equals(npc.getFearedPlayer())) return true;
             if (e instanceof NpcEntity o) return o.getTarget() == npc || (o.role().villain && o.getTarget() != null);
             if (e instanceof Enemy) return !(e instanceof net.minecraft.world.entity.Mob m) || !m.isNoAi();
             return false;
@@ -75,6 +76,7 @@ final class NpcGoals {
 
         @Override
         public boolean canUse() {
+            if (npc.getFearedPlayer() != null) return super.canUse();
             if (npc.canFight() && npc.getHealth() > npc.getMaxHealth() * 0.25f) return false;
             if (npc.role().combatant || npc.isPrisoner()) return false;
             if ((npc.tickCount + npc.getId()) % 6 != 0) return false;

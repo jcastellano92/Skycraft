@@ -95,6 +95,18 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
     private boolean raisedDead;
     /** Bard: a player asked for a song. */
     private boolean songRequested;
+    /** Feared attacker: non-combatant civilians fear and flee this player until they leave. */
+    @Nullable
+    private UUID fearedPlayerUuid;
+
+    @Nullable
+    public UUID getFearedPlayer() {
+        return fearedPlayerUuid;
+    }
+
+    public void setFearedPlayer(@Nullable UUID player) {
+        this.fearedPlayerUuid = player;
+    }
 
     public NpcEntity(EntityType<? extends NpcEntity> type, Level level) {
         super(type, level);
@@ -507,6 +519,12 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
             }
         }
         if (this.tickCount % 20 != 0) return;
+        if (fearedPlayerUuid != null) {
+            Player p = this.level().getPlayerByUUID(fearedPlayerUuid);
+            if (p == null || !p.isAlive() || this.distanceToSqr(p) > 28.0 * 28.0) {
+                fearedPlayerUuid = null; // calmed down after player left
+            }
+        }
         LivingEntity target = this.getTarget();
         if (target != null) {
             boolean provoked = provoker != null && provoker.equals(target.getUUID())
@@ -568,6 +586,7 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
             tag.putInt("HomeRadius", (int) this.getRestrictRadius());
         }
         if (letter >= 0) tag.putInt("Letter", letter);
+        if (fearedPlayerUuid != null) tag.putUUID("FearedPlayer", fearedPlayerUuid);
     }
 
     @Override
@@ -584,5 +603,6 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
         destination = tag.contains("Destination") ? NbtUtils.readBlockPos(tag.getCompound("Destination")) : null;
         if (tag.contains("Home")) setHome(NbtUtils.readBlockPos(tag.getCompound("Home")), Math.max(8, tag.getInt("HomeRadius")));
         letter = tag.contains("Letter") ? tag.getInt("Letter") : -1;
+        fearedPlayerUuid = tag.hasUUID("FearedPlayer") ? tag.getUUID("FearedPlayer") : null;
     }
 }

@@ -53,10 +53,10 @@ public final class EconomyDialogue {
                     Trainers::train));
         }
 
-        // Town steward / official house options
+        // Town steward / Jarl house options - guards and regular soldiers never sell houses
         String hold = com.skycraft.core.Holds.holdAt(player.level(), npc.blockPosition());
         Houses.HouseDef house = Houses.houseForHold(hold);
-        if (house != null && (npc.getType().getDescriptionId().contains("villager") || npc.getType().getDescriptionId().contains("guard") || npc.getType().getDescriptionId().contains("humanoid"))) {
+        if (house != null && isStewardOrJarl(npc)) {
             if (!Houses.isHouseOwner(player, house)) {
                 out.add(new DialogueOption("economy.buy_house", Component.translatable("dialogue.skycraft.economy.house.buy", Currency.formatCompact(house.cost())), 250,
                         (p, n) -> Houses.purchaseHouse(p, p.serverLevel(), house, null)));
@@ -71,6 +71,17 @@ public final class EconomyDialogue {
                 }
             }
         }
+    }
+
+    public static boolean isStewardOrJarl(LivingEntity npc) {
+        if (com.skycraft.crime.Crimes.isGuard(npc) || npc.getType().getDescriptionId().contains("guard")) {
+            return false;
+        }
+        if (npc instanceof com.skycraft.society.entity.NpcEntity ne) {
+            return ne.role() == com.skycraft.society.NpcRole.JARL;
+        }
+        String name = npc.getName().getString().toLowerCase(java.util.Locale.ROOT);
+        return name.contains("jarl") || name.contains("steward") || name.contains("proventius") || name.contains("elder");
     }
 
     private static void invest(ServerPlayer player, LivingEntity npc) {

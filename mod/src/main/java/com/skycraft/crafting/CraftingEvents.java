@@ -117,6 +117,15 @@ public final class CraftingEvents {
         boolean isEnchanter = false;
         boolean isAlchemy = false;
 
+        if (b == Blocks.CARTOGRAPHY_TABLE) {
+            event.setCanceled(true);
+            event.setCancellationResult(InteractionResult.SUCCESS);
+            if (event.getLevel().isClientSide) {
+                net.minecraft.client.Minecraft.getInstance().setScreen(new com.skycraft.world.client.MapScreen());
+            }
+            return;
+        }
+
         if (b == Blocks.CRAFTING_TABLE || b == Blocks.SMITHING_TABLE) {
             stationType = StationType.ARMOR_WORKBENCH;
         } else if (b == Blocks.FURNACE || b == Blocks.BLAST_FURNACE) {

@@ -160,6 +160,152 @@ public class CorpseEntity extends Entity {
         if (!main.isEmpty()) base.setItem(4, main.copy());
         ItemStack off = dead.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND);
         if (!off.isEmpty()) base.setItem(5, off.copy());
+
+        // Humanoid NPCs / villagers who died without explicit armor items generate wearable clothes
+        if (dead instanceof com.skycraft.society.entity.NpcEntity npc) {
+            generateNpcClothes(npc);
+        } else if (dead instanceof net.minecraft.world.entity.npc.AbstractVillager) {
+            generateVillagerClothes();
+        }
+    }
+
+    private void generateNpcClothes(com.skycraft.society.entity.NpcEntity npc) {
+        com.skycraft.society.NpcRole role = npc.role();
+        int colorChest = 0x8D6E63;
+        int colorLegs = 0x4E342E;
+        int colorBoots = 0x2E1C0C;
+        String nameChest = "Belted Tunic";
+        String nameLegs = "Work Trousers";
+        String nameBoots = "Worn Boots";
+
+        switch (role) {
+            case MAGE -> {
+                colorChest = 0x283593;
+                colorLegs = 0x1A237E;
+                colorBoots = 0x212121;
+                nameChest = "Mage Robes";
+                nameLegs = "Mage Breeches";
+                nameBoots = "Mage Boots";
+                if (base.getItem(3).isEmpty()) {
+                    base.setItem(3, createClothingPiece(net.minecraft.world.item.Items.LEATHER_HELMET, 0x283593, "Mage Hood"));
+                }
+            }
+            case NECROMANCER -> {
+                colorChest = 0x212121;
+                colorLegs = 0x1B1B1B;
+                colorBoots = 0x111111;
+                nameChest = "Necromancer Robes";
+                nameLegs = "Dark Breeches";
+                nameBoots = "Dark Boots";
+                if (base.getItem(3).isEmpty()) {
+                    base.setItem(3, createClothingPiece(net.minecraft.world.item.Items.LEATHER_HELMET, 0x212121, "Necromancer Hood"));
+                }
+            }
+            case MINER -> {
+                colorChest = 0x5D4037;
+                colorLegs = 0x3E2723;
+                colorBoots = 0x212121;
+                nameChest = "Miner's Clothes";
+                nameLegs = "Miner's Trousers";
+                nameBoots = "Miner's Boots";
+            }
+            case LUMBERJACK, HUNTER -> {
+                colorChest = 0x6D4C41;
+                colorLegs = 0x4E342E;
+                colorBoots = 0x3E2723;
+                nameChest = "Fur-Trimmed Tunic";
+                nameLegs = "Fur Trousers";
+                nameBoots = "Fur Shoes";
+            }
+            case BARD -> {
+                colorChest = 0x1B5E20;
+                colorLegs = 0x33691E;
+                colorBoots = 0x212121;
+                nameChest = "Bard's Tunic";
+                nameLegs = "Fine Trousers";
+                nameBoots = "Fine Boots";
+            }
+            case PRIEST -> {
+                colorChest = 0xE0E0E0;
+                colorLegs = 0xD5D5D5;
+                colorBoots = 0x4E342E;
+                nameChest = "Priest Robes";
+                nameLegs = "Priest Breeches";
+                nameBoots = "Priest Sandals";
+            }
+            case BEGGAR -> {
+                colorChest = 0x5D4037;
+                colorLegs = 0x4E342E;
+                colorBoots = 0x3E2723;
+                nameChest = "Ragged Tunic";
+                nameLegs = "Ragged Trousers";
+                nameBoots = "Footwraps";
+            }
+            case JARL -> {
+                colorChest = 0x880E4F;
+                colorLegs = 0x311B92;
+                colorBoots = 0x212121;
+                nameChest = "Noble Clothes";
+                nameLegs = "Fine Trousers";
+                nameBoots = "Fine Boots";
+            }
+            case IMPERIAL_SOLDIER -> {
+                colorChest = 0xB71C1C;
+                colorLegs = 0x7F0000;
+                colorBoots = 0x3E2723;
+                nameChest = "Imperial Light Cuirass";
+                nameLegs = "Imperial Bracers & Trousers";
+                nameBoots = "Imperial Boots";
+            }
+            case STORMCLOAK_SOLDIER -> {
+                colorChest = 0x1565C0;
+                colorLegs = 0x0D47A1;
+                colorBoots = 0x3E2723;
+                nameChest = "Stormcloak Cuirass";
+                nameLegs = "Stormcloak Trousers";
+                nameBoots = "Fur Boots";
+            }
+            case THUG, THIEF, ASSASSIN -> {
+                colorChest = 0x263238;
+                colorLegs = 0x212121;
+                colorBoots = 0x1A1A1A;
+                nameChest = "Leather Brigandine";
+                nameLegs = "Leather Trousers";
+                nameBoots = "Muffled Boots";
+            }
+            default -> {}
+        }
+
+        if (base.getItem(2).isEmpty()) {
+            base.setItem(2, createClothingPiece(net.minecraft.world.item.Items.LEATHER_CHESTPLATE, colorChest, nameChest));
+        }
+        if (base.getItem(1).isEmpty()) {
+            base.setItem(1, createClothingPiece(net.minecraft.world.item.Items.LEATHER_LEGGINGS, colorLegs, nameLegs));
+        }
+        if (base.getItem(0).isEmpty()) {
+            base.setItem(0, createClothingPiece(net.minecraft.world.item.Items.LEATHER_BOOTS, colorBoots, nameBoots));
+        }
+    }
+
+    private void generateVillagerClothes() {
+        if (base.getItem(2).isEmpty()) {
+            base.setItem(2, createClothingPiece(net.minecraft.world.item.Items.LEATHER_CHESTPLATE, 0x8D6E63, "Belted Tunic"));
+        }
+        if (base.getItem(1).isEmpty()) {
+            base.setItem(1, createClothingPiece(net.minecraft.world.item.Items.LEATHER_LEGGINGS, 0x4E342E, "Farmer's Trousers"));
+        }
+        if (base.getItem(0).isEmpty()) {
+            base.setItem(0, createClothingPiece(net.minecraft.world.item.Items.LEATHER_BOOTS, 0x2E1C0C, "Worn Boots"));
+        }
+    }
+
+    private static ItemStack createClothingPiece(net.minecraft.world.item.Item item, int color, String name) {
+        ItemStack stack = new ItemStack(item);
+        if (item instanceof net.minecraft.world.item.DyeableLeatherItem dyeable) {
+            dyeable.setColor(stack, color);
+        }
+        stack.setHoverName(Component.literal(name));
+        return stack;
     }
 
     /** Adds base loot (what every looter finds); returns the part that didn't fit. */
@@ -461,11 +607,8 @@ public class CorpseEntity extends Entity {
     @Override
     public InteractionResult interact(Player player, InteractionHand hand) {
         if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
-        if (player.isShiftKeyDown()) {
-            if (!this.level().isClientSide) {
-                if (this.entityData.get(DRAGGER) == player.getId()) stopDragging();
-                else if (getDragger() == null) startDragging(player);
-            }
+        if (player.isShiftKeyDown() && this.entityData.get(DRAGGER) == player.getId()) {
+            if (!this.level().isClientSide) stopDragging();
             return InteractionResult.sidedSuccess(this.level().isClientSide);
         }
         if (!this.level().isClientSide) {

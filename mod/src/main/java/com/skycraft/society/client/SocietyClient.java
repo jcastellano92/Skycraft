@@ -49,6 +49,7 @@ public final class SocietyClient {
         for (String skin : event.getSkins()) {
             PlayerRenderer renderer = event.getSkin(skin);
             if (renderer != null) {
+                renderer.addLayer(new com.skycraft.client.RaceSkins.Layer(renderer));
                 renderer.addLayer(new CosmeticLayer(renderer, event.getEntityModels()));
                 renderer.addLayer(new JewelryLayer(renderer, event.getEntityModels()));
             }

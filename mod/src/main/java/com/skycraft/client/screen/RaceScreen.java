@@ -51,6 +51,13 @@ public class RaceScreen extends Screen {
     @Override
     protected void init() {
         descScroll = 0f;
+        com.skycraft.client.RaceSkins.setPreviewRace(selected);
+    }
+
+    @Override
+    public void removed() {
+        super.removed();
+        com.skycraft.client.RaceSkins.setPreviewRace(null);
     }
 
     @Override
@@ -99,6 +106,7 @@ public class RaceScreen extends Screen {
         if (minecraft.player != null) {
             minecraft.player.setInvisible(false);
             minecraft.player.removeEffect(net.minecraft.world.effect.MobEffects.INVISIBILITY);
+            com.skycraft.client.RaceSkins.setPreviewRace(selected);
             // Skyrim circular stone dais under feet
             int daisRadius = (int) (modelScale * 0.55f);
             g.fill(modelCenterX - daisRadius, modelCenterY - 3, modelCenterX + daisRadius, modelCenterY + 2, 0x50000000);
@@ -206,6 +214,7 @@ public class RaceScreen extends Screen {
                 if (mx >= listX && mx <= listX + listWidth && my >= itemY && my < itemY + itemHeight) {
                     selected = Race.VALUES[i];
                     descScroll = 0f;
+                    com.skycraft.client.RaceSkins.setPreviewRace(selected);
                     return true;
                 }
             }
@@ -272,12 +281,14 @@ public class RaceScreen extends Screen {
             int prev = Math.floorMod(selected.ordinal() - 1, Race.VALUES.length);
             selected = Race.VALUES[prev];
             descScroll = 0f;
+            com.skycraft.client.RaceSkins.setPreviewRace(selected);
             return true;
         }
         if (key == GLFW.GLFW_KEY_DOWN || key == GLFW.GLFW_KEY_S) {
             int next = Math.floorMod(selected.ordinal() + 1, Race.VALUES.length);
             selected = Race.VALUES[next];
             descScroll = 0f;
+            com.skycraft.client.RaceSkins.setPreviewRace(selected);
             return true;
         }
         return super.keyPressed(key, scan, mods);

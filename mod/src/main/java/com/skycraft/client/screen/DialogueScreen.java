@@ -32,11 +32,7 @@ public class DialogueScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        g.fillGradient(width / 2, 0, width, height, 0x00000000, 0xA0000000);
-        List<FormattedCharSequence> greetingLines = font.split(dialogue.greeting(), Math.min(460, width - 60));
-        int totalGH = greetingLines.size() * 11;
-        int gy = Math.max(height / 2 + 40, height - 16 - totalGH);
-        g.fillGradient(0, gy - 32, width, height, 0x00000000, 0xC0000000);
+        g.fillGradient(width / 2, 0, width, height, 0x00000000, 0x90000000);
 
         // Player's Current Gold in top-right
         if (minecraft != null && minecraft.player != null) {
@@ -57,17 +53,46 @@ public class DialogueScreen extends Screen {
             }
         }
 
-        // NPC name and greeting
-        g.pose().pushPose();
-        g.pose().translate(width / 2f, gy - 18, 0);
-        g.pose().scale(1.4f, 1.4f, 1f);
-        g.drawCenteredString(font, dialogue.npcName(), 0, 0, 0xFFF5EBC8);
-        g.pose().popPose();
+        // Dedicated Skyrim conversation subtitle panel
+        int plateW = Math.min(520, width - 60);
+        int plateX = (width - plateW) / 2;
+        List<FormattedCharSequence> greetingLines = font.split(dialogue.greeting(), plateW - 40);
+        int nameH = 16;
+        int textH = Math.max(12, greetingLines.size() * 12);
+        int plateH = nameH + textH + 20;
+        int plateY = height - plateH - 18;
 
-        int curGy = gy;
+        // Subtitle plate backing: dark slate parchment with gradient vignette
+        g.fill(plateX, plateY, plateX + plateW, plateY + plateH, 0xEE0E0D0B);
+        g.fillGradient(plateX, plateY, plateX + plateW, plateY + plateH, 0x15FFFFFF, 0x00000000);
+
+        // Frame borders with Nordic gold accent
+        g.fill(plateX - 1, plateY - 1, plateX + plateW + 1, plateY, 0xFF4A3E2D); // top
+        g.fill(plateX - 1, plateY + plateH, plateX + plateW + 1, plateY + plateH + 1, 0xFF4A3E2D); // bottom
+        g.fill(plateX - 1, plateY - 1, plateX, plateY + plateH + 1, 0xFF4A3E2D); // left
+        g.fill(plateX + plateW, plateY - 1, plateX + plateW + 1, plateY + plateH + 1, 0xFF4A3E2D); // right
+
+        // Gold corner pips
+        g.fill(plateX - 2, plateY - 2, plateX + 2, plateY + 2, 0xFFE5B83B);
+        g.fill(plateX + plateW - 2, plateY - 2, plateX + plateW + 2, plateY + 2, 0xFFE5B83B);
+        g.fill(plateX - 2, plateY + plateH - 2, plateX + 2, plateY + plateH + 2, 0xFFE5B83B);
+        g.fill(plateX + plateW - 2, plateY + plateH - 2, plateX + plateW + 2, plateY + plateH + 2, 0xFFE5B83B);
+
+        // NPC Name Header
+        int nameY = plateY + 7;
+        g.drawCenteredString(font, dialogue.npcName(), plateX + plateW / 2, nameY, 0xFFF5EBC8);
+        // Divider bar under NPC name
+        int divW = Math.min(180, plateW / 2);
+        int divX = plateX + (plateW - divW) / 2;
+        int divY = nameY + 11;
+        g.fill(divX, divY, divX + divW, divY + 1, 0x80E5B83B);
+        g.fill(divX + divW / 2 - 3, divY - 1, divX + divW / 2 + 3, divY + 2, 0xFFE5B83B);
+
+        // Speech dialogue text
+        int curGy = divY + 6;
         for (FormattedCharSequence line : greetingLines) {
-            g.drawCenteredString(font, line, width / 2, curGy, 0xFFD8D0B8);
-            curGy += 11;
+            g.drawCenteredString(font, line, plateX + plateW / 2, curGy, 0xFFE6DEC8);
+            curGy += 12;
         }
 
         hovered = -1;
@@ -85,7 +110,7 @@ public class DialogueScreen extends Screen {
             totalChoicesH += wrapped.size() * 11 + gap;
         }
 
-        int curY = Math.max(28, (height - 30 - totalChoicesH) / 2);
+        int curY = Math.max(28, (plateY - 20 - totalChoicesH) / 2);
         for (int i = 0; i < lines.size(); i++) {
             List<FormattedCharSequence> wrapped = wrappedList.get(i);
             int entryH = wrapped.size() * 11 + gap;
@@ -149,7 +174,6 @@ public class DialogueScreen extends Screen {
             minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_MENU_CLICK.get(), 1.0f, 1.0f));
         }
         DialoguePackets.Line line = dialogue.lines().get(index);
-        com.skycraft.client.DialogueCamera.stop();
         super.onClose();
         SkyNetwork.sendToServer(new DialoguePackets.ChooseOption(dialogue.entityId(), line.id()));
     }

@@ -24,7 +24,13 @@ import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.StairBlock;
+
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Places Skyrim crafting stations inside settlement buildings that make sense (smithy, apothecary,
@@ -186,14 +192,42 @@ public final class SettlementStations {
     }
 
     private static BlockPos findIndoorCounter(ServerLevel level, BlockPos origin, int radius) {
+        return findIndoorCounter(level, origin, radius, Collections.emptySet());
+    }
+
+    private static BlockPos findIndoorCounter(ServerLevel level, BlockPos origin, int radius, Set<BlockPos> exclude) {
+        // 1. Look for existing tables, barrels, counters, slabs, and desks
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 for (int dy = -2; dy <= 2; dy++) {
                     BlockPos p = origin.offset(dx, dy, dz);
+                    if (exclude.contains(p)) continue;
+                    BlockState surface = level.getBlockState(p);
+                    BlockState above = level.getBlockState(p.above());
+                    if (above.isAir() && !level.canSeeSky(p)) {
+                        if (surface.is(Blocks.BARREL) || surface.is(Blocks.CRAFTING_TABLE)
+                                || surface.is(Blocks.SMOKER) || surface.is(Blocks.BOOKSHELF)
+                                || surface.getBlock() instanceof SlabBlock
+                                || surface.getBlock() instanceof StairBlock
+                                || surface.is(Blocks.CHEST)) {
+                            return p;
+                        }
+                    }
+                }
+            }
+        }
+        // 2. Look for open floor space to build a rustic wooden table surface
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                for (int dy = -2; dy <= 2; dy++) {
+                    BlockPos p = origin.offset(dx, dy, dz);
+                    if (exclude.contains(p) || exclude.contains(p.above())) continue;
                     if (level.getBlockState(p).isAir() && level.getBlockState(p.above()).isAir()) {
                         BlockState floor = level.getBlockState(p.below());
                         if (floor.isSolidRender(level, p.below()) && !level.canSeeSky(p)) {
-                            return p;
+                            level.setBlock(p, Blocks.SPRUCE_FENCE.defaultBlockState(), 3);
+                            level.setBlock(p.above(), Blocks.SPRUCE_PRESSURE_PLATE.defaultBlockState(), 3);
+                            return p.above();
                         }
                     }
                 }
@@ -203,7 +237,7 @@ public final class SettlementStations {
     }
 
     private static BlockPos findShelteredOrOutdoorSpot(ServerLevel level, BlockPos origin, int radius) {
-        BlockPos indoor = findIndoorCounter(level, origin, radius);
+        BlockPos indoor = findIndoorCounter(level, origin, radius, Collections.emptySet());
         if (indoor != null) return indoor;
 
         for (int dx = -radius; dx <= radius; dx++) {
@@ -255,12 +289,16 @@ public final class SettlementStations {
                 new ItemStack(CraftingItems.FIREWOOD.get())
         );
 
+        Set<BlockPos> usedSurfaces = new HashSet<>();
         for (ItemStack item : clutterPool) {
-            BlockPos house = findIndoorHouse(level, center, 4, 24, r);
+            BlockPos house = findIndoorHouse(level, center, 4, 32, r);
             if (house != null) {
-                BlockPos table = findIndoorCounter(level, house, 3);
+                BlockPos table = findIndoorCounter(level, house, 4, usedSurfaces);
                 if (table != null) {
-                    ItemEntity entity = new ItemEntity(level, table.getX() + 0.5, table.getY() + 0.1, table.getZ() + 0.5, item.copy());
+                    usedSurfaces.add(table);
+                    double offX = 0.35 + (r.nextDouble() - 0.5) * 0.3;
+                    double offZ = 0.35 + (r.nextDouble() - 0.5) * 0.3;
+                    ItemEntity entity = new ItemEntity(level, table.getX() + offX, table.getY() + 0.15, table.getZ() + offZ, item.copy());
                     entity.setDeltaMovement(0, 0, 0);
                     entity.lifespan = Integer.MAX_VALUE;
                     entity.setExtendedLifetime();
@@ -273,12 +311,15 @@ public final class SettlementStations {
         // Place readable lore books and notes on desks and tables
         LoreBooks.Book randomBook = LoreBooks.random(r, b -> true);
         if (randomBook != null) {
-            BlockPos house = findIndoorHouse(level, center, 4, 24, r);
+            BlockPos house = findIndoorHouse(level, center, 4, 32, r);
             if (house != null) {
-                BlockPos table = findIndoorCounter(level, house, 3);
+                BlockPos table = findIndoorCounter(level, house, 4, usedSurfaces);
                 if (table != null) {
+                    usedSurfaces.add(table);
                     ItemStack bookStack = LoreBookItem.create(randomBook);
-                    ItemEntity entity = new ItemEntity(level, table.getX() + 0.5, table.getY() + 0.1, table.getZ() + 0.5, bookStack);
+                    double offX = 0.35 + (r.nextDouble() - 0.5) * 0.3;
+                    double offZ = 0.35 + (r.nextDouble() - 0.5) * 0.3;
+                    ItemEntity entity = new ItemEntity(level, table.getX() + offX, table.getY() + 0.15, table.getZ() + offZ, bookStack);
                     entity.setDeltaMovement(0, 0, 0);
                     entity.lifespan = Integer.MAX_VALUE;
                     entity.setExtendedLifetime();

@@ -24,9 +24,16 @@ public final class DialogueCamera {
     private static float prevEaseProgress = 0.0f;
     private static float easeProgress = 0.0f;
 
+    private static int missingScreenTicks = 0;
+
     private DialogueCamera() {}
 
     public static void start(int entityId) {
+        missingScreenTicks = 0;
+        if (active && targetEntityId == entityId) {
+            // Already engaged in dialogue with this entity; keep camera zoomed and framed!
+            return;
+        }
         targetEntityId = entityId;
         active = true;
         Minecraft mc = Minecraft.getInstance();
@@ -40,6 +47,7 @@ public final class DialogueCamera {
 
     public static void stop() {
         active = false;
+        missingScreenTicks = 0;
     }
 
     @SubscribeEvent
@@ -47,6 +55,15 @@ public final class DialogueCamera {
         if (event.phase != TickEvent.Phase.END) return;
         prevEaseProgress = easeProgress;
         if (active) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.screen instanceof com.skycraft.client.screen.DialogueScreen) {
+                missingScreenTicks = 0;
+            } else {
+                missingScreenTicks++;
+                if (missingScreenTicks > 6) {
+                    active = false;
+                }
+            }
             if (easeProgress < 1.0f) {
                 easeProgress = Math.min(1.0f, easeProgress + 0.08f);
             }

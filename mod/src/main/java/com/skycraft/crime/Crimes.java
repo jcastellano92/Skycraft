@@ -157,12 +157,27 @@ public final class Crimes {
         if (LAST_ASSAULT.size() > 2048) LAST_ASSAULT.entrySet().removeIf(e -> now - e.getValue() > ASSAULT_THROTTLE);
         LAST_ASSAULT.put(key, now);
 
-        Bounty.increment(player, "assaults", 1);
-        // the victim always witnesses its own assault
-        report(player, victim.blockPosition(), Bounty.ASSAULT, true, null);
-        Bounty.makeHostile(player, ASSAULT_HOSTILE_TICKS);
-        Guards.attack(player, 24);
-        if (victim instanceof Mob mob && isGuard(victim)) mob.setTarget(player);
+        // Fear tracking: victim and nearby civilians fear the attacker until the player leaves
+        if (victim instanceof com.skycraft.society.entity.NpcEntity ne) {
+            ne.setFearedPlayer(player.getUUID());
+        }
+        for (com.skycraft.society.entity.NpcEntity nearbyCivilian : victim.level().getEntitiesOfClass(com.skycraft.society.entity.NpcEntity.class, victim.getBoundingBox().inflate(12), e -> e.role().civilian)) {
+            nearbyCivilian.setFearedPlayer(player.getUUID());
+        }
+
+        // Only report immediately if witnessed by other bystanders or guards are nearby
+        boolean witnessedByOther = witnessed(player, victim);
+        boolean guardsNearby = !victim.level().getEntitiesOfClass(Mob.class, victim.getBoundingBox().inflate(24), Crimes::isGuard).isEmpty();
+
+        if (witnessedByOther || guardsNearby) {
+            Bounty.increment(player, "assaults", 1);
+            report(player, victim.blockPosition(), Bounty.ASSAULT, true, null);
+            Bounty.makeHostile(player, ASSAULT_HOSTILE_TICKS);
+            Guards.attack(player, 24);
+        } else {
+            // Unwitnessed: no immediate bounty! Queue report if victim flees to a guard
+            Theft.queueWitnessReport(player, victim, victim.blockPosition(), Bounty.ASSAULT);
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)

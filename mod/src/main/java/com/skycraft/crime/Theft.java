@@ -190,20 +190,16 @@ public final class Theft {
         }
     }
 
-    /** Picking up owned placed clutter in settlements is stealing. */
+    /**
+     * Owned placed clutter in settlements cannot be vacuumed up by walking or crouching near it.
+     * It must be intentionally taken/stolen with [F].
+     */
     @SubscribeEvent
     public static void onPickup(EntityItemPickupEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         ItemEntity itemEntity = event.getItem();
-        if (!Ownership.isOwnedByOther(player, itemEntity)) return;
-
-        ItemStack stack = itemEntity.getItem();
-        Bounty.markStolen(stack);
-        Bounty.increment(player, "items_stolen", stack.getCount());
-        net.minecraft.world.entity.LivingEntity witness = Crimes.findWitness(player, null);
-        if (witness != null) {
-            int bounty = (int) Math.max(Bounty.MIN_THEFT, Math.min(100000, unitValue(stack) * stack.getCount() / 2));
-            handleWitnessedTheft(player, witness, itemEntity.blockPosition(), bounty);
+        if (Ownership.isOwnedByOther(player, itemEntity)) {
+            event.setCanceled(true);
         }
     }
 
@@ -240,18 +236,25 @@ public final class Theft {
             // Check if witness arrived within reach of a guard
             List<net.minecraft.world.entity.Mob> guards = level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, witness.getBoundingBox().inflate(14), Crimes::isGuard);
             if (!guards.isEmpty()) {
-                com.skycraft.society.Barks.say(witness, net.minecraft.network.chat.Component.literal("Guards! Help! That one's a thief!"));
+                com.skycraft.society.Barks.say(witness, net.minecraft.network.chat.Component.literal("Guards! Help! That one's a criminal!"));
                 Crimes.report(player, r.pos(), r.bounty(), true, null);
                 it.remove();
                 continue;
             }
 
-            // If timer expired, witness escaped and reported the crime to hold authorities
+            // If timer expired, witness only reports if they reached guards near a settlement
             if (r.timer()[0] <= 0) {
-                Crimes.report(player, r.pos(), r.bounty(), true, null);
+                List<net.minecraft.world.entity.Mob> settlementGuards = level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, witness.getBoundingBox().inflate(32), Crimes::isGuard);
+                if (!settlementGuards.isEmpty()) {
+                    Crimes.report(player, r.pos(), r.bounty(), true, null);
+                }
                 it.remove();
             }
         }
+    }
+
+    public static void queueWitnessReport(ServerPlayer player, net.minecraft.world.entity.LivingEntity witness, BlockPos pos, int bounty) {
+        PENDING_REPORTS.add(new PendingReport(player.getUUID(), witness.getUUID(), pos, bounty, 400));
     }
 
     public static void handleWitnessedTheft(ServerPlayer player, @org.jetbrains.annotations.Nullable net.minecraft.world.entity.LivingEntity witness, BlockPos pos, int bounty) {

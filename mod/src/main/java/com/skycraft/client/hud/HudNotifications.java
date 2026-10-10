@@ -32,7 +32,11 @@ public final class HudNotifications {
         long now = Util.getMillis();
         switch (msg.kind()) {
             case SKILL_XP -> meter = new Entry(msg, now, 2500);
-            case MESSAGE, CRIME -> {
+            case CRIME -> {
+                MESSAGES.removeIf(e -> e.msg.kind() == NotifyKind.CRIME);
+                MESSAGES.add(new Entry(msg, now, 5000));
+            }
+            case MESSAGE -> {
                 MESSAGES.add(new Entry(msg, now, 5000));
                 while (MESSAGES.size() > 5) MESSAGES.remove(0);
             }

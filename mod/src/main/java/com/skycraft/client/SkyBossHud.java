@@ -96,9 +96,11 @@ public final class SkyBossHud {
 
     private static boolean isBossEntity(LivingEntity e) {
         if (e instanceof EnderDragon || e instanceof WitherBoss) return true;
+        if (e.getMaxHealth() < 80.0f) return false;
         String name = e.getType().getDescriptionId().toLowerCase(java.util.Locale.ROOT);
+        if (name.contains("dragonfly") || name.contains("dartwing") || name.contains("butterfly") || name.contains("insect")) return false;
         return name.contains("dragon") || name.contains("giant") || name.contains("troll")
-                || name.contains("deathlord") || name.contains("chief") || name.contains("centurion");
+                || name.contains("deathlord") || name.contains("priest") || name.contains("chief") || name.contains("centurion");
     }
 
     @SubscribeEvent
@@ -116,7 +118,7 @@ public final class SkyBossHud {
         int barW = 220;
         int barH = 5;
         int barX = (width - barW) / 2;
-        int barY = 24;
+        int barY = 34;
 
         int alphaInt = (int) (currentAlpha * 255.0f);
         int borderCol = (alphaInt << 24) | 0x2A241C;

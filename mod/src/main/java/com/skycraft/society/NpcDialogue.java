@@ -59,6 +59,12 @@ public final class NpcDialogue {
                 event.setCanceled(true);
                 return;
             }
+            if (sp.getUUID().equals(npc.getFearedPlayer())) {
+                Barks.say(npc, Component.literal("Stay away from me! Leave me alone!"));
+                event.setCancellationResult(InteractionResult.SUCCESS);
+                event.setCanceled(true);
+                return;
+            }
             if (npc.isConversing() && npc.getConversationPartner() != sp.getId()) {
                 Entity current = sp.serverLevel().getEntity(npc.getConversationPartner());
                 if (current != null && current.isAlive() && npc.distanceToSqr(current) <= 64) {

@@ -330,13 +330,28 @@ public final class ClientEvents {
                 // 1. Render Left Fist (Offhand)
                 poseStack.pushPose();
                 float leftSwing = prevOffhandFistSwing + (offhandFistSwing - prevOffhandFistSwing) * pt;
-                float jab = -0.35F * net.minecraft.util.Mth.sin(leftSwing * (float) Math.PI);
+                float lf1 = net.minecraft.util.Mth.sqrt(leftSwing);
+                float lf2 = -0.25F * net.minecraft.util.Mth.sin(lf1 * (float) Math.PI);
+                float lf3 = 0.35F * net.minecraft.util.Mth.sin(lf1 * ((float) Math.PI * 2F));
+                float lf4 = -0.35F * net.minecraft.util.Mth.sin(leftSwing * (float) Math.PI);
 
-                // Lowered near bottom corner of screen, slightly angled inward
-                poseStack.translate(-0.42F, -0.62F + (wasBlocking ? 0.18F : 0F), -0.72F + jab);
-                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-15.0F));
-                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(wasBlocking ? -25.0F : -10.0F));
-                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(wasBlocking ? 30.0F : 15.0F));
+                // Lowered and wider stance so fists sit cleanly at lower corners
+                poseStack.translate(-(lf2 + 0.52F), lf3 - 0.50F + (wasBlocking ? 0.16F : 0F), lf4 - 0.60F);
+                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-20.0F));
+                if (wasBlocking) {
+                    poseStack.translate(0.10F, 0.12F, -0.08F);
+                    poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-20.0F));
+                    poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(25.0F));
+                }
+                float lf5 = net.minecraft.util.Mth.sin(leftSwing * leftSwing * (float) Math.PI);
+                float lf6 = net.minecraft.util.Mth.sin(lf1 * (float) Math.PI);
+                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-lf6 * 45.0F));
+                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(lf5 * -15.0F));
+                poseStack.translate(0.9F, 3.4F, 3.3F);
+                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-120.0F));
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(200.0F));
+                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(135.0F));
+                poseStack.translate(-5.4F, 0.0F, 0.0F);
                 try {
                     renderer.renderLeftHand(poseStack, buffer, light, player);
                 } catch (Throwable ignored) {}
@@ -345,13 +360,28 @@ public final class ClientEvents {
                 // 2. Render Right Fist (Main hand)
                 poseStack.pushPose();
                 float rightSwing = player.getAttackAnim(pt);
-                float cross = -0.35F * net.minecraft.util.Mth.sin(rightSwing * (float) Math.PI);
+                float rf1 = net.minecraft.util.Mth.sqrt(rightSwing);
+                float rf2 = 0.25F * net.minecraft.util.Mth.sin(rf1 * (float) Math.PI);
+                float rf3 = 0.35F * net.minecraft.util.Mth.sin(rf1 * ((float) Math.PI * 2F));
+                float rf4 = -0.35F * net.minecraft.util.Mth.sin(rightSwing * (float) Math.PI);
 
-                // Lowered near bottom corner of screen, slightly angled inward
-                poseStack.translate(0.42F, -0.62F + (wasBlocking ? 0.18F : 0F), -0.72F + cross);
-                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(15.0F));
-                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(wasBlocking ? 25.0F : 10.0F));
-                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(wasBlocking ? 30.0F : 15.0F));
+                // Lowered and wider stance so fists sit cleanly at lower corners
+                poseStack.translate(rf2 + 0.52F, rf3 - 0.50F + (wasBlocking ? 0.16F : 0F), rf4 - 0.60F);
+                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(20.0F));
+                if (wasBlocking) {
+                    poseStack.translate(-0.10F, 0.12F, -0.08F);
+                    poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(20.0F));
+                    poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(25.0F));
+                }
+                float rf5 = net.minecraft.util.Mth.sin(rightSwing * rightSwing * (float) Math.PI);
+                float rf6 = net.minecraft.util.Mth.sin(rf1 * (float) Math.PI);
+                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(rf6 * 45.0F));
+                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(rf5 * 15.0F));
+                poseStack.translate(-0.9F, 3.4F, 3.3F);
+                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(120.0F));
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(200.0F));
+                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-135.0F));
+                poseStack.translate(5.4F, 0.0F, 0.0F);
                 try {
                     renderer.renderRightHand(poseStack, buffer, light, player);
                 } catch (Throwable ignored) {}

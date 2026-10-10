@@ -43,6 +43,45 @@ public final class SocietyClientEvents {
         ClientSociety.clear();
     }
 
+    /** Overhead text must only appear above heads, not flooded into chat. */
+    @SubscribeEvent
+    public static void onClientChatReceived(net.minecraftforge.client.event.ClientChatReceivedEvent event) {
+        net.minecraft.network.chat.Component message = event.getMessage();
+        if (message == null) return;
+        String raw = message.getString().trim();
+        if (raw.isEmpty()) return;
+
+        // 1. Any message matching an active overhead bark
+        if (!ClientSociety.BARKS.isEmpty()) {
+            for (ClientSociety.Bark bark : ClientSociety.BARKS.values()) {
+                String barkText = bark.text().getString().trim();
+                if (!barkText.isEmpty() && (raw.contains(barkText) || barkText.contains(raw))) {
+                    event.setCanceled(true);
+                    return;
+                }
+            }
+        }
+
+        // 2. Any NPC bark or chatter formatted as "Name: text" or "[Name]: text"
+        if (raw.matches("^(\\[[^\\]]+\\]|<[^>]+>|[A-Z][a-zA-Z0-9_ ]+):?\\s+.*$")) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null && mc.player != null) {
+                int colon = raw.indexOf(':');
+                if (colon > 0) {
+                    String speaker = raw.substring(0, colon).replaceAll("[\\[\\]<>]", "").trim();
+                    for (net.minecraft.world.entity.Entity e : mc.level.entitiesForRendering()) {
+                        if (e instanceof LivingEntity && !(e instanceof net.minecraft.world.entity.player.Player)) {
+                            if (e.getName().getString().equalsIgnoreCase(speaker) && e.distanceToSqr(mc.player) <= 32 * 32) {
+                                event.setCanceled(true);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /** Draws a speech bubble above entities that are talking (billboarded, fading in and out). */
     @SubscribeEvent
     public static void onRenderLiving(RenderLivingEvent.Post<?, ?> event) {

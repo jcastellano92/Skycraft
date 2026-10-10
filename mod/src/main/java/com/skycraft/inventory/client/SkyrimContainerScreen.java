@@ -48,6 +48,7 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
 
     private final boolean isOwned;
     private final int containerSlotCount;
+    private final boolean wasCrouching;
 
     // View mode: 0 = Container loot, 1 = Player inventory (Store)
     private int viewMode = 0;
@@ -63,6 +64,8 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
         super(menu, playerInventory, title);
         this.containerSlotCount = menu.getRowCount() * 9;
         this.isOwned = checkIsOwned();
+        LocalPlayer p = net.minecraft.client.Minecraft.getInstance().player;
+        this.wasCrouching = p != null && p.isCrouching();
         this.imageWidth = 380;
         this.imageHeight = 220;
     }
@@ -466,5 +469,13 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
             }
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public void onClose() {
+        super.onClose();
+        if (wasCrouching && minecraft != null && minecraft.player != null) {
+            minecraft.player.setShiftKeyDown(true);
+        }
     }
 }

@@ -26,7 +26,7 @@ public final class SkyHud {
 
     public static void renderVitals(ForgeGui gui, GuiGraphics g, float partialTick, int width, int height) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.options.hideGui || !gui.shouldDrawSurvivalElements()) return;
+        if (mc.player == null || mc.options.hideGui || mc.screen != null || !gui.shouldDrawSurvivalElements()) return;
         PlayerData data = SkyData.get(mc.player);
         boolean combat = ClientState.has(CorePackets.SyncVitals.IN_COMBAT);
 

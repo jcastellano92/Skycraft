@@ -16,6 +16,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
@@ -105,9 +106,28 @@ public final class ActionHandler {
         }
 
         // Put item into storage slots (slots 9-35) or non-active slots so it NEVER equips into the active hand!
+        int origCount = stack.getCount();
+        addToBags(player, stack);
+
+        if (stack.getCount() < origCount) {
+            player.serverLevel().playSound(null, player.blockPosition(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.5f, 1.1f);
+            if (stack.isEmpty()) {
+                itemEntity.discard();
+            } else {
+                itemEntity.setItem(stack);
+            }
+            player.inventoryMenu.broadcastChanges();
+        }
+    }
+
+    /**
+     * Routes items directly into backpack slots (9..35) or inactive hotbar slots.
+     * Never equips into the player's active held hand slot unless completely full.
+     */
+    public static boolean addToBags(Player player, ItemStack stack) {
+        if (stack.isEmpty()) return true;
         net.minecraft.world.entity.player.Inventory inv = player.getInventory();
         int activeSlot = inv.selected;
-        int origCount = stack.getCount();
 
         // 1. Try to merge into existing matching stacks in storage (9..35)
         for (int i = 9; i < 36; i++) {
@@ -118,7 +138,7 @@ public final class ActionHandler {
                     int move = Math.min(space, stack.getCount());
                     inSlot.grow(move);
                     stack.shrink(move);
-                    if (stack.isEmpty()) break;
+                    if (stack.isEmpty()) return true;
                 }
             }
         }
@@ -129,7 +149,7 @@ public final class ActionHandler {
                 if (inv.getItem(i).isEmpty()) {
                     inv.setItem(i, stack.copy());
                     stack.setCount(0);
-                    break;
+                    return true;
                 }
             }
         }
@@ -145,7 +165,7 @@ public final class ActionHandler {
                         int move = Math.min(space, stack.getCount());
                         inSlot.grow(move);
                         stack.shrink(move);
-                        if (stack.isEmpty()) break;
+                        if (stack.isEmpty()) return true;
                     }
                 }
             }
@@ -156,25 +176,16 @@ public final class ActionHandler {
                 if (inv.getItem(i).isEmpty()) {
                     inv.setItem(i, stack.copy());
                     stack.setCount(0);
-                    break;
+                    return true;
                 }
             }
         }
 
-        // 4. Last resort: if storage is completely full
+        // 4. Fallback only if storage is completely full
         if (!stack.isEmpty()) {
-            inv.add(stack);
+            return inv.add(stack);
         }
-
-        if (stack.getCount() < origCount) {
-            player.serverLevel().playSound(null, player.blockPosition(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.5f, 1.1f);
-            if (stack.isEmpty()) {
-                itemEntity.discard();
-            } else {
-                itemEntity.setItem(stack);
-            }
-            player.inventoryMenu.broadcastChanges();
-        }
+        return true;
     }
 
     private static void handleDodgeRoll(ServerPlayer player) {

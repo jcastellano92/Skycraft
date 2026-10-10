@@ -111,12 +111,20 @@ public final class InventoryClientEvents {
                 com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.TAKE_WORLD_ITEM, lookedItem.getId()));
                 continue;
             }
-            // 2. Interact with living entity under crosshair (NPC, villager, horse)
-            if (mc.crosshairPickEntity instanceof net.minecraft.world.entity.LivingEntity le && le.isAlive()) {
-                if (mc.gameMode != null) {
-                    mc.gameMode.interact(player, le, net.minecraft.world.InteractionHand.MAIN_HAND);
+            // 2. Interact with entity under crosshair (NPC, villager, horse, corpse)
+            if (mc.crosshairPickEntity != null) {
+                if (mc.crosshairPickEntity instanceof com.skycraft.creatures.entity.CorpseEntity corpse) {
+                    if (mc.gameMode != null) {
+                        mc.gameMode.interact(player, corpse, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    }
+                    continue;
                 }
-                continue;
+                if (mc.crosshairPickEntity instanceof net.minecraft.world.entity.LivingEntity le && le.isAlive()) {
+                    if (mc.gameMode != null) {
+                        mc.gameMode.interact(player, le, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    }
+                    continue;
+                }
             }
             // 3. Interact with block under crosshair (door, chest, plant, flower, mushroom, crafting table)
             if (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult bhr && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
