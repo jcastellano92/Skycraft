@@ -130,14 +130,8 @@ public final class InventoryClientEvents {
             if (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult bhr && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
                 net.minecraft.core.BlockPos bpos = bhr.getBlockPos();
                 net.minecraft.world.level.block.state.BlockState bs = player.level().getBlockState(bpos);
-                if (bs.getBlock() instanceof net.minecraft.world.level.block.FlowerBlock
-                        || bs.getBlock() instanceof net.minecraft.world.level.block.MushroomBlock
-                        || bs.getBlock() instanceof net.minecraft.world.level.block.BushBlock
-                        || bs.getBlock() instanceof net.minecraft.world.level.block.DoublePlantBlock
-                        || bs.is(net.minecraft.tags.BlockTags.FLOWERS)) {
-                    if (mc.gameMode != null) {
-                        mc.gameMode.destroyBlock(bpos);
-                    }
+                if (com.skycraft.survival.Harvesting.isHarvestable(bs)) {
+                    com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.HarvestBlock(bpos));
                     continue;
                 }
                 if (mc.gameMode != null) {

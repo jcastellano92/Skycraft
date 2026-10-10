@@ -98,12 +98,12 @@ public final class CrimeHud {
             var bstate = mc.level.getBlockState(bpos);
             var block = bstate.getBlock();
 
-            if (block instanceof net.minecraft.world.level.block.FlowerBlock
-                    || block instanceof net.minecraft.world.level.block.MushroomBlock
-                    || block instanceof net.minecraft.world.level.block.BushBlock
-                    || block instanceof net.minecraft.world.level.block.DoublePlantBlock
-                    || bstate.is(net.minecraft.tags.BlockTags.FLOWERS)) {
-                drawSmall(g, font, Component.literal("[F] Harvest  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+            if (com.skycraft.survival.Harvesting.isHarvestable(bstate)) {
+                if (com.skycraft.survival.Harvesting.isReadyToHarvest(bstate)) {
+                    drawSmall(g, font, Component.literal("[F] Harvest  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+                } else {
+                    drawSmall(g, font, Component.literal("Growing  " + block.getName().getString()), cx, cy, 0.75f, 0x80AAAAAA);
+                }
                 return;
             }
 
@@ -193,12 +193,6 @@ public final class CrimeHud {
                 return;
             }
 
-            if (block instanceof net.minecraft.world.level.block.CropBlock
-                    || block instanceof net.minecraft.world.level.block.SweetBerryBushBlock
-                    || block instanceof net.minecraft.world.level.block.FlowerBlock) {
-                drawSmall(g, font, Component.literal("Harvest  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
-                return;
-            }
 
             if (block.getDescriptionId().contains("crafting") || block.getDescriptionId().contains("station")
                     || block.getDescriptionId().contains("furnace") || block.getDescriptionId().contains("anvil")

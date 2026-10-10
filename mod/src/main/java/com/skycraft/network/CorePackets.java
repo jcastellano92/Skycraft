@@ -33,6 +33,7 @@ public final class CorePackets {
         SkyNetwork.register(UnlockPerk.class, NetworkDirection.PLAY_TO_SERVER, UnlockPerk::encode, UnlockPerk::decode, UnlockPerk::handle);
         SkyNetwork.register(ChooseRace.class, NetworkDirection.PLAY_TO_SERVER, ChooseRace::encode, ChooseRace::decode, ChooseRace::handle);
         SkyNetwork.register(Action.class, NetworkDirection.PLAY_TO_SERVER, Action::encode, Action::decode, Action::handle);
+        SkyNetwork.register(HarvestBlock.class, NetworkDirection.PLAY_TO_SERVER, HarvestBlock::encode, HarvestBlock::decode, HarvestBlock::handle);
     }
 
     // ------------------------------------------------------------------ S2C
@@ -206,6 +207,23 @@ public final class CorePackets {
         static void handle(Action m, Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer player = ctx.get().getSender();
             if (player != null) ActionHandler.handle(player, m.action, m.arg);
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Harvest wild plants, tall grass, flora and mature crops directly into bags. */
+    public record HarvestBlock(net.minecraft.core.BlockPos pos) {
+        static void encode(HarvestBlock m, FriendlyByteBuf buf) {
+            buf.writeBlockPos(m.pos);
+        }
+
+        static HarvestBlock decode(FriendlyByteBuf buf) {
+            return new HarvestBlock(buf.readBlockPos());
+        }
+
+        static void handle(HarvestBlock m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            if (player != null) com.skycraft.survival.Harvesting.harvest(player, m.pos);
             ctx.get().setPacketHandled(true);
         }
     }
