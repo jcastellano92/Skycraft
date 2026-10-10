@@ -319,37 +319,44 @@ public final class ClientEvents {
         if (event.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND
                 && event.getItemStack().isEmpty() && player.getOffhandItem().isEmpty()) {
             event.setCanceled(true);
-            var poseStack = event.getPoseStack();
-            var buffer = event.getMultiBufferSource();
-            int light = event.getPackedLight();
-            float pt = event.getPartialTick();
-            var renderer = (net.minecraft.client.renderer.entity.player.PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(player);
+            if (player.tickCount <= 10) return;
+            try {
+                var poseStack = event.getPoseStack();
+                var buffer = event.getMultiBufferSource();
+                int light = event.getPackedLight();
+                float pt = event.getPartialTick();
+                var renderer = (net.minecraft.client.renderer.entity.player.PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(player);
 
-            // 1. Render Left Fist (Offhand)
-            poseStack.pushPose();
-            float leftSwing = prevOffhandFistSwing + (offhandFistSwing - prevOffhandFistSwing) * pt;
-            float jab = -0.35F * net.minecraft.util.Mth.sin(leftSwing * (float) Math.PI);
+                // 1. Render Left Fist (Offhand)
+                poseStack.pushPose();
+                float leftSwing = prevOffhandFistSwing + (offhandFistSwing - prevOffhandFistSwing) * pt;
+                float jab = -0.35F * net.minecraft.util.Mth.sin(leftSwing * (float) Math.PI);
 
-            // Lowered near bottom corner of screen, slightly angled inward
-            poseStack.translate(-0.42F, -0.62F + (wasBlocking ? 0.18F : 0F), -0.72F + jab);
-            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-15.0F));
-            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(wasBlocking ? -25.0F : -10.0F));
-            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(wasBlocking ? 30.0F : 15.0F));
-            renderer.renderLeftHand(poseStack, buffer, light, player);
-            poseStack.popPose();
+                // Lowered near bottom corner of screen, slightly angled inward
+                poseStack.translate(-0.42F, -0.62F + (wasBlocking ? 0.18F : 0F), -0.72F + jab);
+                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-15.0F));
+                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(wasBlocking ? -25.0F : -10.0F));
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(wasBlocking ? 30.0F : 15.0F));
+                try {
+                    renderer.renderLeftHand(poseStack, buffer, light, player);
+                } catch (Throwable ignored) {}
+                poseStack.popPose();
 
-            // 2. Render Right Fist (Main hand)
-            poseStack.pushPose();
-            float rightSwing = player.getAttackAnim(pt);
-            float cross = -0.35F * net.minecraft.util.Mth.sin(rightSwing * (float) Math.PI);
+                // 2. Render Right Fist (Main hand)
+                poseStack.pushPose();
+                float rightSwing = player.getAttackAnim(pt);
+                float cross = -0.35F * net.minecraft.util.Mth.sin(rightSwing * (float) Math.PI);
 
-            // Lowered near bottom corner of screen, slightly angled inward
-            poseStack.translate(0.42F, -0.62F + (wasBlocking ? 0.18F : 0F), -0.72F + cross);
-            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(15.0F));
-            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(wasBlocking ? 25.0F : 10.0F));
-            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(wasBlocking ? 30.0F : 15.0F));
-            renderer.renderRightHand(poseStack, buffer, light, player);
-            poseStack.popPose();
+                // Lowered near bottom corner of screen, slightly angled inward
+                poseStack.translate(0.42F, -0.62F + (wasBlocking ? 0.18F : 0F), -0.72F + cross);
+                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(15.0F));
+                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(wasBlocking ? 25.0F : 10.0F));
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(wasBlocking ? 30.0F : 15.0F));
+                try {
+                    renderer.renderRightHand(poseStack, buffer, light, player);
+                } catch (Throwable ignored) {}
+                poseStack.popPose();
+            } catch (Throwable ignored) {}
         }
     }
 

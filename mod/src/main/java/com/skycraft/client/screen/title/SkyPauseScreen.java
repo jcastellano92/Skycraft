@@ -230,18 +230,19 @@ public class SkyPauseScreen extends Screen {
         Minecraft mc = Minecraft.getInstance();
         try {
             Class<?> modalFlow = Class.forName("gg.essential.gui.sps.InviteOrHostModalFlowKt");
-            try {
-                java.lang.reflect.Method m = modalFlow.getMethod("launchInviteOrHostModalFlow");
-                m.invoke(null);
-                return;
-            } catch (NoSuchMethodException ignored) {
-                java.lang.reflect.Method m = modalFlow.getMethod("launchInviteOrHostModalFlow", Screen.class);
-                m.invoke(null, this);
-                return;
-            }
+            java.lang.reflect.Method m = modalFlow.getMethod("launchInviteOrHostModalFlow");
+            m.invoke(null);
+            return;
         } catch (Throwable t) {
-            // Fallback to vanilla Open to LAN screen
-            mc.setScreen(new net.minecraft.client.gui.screens.ShareToLanScreen(this));
+            try {
+                Class<?> cmdClass = Class.forName("gg.essential.commands.impl.CommandMcFriends");
+                Object cmd = cmdClass.getConstructor().newInstance();
+                cmdClass.getMethod("handle").invoke(cmd);
+                return;
+            } catch (Throwable t2) {
+                // Fallback to vanilla Open to LAN screen
+                mc.setScreen(new net.minecraft.client.gui.screens.ShareToLanScreen(this));
+            }
         }
     }
 }

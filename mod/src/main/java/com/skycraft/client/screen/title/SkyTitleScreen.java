@@ -276,21 +276,31 @@ public class SkyTitleScreen extends Screen {
             }
             case FRIENDS -> {
                 try {
-                    Class<?> socialMenu = Class.forName("gg.essential.gui.friends.SocialMenu");
-                    java.lang.reflect.Method m = socialMenu.getMethod("getInstance");
-                    Object inst = m.invoke(null);
-                    if (inst instanceof Screen s) {
-                        try {
-                            Class<?> guiUtil = Class.forName("gg.essential.api.utils.GuiUtil");
-                            java.lang.reflect.Method openM = guiUtil.getMethod("open", Screen.class);
-                            openM.invoke(null, s);
-                        } catch (Throwable ignored) {
-                            mc.setScreen(s);
+                    // Method 1: Essential's official CommandMcFriends handler
+                    Class<?> cmdClass = Class.forName("gg.essential.commands.impl.CommandMcFriends");
+                    Object cmd = cmdClass.getConstructor().newInstance();
+                    cmdClass.getMethod("handle").invoke(cmd);
+                    return;
+                } catch (Throwable t1) {
+                    try {
+                        // Method 2: Instantiate SocialMenu directly and open via GuiUtil
+                        Class<?> socialMenu = Class.forName("gg.essential.gui.friends.SocialMenu");
+                        Object inst = socialMenu.getConstructor().newInstance();
+                        if (inst instanceof Screen s) {
+                            try {
+                                Class<?> guiUtil = Class.forName("gg.essential.util.GuiUtil");
+                                java.lang.reflect.Field f = guiUtil.getField("INSTANCE");
+                                Object guiUtilInst = f.get(null);
+                                java.lang.reflect.Method openM = guiUtil.getMethod("openScreen", Screen.class);
+                                openM.invoke(guiUtilInst, s);
+                            } catch (Throwable ignored) {
+                                mc.setScreen(s);
+                            }
+                            return;
                         }
-                        return;
+                    } catch (Throwable t2) {
+                        mc.setScreen(new JoinMultiplayerScreen(this));
                     }
-                } catch (Throwable t) {
-                    mc.setScreen(new JoinMultiplayerScreen(this));
                 }
             }
             case SETTINGS -> {

@@ -57,6 +57,7 @@ public final class PlayerDataEvents {
             PlayerData data = SkyData.get(player);
             if (!data.module("core").getBoolean("spawn_placed")) {
                 data.module("core").putBoolean("spawn_placed", true);
+                com.skycraft.combat.Sheathe.setSheathed(player, true);
                 data.markDirty();
                 net.minecraft.server.level.ServerLevel level = player.serverLevel();
                 if (level.dimension() == net.minecraft.world.level.Level.OVERWORLD) {
