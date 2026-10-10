@@ -121,7 +121,8 @@ public final class CraftingEvents {
             event.setCanceled(true);
             event.setCancellationResult(InteractionResult.SUCCESS);
             if (event.getLevel().isClientSide) {
-                net.minecraft.client.Minecraft.getInstance().setScreen(new com.skycraft.world.client.MapScreen());
+                net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
+                        () -> com.skycraft.world.client.MapClient::openMap);
             }
             return;
         }
