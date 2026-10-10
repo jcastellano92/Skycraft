@@ -22,7 +22,9 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
+import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerContainerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -184,7 +186,152 @@ public final class Theft {
         Bounty.increment(player, "items_stolen", stolenCount);
         if (s.seen || Crimes.witnessed(player, null)) {
             int bounty = (int) Math.max(Bounty.MIN_THEFT, Math.min(100000, stolenValue / 2));
-            Crimes.report(player, s.pos, bounty, true, null);
+            handleWitnessedTheft(player, Crimes.findWitness(player, null), s.pos, bounty);
+        }
+    }
+
+    /**
+     * Owned placed clutter in settlements cannot be vacuumed up by walking or crouching near it.
+     * It must be intentionally taken/stolen with [F].
+     */
+    @SubscribeEvent
+    public static void onPickup(EntityItemPickupEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        ItemEntity itemEntity = event.getItem();
+        if (Ownership.isOwnedByOther(player, itemEntity)) {
+            event.setCanceled(true);
+        }
+    }
+
+    public record PendingReport(UUID playerUuid, UUID witnessUuid, BlockPos pos, int bounty, int[] timer) {
+        public PendingReport(UUID playerUuid, UUID witnessUuid, BlockPos pos, int bounty, int ticks) {
+            this(playerUuid, witnessUuid, pos, bounty, new int[]{ticks});
+        }
+    }
+
+    private static final List<PendingReport> PENDING_REPORTS = new ArrayList<>();
+
+    @SubscribeEvent
+    public static void onServerTick(net.minecraftforge.event.TickEvent.ServerTickEvent event) {
+        if (event.phase != net.minecraftforge.event.TickEvent.Phase.END || PENDING_REPORTS.isEmpty()) return;
+        var server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server == null) return;
+        var it = PENDING_REPORTS.iterator();
+        while (it.hasNext()) {
+            PendingReport r = it.next();
+            r.timer()[0]--;
+            ServerPlayer player = server.getPlayerList().getPlayer(r.playerUuid());
+            if (player == null || !player.isAlive()) {
+                it.remove();
+                continue;
+            }
+            ServerLevel level = player.serverLevel();
+            net.minecraft.world.entity.Entity witnessEntity = level.getEntity(r.witnessUuid());
+            if (!(witnessEntity instanceof net.minecraft.world.entity.LivingEntity witness) || !witness.isAlive()) {
+                // Witness was neutralized or fled world; no report!
+                it.remove();
+                continue;
+            }
+
+            // Check if witness arrived within reach of a guard
+            List<net.minecraft.world.entity.Mob> guards = level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, witness.getBoundingBox().inflate(14), Crimes::isGuard);
+            if (!guards.isEmpty()) {
+                com.skycraft.society.Barks.say(witness, net.minecraft.network.chat.Component.literal("Guards! Help! That one's a thief!"));
+                com.skycraft.society.Barks.say(witness, net.minecraft.network.chat.Component.literal("Guards! Help! That one's a criminal!"));
+                Crimes.report(player, r.pos(), r.bounty(), true, null);
+                it.remove();
+                continue;
+            }
+
+            // If timer expired, witness escaped and reported the crime to hold authorities
+            // If timer expired, witness only reports if they reached guards near a settlement
+            if (r.timer()[0] <= 0) {
+                Crimes.report(player, r.pos(), r.bounty(), true, null);
+                List<net.minecraft.world.entity.Mob> settlementGuards = level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, witness.getBoundingBox().inflate(32), Crimes::isGuard);
+                if (!settlementGuards.isEmpty()) {
+                    Crimes.report(player, r.pos(), r.bounty(), true, null);
+                }
+                it.remove();
+            }
+        }
+    }
+
+    public static void queueWitnessReport(ServerPlayer player, net.minecraft.world.entity.LivingEntity witness, BlockPos pos, int bounty) {
+        PENDING_REPORTS.add(new PendingReport(player.getUUID(), witness.getUUID(), pos, bounty, 400));
+    }
+
+    public static void handleWitnessedTheft(ServerPlayer player, @org.jetbrains.annotations.Nullable net.minecraft.world.entity.LivingEntity witness, BlockPos pos, int bounty) {
+        if (witness == null) {
+            Crimes.report(player, pos, bounty, false, null);
+            return;
+        }
+
+        // 1. Guard witness: immediate arrest confrontation
+        if (Crimes.isGuard(witness)) {
+            com.skycraft.society.Barks.say(witness, net.minecraft.network.chat.Component.literal("Stop right there, criminal scum!"));
+            Crimes.report(player, pos, bounty, true, null);
+            return;
+        }
+
+        // 2. Scaled response based on courage/role:
+        boolean isFighter = false;
+        if (witness instanceof com.skycraft.society.entity.NpcEntity npc) {
+            isFighter = npc.role().combatant;
+        } else if (witness instanceof Villager v) {
+            var prof = v.getVillagerData().getProfession();
+            isFighter = prof == net.minecraft.world.entity.npc.VillagerProfession.ARMORER
+                    || prof == net.minecraft.world.entity.npc.VillagerProfession.WEAPONSMITH
+                    || prof == net.minecraft.world.entity.npc.VillagerProfession.TOOLSMITH;
+        }
+
+        if (isFighter) {
+            // Confrontation & fighting back!
+            String[] barks = {
+                "Keep your filthy hands off that, thief!",
+                "Drop that, or I'll take it from your hide!",
+                "Hey! That's not yours! Give it back!"
+            };
+            com.skycraft.society.Barks.say(witness, net.minecraft.network.chat.Component.literal(barks[player.getRandom().nextInt(barks.length)]));
+            if (witness instanceof net.minecraft.world.entity.Mob mob) {
+                mob.setTarget(player);
+            }
+            punchAndRetrieve(witness, player, pos, bounty);
+        } else {
+            // Panic, yelling for guards, and running away!
+            String[] barks = {
+                "Thief! Someone help! Guards!",
+                "Guards! There's a thief!",
+                "Help! A thief is stealing our things!"
+            };
+            com.skycraft.society.Barks.say(witness, net.minecraft.network.chat.Component.literal(barks[player.getRandom().nextInt(barks.length)]));
+            if (witness instanceof net.minecraft.world.entity.Mob mob) {
+                var away = witness.position().subtract(player.position()).normalize();
+                mob.getNavigation().moveTo(witness.getX() + away.x * 16, witness.getY(), witness.getZ() + away.z * 16, 1.25);
+            }
+            PENDING_REPORTS.add(new PendingReport(player.getUUID(), witness.getUUID(), pos, bounty, 120));
+        }
+    }
+
+    public static void punchAndRetrieve(net.minecraft.world.entity.LivingEntity witness, ServerPlayer player, BlockPos pos, int bounty) {
+        player.hurt(player.damageSources().mobAttack(witness), 1.5f);
+        witness.level().playSound(null, player.blockPosition(), net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_KNOCKBACK, net.minecraft.sounds.SoundSource.PLAYERS, 1.0f, 1.0f);
+
+        boolean retrieved = false;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty() && Bounty.isStolen(stack)) {
+                ItemStack taken = stack.split(1);
+                retrieved = true;
+                com.skycraft.society.Barks.say(witness, net.minecraft.network.chat.Component.literal("Got it back! Now get out before I call the guards!"));
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("The " + witness.getName().getString() + " punched you and retrieved " + taken.getHoverName().getString() + "!").withStyle(net.minecraft.ChatFormatting.GOLD));
+                if (witness instanceof net.minecraft.world.entity.Mob mob) {
+                    mob.setTarget(null);
+                }
+                break;
+            }
+        }
+        if (!retrieved) {
+            PENDING_REPORTS.add(new PendingReport(player.getUUID(), witness.getUUID(), pos, bounty, 60));
         }
     }
 

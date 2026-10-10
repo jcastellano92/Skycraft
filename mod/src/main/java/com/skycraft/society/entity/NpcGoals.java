@@ -42,7 +42,7 @@ final class NpcGoals {
 
     // ------------------------------------------------------------------ fleeing
 
-    /** Non-combatants run when hurt. */
+    /** Non-combatants run when hurt unless they choose to fight back. */
     static final class Panic extends PanicGoal {
         private final NpcEntity npc;
 
@@ -53,20 +53,22 @@ final class NpcGoals {
 
         @Override
         public boolean canUse() {
-            return (!npc.role().combatant || npc.getHealth() < npc.getMaxHealth() * 0.2f && npc.role().civilian) && super.canUse();
+            if (npc.canFight() && npc.getHealth() > npc.getMaxHealth() * 0.25f) return false;
+            return super.canUse();
         }
     }
 
-    /** Non-combatants keep away from monsters and villains on the attack. */
+    /** Non-combatants keep away from monsters and villains on the attack, or feared players until they leave. */
     static final class Avoid extends AvoidEntityGoal<LivingEntity> {
         private final NpcEntity npc;
 
         Avoid(NpcEntity npc) {
-            super(npc, LivingEntity.class, 10.0F, 0.8D, 1.25D, e -> threat(npc, e));
+            super(npc, LivingEntity.class, 12.0F, 0.9D, 1.3D, e -> threat(npc, e));
             this.npc = npc;
         }
 
         private static boolean threat(NpcEntity npc, LivingEntity e) {
+            if (npc.getFearedPlayer() != null && e.getUUID().equals(npc.getFearedPlayer())) return true;
             if (e instanceof NpcEntity o) return o.getTarget() == npc || (o.role().villain && o.getTarget() != null);
             if (e instanceof Enemy) return !(e instanceof net.minecraft.world.entity.Mob m) || !m.isNoAi();
             return false;
@@ -74,6 +76,8 @@ final class NpcGoals {
 
         @Override
         public boolean canUse() {
+            if (npc.getFearedPlayer() != null) return super.canUse();
+            if (npc.canFight() && npc.getHealth() > npc.getMaxHealth() * 0.25f) return false;
             if (npc.role().combatant || npc.isPrisoner()) return false;
             if ((npc.tickCount + npc.getId()) % 6 != 0) return false;
             return super.canUse();
@@ -575,6 +579,206 @@ final class NpcGoals {
                     ticks = 0;
                 }
             }
+        }
+    }
+
+    // ------------------------------------------------------------------ followers
+
+    /** Contract 11: A follower stays with their player, protects them in combat, or waits when told. */
+    static final class Follower extends Goal {
+        private final NpcEntity npc;
+        private int checkCooldown;
+
+        Follower(NpcEntity npc) {
+            this.npc = npc;
+            this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            return com.skycraft.society.Followers.isFollower(npc);
+        }
+
+        @Override
+        public void tick() {
+            if (--checkCooldown > 0) return;
+            checkCooldown = 10;
+            if (!(npc.level() instanceof ServerLevel level)) return;
+            UUID ownerId = com.skycraft.society.Followers.getOwnerId(npc);
+            if (ownerId == null) return;
+            Player owner = level.getPlayerByUUID(ownerId);
+            if (owner == null || !owner.isAlive()) return;
+
+            if (com.skycraft.society.Followers.isWaiting(npc)) {
+                npc.getNavigation().stop();
+                return;
+            }
+
+            double distSq = npc.distanceToSqr(owner);
+            // Teleport if too far (> 36 blocks away and owner is on solid ground)
+            if (distSq > 36 * 36 && owner.onGround()) {
+                BlockPos target = owner.blockPosition().offset(npc.getRandom().nextInt(3) - 1, 0, npc.getRandom().nextInt(3) - 1);
+                if (level.getBlockState(target).isAir() && level.getBlockState(target.above()).isAir()) {
+                    npc.moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, npc.getYRot(), npc.getXRot());
+                    npc.getNavigation().stop();
+                    return;
+                }
+            }
+
+            // Follow distance: keep within 3-4 blocks
+            if (distSq > 5 * 5) {
+                npc.getNavigation().moveTo(owner, distSq > 12 * 12 ? 1.25D : 1.0D);
+            } else if (distSq < 2.5 * 2.5) {
+                npc.getNavigation().stop();
+            }
+
+            // Combat support: defend owner
+            LivingEntity ownerTarget = owner.getLastHurtMob();
+            if (ownerTarget != null && ownerTarget.isAlive() && !ownerTarget.isAlliedTo(npc) && ownerTarget != npc) {
+                npc.setTarget(ownerTarget);
+            } else {
+                LivingEntity attacker = owner.getLastHurtByMob();
+                if (attacker != null && attacker.isAlive() && !attacker.isAlliedTo(npc) && attacker != npc) {
+                    npc.setTarget(attacker);
+                }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ routines
+
+    /** At night, townsfolk return to their home and rest. */
+    static final class NightRest extends Goal {
+        private final NpcEntity npc;
+        private int cooldown;
+        private int warnTimer = 0;
+        private BlockPos bedPos = null;
+
+        NightRest(NpcEntity npc) {
+            this.npc = npc;
+            this.setFlags(EnumSet.of(Flag.MOVE));
+        }
+
+        @Override
+        public boolean canUse() {
+            if (npc.isBusy() || npc.getTarget() != null || !npc.role().civilian) return false;
+            return Npcs.isNight(npc.level());
+        }
+
+        @Override
+        public void start() {
+            warnTimer = 0;
+            cooldown = 0;
+        }
+
+        @Override
+        public void stop() {
+            if (npc.isSleeping()) {
+                npc.stopSleeping();
+            }
+        }
+
+        @Override
+        public void tick() {
+            var level = npc.level();
+            if (!Npcs.isNight(level)) {
+                if (npc.isSleeping()) npc.stopSleeping();
+                return;
+            }
+
+            // Check for trespassers (players in the home who do not own it)
+            Player trespasser = findTrespasser();
+            if (trespasser != null) {
+                if (npc.isSleeping()) {
+                    npc.stopSleeping();
+                    npc.getLookControl().setLookAt(trespasser, 30f, 30f);
+                    Barks.say(npc, net.minecraft.network.chat.Component.literal("Who's there?! You're not supposed to be in here!"));
+                }
+                warnTimer++;
+                npc.getLookControl().setLookAt(trespasser, 30f, 30f);
+                if (warnTimer == 40) {
+                    Barks.say(npc, net.minecraft.network.chat.Component.literal("Leave now, or I'll call the guards!"));
+                } else if (warnTimer > 200) {
+                    Barks.say(npc, net.minecraft.network.chat.Component.literal("Guards! Help! An intruder!"));
+                    if (trespasser instanceof net.minecraft.server.level.ServerPlayer sp) {
+                        com.skycraft.crime.Crimes.report(sp, npc.blockPosition(), 25, true, null);
+                    }
+                    if (npc.role().combatant) {
+                        npc.setTarget(trespasser);
+                    }
+                    warnTimer = 0;
+                }
+                return;
+            } else {
+                warnTimer = 0;
+            }
+
+            if (npc.isSleeping()) return;
+
+            if (--cooldown > 0) return;
+            cooldown = 40;
+
+            BlockPos home = npc.getHome();
+            if (home == null) home = npc.blockPosition();
+
+            if (bedPos == null || !level.getBlockState(bedPos).is(BlockTags.BEDS)) {
+                bedPos = findNearbyBed(level, home, 12);
+            }
+
+            if (bedPos != null) {
+                double distSq = npc.distanceToSqr(bedPos.getX() + 0.5, bedPos.getY(), bedPos.getZ() + 0.5);
+                if (distSq > 2.5 * 2.5) {
+                    npc.getNavigation().moveTo(bedPos.getX() + 0.5, bedPos.getY(), bedPos.getZ() + 0.5, 0.65D);
+                } else {
+                    npc.getNavigation().stop();
+                    try {
+                        npc.startSleeping(bedPos);
+                    } catch (Exception ignored) {}
+                }
+            } else {
+                double distSq = npc.distanceToSqr(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
+                if (distSq > 4 * 4) {
+                    npc.getNavigation().moveTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5, 0.7D);
+                } else {
+                    npc.getNavigation().stop();
+                }
+            }
+        }
+
+        private Player findTrespasser() {
+            BlockPos home = npc.getHome();
+            if (home == null) return null;
+            var level = npc.level();
+            // Only indoor trespassing at night
+            if (level.canSeeSky(npc.blockPosition())) return null;
+
+            for (Player p : level.getEntitiesOfClass(Player.class, npc.getBoundingBox().inflate(5))) {
+                if (!p.isSpectator() && !p.isCreative() && p.isAlive()) {
+                    // Player must also be indoors under roof
+                    if (level.canSeeSky(p.blockPosition())) continue;
+                    // Player must be within 4 blocks of the NPC's bed
+                    if (p.distanceToSqr(home.getX() + 0.5, home.getY() + 0.5, home.getZ() + 0.5) > 16.0) continue;
+                    if (com.skycraft.crime.Ownership.isOwnedByOther(p, level, p.blockPosition())) {
+                        return p;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static BlockPos findNearbyBed(net.minecraft.world.level.Level level, BlockPos center, int radius) {
+            BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dy = -2; dy <= 3; dy++) {
+                    for (int dz = -radius; dz <= radius; dz++) {
+                        m.set(center.getX() + dx, center.getY() + dy, center.getZ() + dz);
+                        if (level.getBlockState(m).is(BlockTags.BEDS)) {
+                            return m.immutable();
+                        }
+                    }
+                }
+            }
+            return null;
         }
     }
 }

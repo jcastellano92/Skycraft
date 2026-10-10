@@ -11,6 +11,15 @@ import com.skycraft.creatures.entity.GiantEntity;
 import com.skycraft.creatures.entity.GuardEntity;
 import com.skycraft.creatures.entity.SkeeverEntity;
 import com.skycraft.creatures.entity.TrollEntity;
+import com.skycraft.creatures.entity.FalmerEntity;
+import com.skycraft.creatures.entity.ForswornEntity;
+import com.skycraft.creatures.entity.FrostbiteSpiderEntity;
+import com.skycraft.creatures.entity.HagravenEntity;
+import com.skycraft.creatures.entity.IceWraithEntity;
+import com.skycraft.creatures.entity.NecromancerEntity;
+import com.skycraft.creatures.entity.SprigganEntity;
+import com.skycraft.creatures.entity.VampireEntity;
+import com.skycraft.creatures.entity.WispmotherEntity;
 import com.skycraft.creatures.world.BanditCampFeature;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
@@ -63,6 +72,34 @@ public final class ModEntities {
             () -> EntityType.Builder.<CorpseEntity>of(CorpseEntity::new, MobCategory.MISC)
                     .sized(1.0f, 0.5f).fireImmune().clientTrackingRange(8).updateInterval(2).build(id("corpse")));
 
+    public static final RegistryObject<EntityType<ForswornEntity>> FORSWORN = ENTITIES.register("forsworn",
+            () -> EntityType.Builder.<ForswornEntity>of(ForswornEntity::new, MobCategory.MONSTER)
+                    .sized(0.6f, 1.95f).clientTrackingRange(8).build(id("forsworn")));
+    public static final RegistryObject<EntityType<NecromancerEntity>> NECROMANCER = ENTITIES.register("necromancer",
+            () -> EntityType.Builder.<NecromancerEntity>of(NecromancerEntity::new, MobCategory.MONSTER)
+                    .sized(0.6f, 1.95f).clientTrackingRange(8).build(id("necromancer")));
+    public static final RegistryObject<EntityType<VampireEntity>> VAMPIRE = ENTITIES.register("vampire",
+            () -> EntityType.Builder.<VampireEntity>of(VampireEntity::new, MobCategory.MONSTER)
+                    .sized(0.6f, 1.95f).clientTrackingRange(8).build(id("vampire")));
+    public static final RegistryObject<EntityType<FalmerEntity>> FALMER = ENTITIES.register("falmer",
+            () -> EntityType.Builder.<FalmerEntity>of(FalmerEntity::new, MobCategory.MONSTER)
+                    .sized(0.6f, 1.8f).clientTrackingRange(8).build(id("falmer")));
+    public static final RegistryObject<EntityType<FrostbiteSpiderEntity>> FROSTBITE_SPIDER = ENTITIES.register("frostbite_spider",
+            () -> EntityType.Builder.<FrostbiteSpiderEntity>of(FrostbiteSpiderEntity::new, MobCategory.MONSTER)
+                    .sized(1.6f, 1.0f).clientTrackingRange(8).build(id("frostbite_spider")));
+    public static final RegistryObject<EntityType<IceWraithEntity>> ICE_WRAITH = ENTITIES.register("ice_wraith",
+            () -> EntityType.Builder.<IceWraithEntity>of(IceWraithEntity::new, MobCategory.MONSTER)
+                    .sized(0.8f, 1.4f).clientTrackingRange(8).build(id("ice_wraith")));
+    public static final RegistryObject<EntityType<SprigganEntity>> SPRIGGAN = ENTITIES.register("spriggan",
+            () -> EntityType.Builder.<SprigganEntity>of(SprigganEntity::new, MobCategory.MONSTER)
+                    .sized(0.6f, 1.95f).clientTrackingRange(8).build(id("spriggan")));
+    public static final RegistryObject<EntityType<HagravenEntity>> HAGRAVEN = ENTITIES.register("hagraven",
+            () -> EntityType.Builder.<HagravenEntity>of(HagravenEntity::new, MobCategory.MONSTER)
+                    .sized(0.6f, 1.95f).clientTrackingRange(8).build(id("hagraven")));
+    public static final RegistryObject<EntityType<WispmotherEntity>> WISPMOTHER = ENTITIES.register("wispmother",
+            () -> EntityType.Builder.<WispmotherEntity>of(WispmotherEntity::new, MobCategory.MONSTER)
+                    .sized(0.6f, 2.0f).clientTrackingRange(8).build(id("wispmother")));
+
     public static final RegistryObject<Item> BANDIT_EGG = egg("bandit", BANDIT, 0x5A3E2B, 0xB08A5A);
     public static final RegistryObject<Item> BANDIT_CHIEF_EGG = egg("bandit_chief", BANDIT_CHIEF, 0x3B2A1E, 0xC9C9C9);
     public static final RegistryObject<Item> DRAUGR_EGG = egg("draugr", DRAUGR, 0x5E6A70, 0x6FD3FF);
@@ -72,6 +109,15 @@ public final class ModEntities {
     public static final RegistryObject<Item> GIANT_EGG = egg("giant", GIANT, 0xD8C7B0, 0x7A5A3A);
     public static final RegistryObject<Item> DRAGON_EGG = egg("dragon", DRAGON, 0x5B4A32, 0xB89A5E);
     public static final RegistryObject<Item> GUARD_EGG = egg("guard", GUARD, 0xC8A23A, 0x8C8C8C);
+    public static final RegistryObject<Item> FORSWORN_EGG = egg("forsworn", FORSWORN, 0x4A3020, 0x805030);
+    public static final RegistryObject<Item> NECROMANCER_EGG = egg("necromancer", NECROMANCER, 0x1A1A24, 0x6A3A8A);
+    public static final RegistryObject<Item> VAMPIRE_EGG = egg("vampire", VAMPIRE, 0x241414, 0x991B1B);
+    public static final RegistryObject<Item> FALMER_EGG = egg("falmer", FALMER, 0x9E9080, 0x5A3E2B);
+    public static final RegistryObject<Item> FROSTBITE_SPIDER_EGG = egg("frostbite_spider", FROSTBITE_SPIDER, 0x334455, 0x88CCFF);
+    public static final RegistryObject<Item> ICE_WRAITH_EGG = egg("ice_wraith", ICE_WRAITH, 0xA0D8EF, 0xE0F7FA);
+    public static final RegistryObject<Item> SPRIGGAN_EGG = egg("spriggan", SPRIGGAN, 0x4A3020, 0x44AA33);
+    public static final RegistryObject<Item> HAGRAVEN_EGG = egg("hagraven", HAGRAVEN, 0x2B2B2B, 0x9E7030);
+    public static final RegistryObject<Item> WISPMOTHER_EGG = egg("wispmother", WISPMOTHER, 0xD0E8F2, 0x66B2FF);
 
     public static final RegistryObject<Feature<NoneFeatureConfiguration>> BANDIT_CAMP = FEATURES.register("bandit_camp",
             () -> new BanditCampFeature(NoneFeatureConfiguration.CODEC));

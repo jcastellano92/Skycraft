@@ -20,6 +20,7 @@ public final class CrimeItems {
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, Skycraft.MODID);
 
     public static final RegistryObject<Item> LOCKPICK = ITEMS.register("lockpick", () -> new LockpickItem(new Item.Properties().stacksTo(64)));
+    public static final RegistryObject<Item> JAIL_KEY = ITEMS.register("jail_key", () -> new Item(new Item.Properties().stacksTo(1)));
 
     private CrimeItems() {}
 

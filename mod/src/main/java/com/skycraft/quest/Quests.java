@@ -214,19 +214,38 @@ public final class Quests {
     }
 
     private static void runOnComplete(MinecraftServer server, String key, Objective o, @Nullable ServerPlayer actor) {
-        if (o.onComplete.startsWith("give:")) {
-            ResourceLocation id = ResourceLocation.tryParse(o.onComplete.substring(5));
-            Item item = id == null ? null : ForgeRegistries.ITEMS.getValue(id);
-            if (item == null || item == Items.AIR) return;
-            ServerPlayer receiver = actor;
-            if (receiver == null) {
-                List<ServerPlayer> online = onlineMembers(server, key);
-                if (!online.isEmpty()) receiver = online.get(0);
-            }
-            if (receiver != null) {
-                ItemStack stack = new ItemStack(item);
-                Notifier.message(receiver, Component.translatable("quest.skycraft.item_found", stack.getHoverName()));
-                give(receiver, stack);
+        if (o.onComplete == null || o.onComplete.isEmpty()) return;
+        ServerPlayer receiver = actor;
+        if (receiver == null) {
+            List<ServerPlayer> online = onlineMembers(server, key);
+            if (!online.isEmpty()) receiver = online.get(0);
+        }
+        if (receiver == null) return;
+
+        for (String action : o.onComplete.split(";")) {
+            action = action.trim();
+            if (action.startsWith("give:")) {
+                String[] items = action.substring(5).split(",");
+                for (String part : items) {
+                    part = part.trim();
+                    if (part.isEmpty()) continue;
+                    int count = 1;
+                    if (part.contains("*")) {
+                        String[] cp = part.split("\\*");
+                        part = cp[0].trim();
+                        try {
+                            count = Integer.parseInt(cp[1].trim());
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    ResourceLocation id = ResourceLocation.tryParse(part);
+                    Item item = id == null ? null : ForgeRegistries.ITEMS.getValue(id);
+                    if (item != null && item != Items.AIR) {
+                        ItemStack stack = new ItemStack(item, count);
+                        Notifier.message(receiver, Component.translatable("quest.skycraft.item_found", stack.getHoverName()));
+                        give(receiver, stack);
+                    }
+                }
             }
         }
     }
@@ -272,6 +291,30 @@ public final class Quests {
         fail(player.server, ref.key(), ref.quest(), Component.translatable("quest.skycraft.abandoned", player.getDisplayName()));
     }
 
+    /** Share a personal active side quest with the player's party. */
+    public static void shareWithParty(ServerPlayer player, String questId) {
+        Party party = PartyManager.get(player.server).partyOf(player.getUUID());
+        if (party == null) {
+            Notifier.message(player, Component.translatable("party.skycraft.no_party"));
+            return;
+        }
+        QuestStore store = QuestStore.get(player.server);
+        String pKey = personalKey(player.getUUID());
+        Quest q = store.find(pKey, questId);
+        if (q == null || !q.isActive() || q.isMain()) return;
+
+        String ptKey = partyKey(party.id);
+        // Move from personal list to party list
+        store.quests(pKey).remove(q);
+        if (store.find(ptKey, q.id) != null) q.id = newId(store, ptKey);
+        store.quests(ptKey).add(q);
+        for (ServerPlayer m : onlineMembers(player.server, ptKey)) {
+            Notifier.message(m, Component.translatable("quest.skycraft.shared_with_party", player.getDisplayName(), q.title));
+        }
+        changed(player.server, pKey);
+        changed(player.server, ptKey);
+    }
+
     // ------------------------------------------------------------------ rewards
 
     public static void grantRewards(ServerPlayer player, Quest q, boolean shared) {
@@ -284,6 +327,9 @@ public final class Quests {
         Currency.give(player, gold);
         for (ItemStack s : q.rewardItems) give(player, s.copy());
         if (!q.faction.isEmpty()) Factions.onQuestReward(player, q);
+        if (q.kind.startsWith("college_")) {
+            data.module("quest").putBoolean(q.kind + "_completed", true);
+        }
         data.addStat("quests_completed", 1);
         if (q.category == Quest.Category.BOUNTY) data.addStat("bounties_collected", 1);
         data.markDirty();
@@ -303,7 +349,27 @@ public final class Quests {
 
     public static void give(Player player, ItemStack stack) {
         if (stack.isEmpty()) return;
-        if (!player.getInventory().add(stack) && !stack.isEmpty()) player.drop(stack, false);
+        // Never auto-equip quest rewards into armor or active hand slots! Place directly into inventory storage (9-35)
+        net.minecraft.world.entity.player.Inventory inv = player.getInventory();
+        for (int i = 9; i < 36; i++) {
+            ItemStack inSlot = inv.getItem(i);
+            if (ItemStack.isSameItemSameTags(inSlot, stack)) {
+                int space = inSlot.getMaxStackSize() - inSlot.getCount();
+                if (space > 0) {
+                    int move = Math.min(space, stack.getCount());
+                    inSlot.grow(move);
+                    stack.shrink(move);
+                    if (stack.isEmpty()) return;
+                }
+            }
+        }
+        for (int i = 9; i < 36; i++) {
+            if (inv.getItem(i).isEmpty()) {
+                inv.setItem(i, stack.copy());
+                return;
+            }
+        }
+        if (!inv.add(stack) && !stack.isEmpty()) player.drop(stack, false);
     }
 
     public static int count(Player player, Item item) {

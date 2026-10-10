@@ -30,7 +30,17 @@ public final class Locate {
 
     @Nullable
     public static BlockPos nearestVillage(ServerLevel level, BlockPos from) {
-        return structure(level, StructureTags.VILLAGE, from, 64);
+        BlockPos s = structure(level, com.skycraft.roads.RoadNetwork.SETTLEMENTS, from, 64);
+        if (s != null && (level.getBiome(s).is(net.minecraft.tags.BiomeTags.IS_OCEAN) || level.getBiome(s).is(net.minecraft.tags.BiomeTags.IS_DEEP_OCEAN))) {
+            s = null;
+        }
+        if (s == null) {
+            s = structure(level, StructureTags.VILLAGE, from, 64);
+            if (s != null && (level.getBiome(s).is(net.minecraft.tags.BiomeTags.IS_OCEAN) || level.getBiome(s).is(net.minecraft.tags.BiomeTags.IS_DEEP_OCEAN))) {
+                s = null;
+            }
+        }
+        return s;
     }
 
     /** A village at least {@code minDist} blocks away (for couriers), or null. */
@@ -38,7 +48,8 @@ public final class Locate {
     public static BlockPos farVillage(ServerLevel level, BlockPos from, int minDist, RandomSource r) {
         for (int attempt = 0; attempt < 4; attempt++) {
             BlockPos probe = randomSpot(level, r, from, minDist + 100, minDist + 500);
-            BlockPos v = structure(level, StructureTags.VILLAGE, probe, 24);
+            BlockPos v = structure(level, com.skycraft.roads.RoadNetwork.SETTLEMENTS, probe, 24);
+            if (v == null) v = structure(level, StructureTags.VILLAGE, probe, 24);
             if (v != null && horizontalDist(v, from) >= minDist) return v;
         }
         return null;
@@ -51,6 +62,34 @@ public final class Locate {
         BlockPos d = structure(level, DUNGEONS, probe, 48);
         if (d == null) d = structure(level, DUNGEONS, from, 64);
         return d;
+    }
+
+    /** Finds an elevated mountain barrow/dungeon structure or mountain summit. */
+    @Nullable
+    public static BlockPos mountainDungeon(ServerLevel level, BlockPos from, RandomSource r) {
+        BlockPos best = null;
+        int highestY = 75;
+        for (int i = 0; i < 4; i++) {
+            BlockPos probe = randomSpot(level, r, from, 150 + i * 50, 350 + i * 50);
+            BlockPos d = structure(level, DUNGEONS, probe, 32);
+            if (d != null) {
+                int surfaceY = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, d.getX(), d.getZ());
+                if (surfaceY > highestY) {
+                    highestY = surfaceY;
+                    best = new BlockPos(d.getX(), surfaceY, d.getZ());
+                }
+            }
+        }
+        if (best != null && highestY >= 90) return best;
+        for (int i = 0; i < 8; i++) {
+            BlockPos probe = randomSpot(level, r, from, 220, 420);
+            int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, probe.getX(), probe.getZ());
+            if (y > highestY) {
+                highestY = y;
+                best = new BlockPos(probe.getX(), y, probe.getZ());
+            }
+        }
+        return best != null ? best : dungeon(level, from, r);
     }
 
     /** A spot {@code min..max} blocks away in a random direction, inside the world border. Y is a guess (64). */

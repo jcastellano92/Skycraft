@@ -27,6 +27,7 @@ public final class CraftingModule {
     /** Registers this module's packets via {@link com.skycraft.network.SkyNetwork#register}. Called once at startup. */
     public static void registerPackets() {
         CraftingPackets.register();
+        com.skycraft.homestead.HomesteadPackets.register();
         // keep: arcane packets are registered after the crafting ones
         ArcaneModule.registerPackets();
     }

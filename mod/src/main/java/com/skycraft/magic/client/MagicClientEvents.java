@@ -8,6 +8,7 @@ import com.skycraft.magic.MagicPackets;
 import com.skycraft.magic.Targeting;
 import com.skycraft.magic.spell.Spell;
 import com.skycraft.magic.spell.SpellCasting;
+import com.skycraft.magic.spell.SpellTomeItem;
 import com.skycraft.magic.spell.Spells;
 import com.skycraft.network.SkyNetwork;
 import net.minecraft.client.Minecraft;
@@ -69,6 +70,12 @@ public final class MagicClientEvents {
         return wc != WeaponClass.OTHER && wc != WeaponClass.BOW && wc != WeaponClass.UNARMED;
     }
 
+    private static boolean canStartRightCast(Minecraft mc, LocalPlayer player) {
+        if (player.isSpectator() || player.isUsingItem()) return false;
+        if (!player.getMainHandItem().isEmpty() && !(player.getMainHandItem().getItem() instanceof SpellTomeItem)) return false;
+        return !MagicData.selectedSpell(player).isEmpty();
+    }
+
     private static boolean canStartLeftCast(Minecraft mc, LocalPlayer player) {
         if (player.isSpectator() || player.isUsingItem() || !player.getOffhandItem().isEmpty()) return false;
         if (!castFriendly(player.getMainHandItem())) return false;
@@ -94,17 +101,18 @@ public final class MagicClientEvents {
             if (mc.screen == null) mc.setScreen(new MagicMenuScreen());
         }
 
-        // Right hand: R.
+        // Right hand: LMB (attack key when hand is free) or CAST key.
         while (SkyKeys.CAST.consumeClick()) {
             // state is read through isDown(); drain the click queue
         }
-        boolean right = SkyKeys.CAST.isDown() && mc.screen == null;
+        boolean attackDown = mc.options.keyAttack.isDown() && mc.screen == null && canStartRightCast(mc, player);
+        boolean right = (SkyKeys.CAST.isDown() || attackDown) && mc.screen == null;
         if (right != rightDown) {
             rightDown = right;
             SkyNetwork.sendToServer(new MagicPackets.Cast(SpellCasting.RIGHT, right));
         }
 
-        // Left hand: the use key, started on a fresh press while nothing is targeted, held until released.
+        // Left hand: RMB (use key), started on a fresh press while nothing is targeted, held until released.
         boolean useDown = mc.options.keyUse.isDown() && mc.screen == null;
         boolean left = leftDown ? useDown : useDown && !useWasDown && canStartLeftCast(mc, player);
         useWasDown = useDown;
@@ -148,5 +156,61 @@ public final class MagicClientEvents {
         DustParticleOptions dust = new DustParticleOptions(new Vector3f(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f), 0.6f);
         mc.level.addParticle(dust, p.x + (player.getRandom().nextDouble() - 0.5) * 0.15, p.y + (player.getRandom().nextDouble() - 0.5) * 0.15,
                 p.z + (player.getRandom().nextDouble() - 0.5) * 0.15, 0, 0.01, 0);
+    }
+
+    /** Cancel normal punch/attack swing when right-hand spell is active. */
+    @SubscribeEvent
+    public static void onAttackKey(net.minecraftforge.client.event.InputEvent.InteractionKeyMappingTriggered event) {
+        if (!event.isAttack()) return;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.screen != null) return;
+        if (canStartRightCast(mc, player)) {
+            event.setCanceled(true);
+            event.setSwingHand(false);
+        }
+    }
+
+    /** Render the left/offhand arm in first person when wielding or casting magic with empty offhand. */
+    @SubscribeEvent
+    public static void onRenderHand(net.minecraftforge.client.event.RenderHandEvent event) {
+        if (event.getHand() != net.minecraft.world.InteractionHand.OFF_HAND) return;
+        if (!event.getItemStack().isEmpty()) return;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || player.isInvisible()) return;
+
+        String leftSpell = MagicData.leftSpell(player);
+        if (leftSpell.isEmpty()) leftSpell = MagicData.selectedSpell(player);
+        if (leftSpell.isEmpty() && !isCasting()) return;
+
+        var poseStack = event.getPoseStack();
+        var buffer = event.getMultiBufferSource();
+        int light = event.getPackedLight();
+        float partialTick = event.getPartialTick();
+        float swing = player.getAttackAnim(partialTick);
+        float equip = event.getEquipProgress();
+
+        poseStack.pushPose();
+        float f1 = net.minecraft.util.Mth.sqrt(swing);
+        float f2 = -0.3F * net.minecraft.util.Mth.sin(f1 * (float) Math.PI);
+        float f3 = 0.4F * net.minecraft.util.Mth.sin(f1 * ((float) Math.PI * 2F));
+        float f4 = -0.4F * net.minecraft.util.Mth.sin(swing * (float) Math.PI);
+        poseStack.translate(-(f2 + 0.64F), f3 + -0.6F + equip * -0.6F, f4 + -0.72F);
+        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-45.0F));
+        float f5 = net.minecraft.util.Mth.sin(swing * swing * (float) Math.PI);
+        float f6 = net.minecraft.util.Mth.sin(f1 * (float) Math.PI);
+        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-f6 * 70.0F));
+        poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(f5 * -20.0F));
+        poseStack.translate(1.0F, 3.6F, 3.5F);
+        poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-120.0F));
+        poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(200.0F));
+        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(135.0F));
+        poseStack.translate(-5.6F, 0.0F, 0.0F);
+
+        var renderer = (net.minecraft.client.renderer.entity.player.PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(player);
+        renderer.renderLeftHand(poseStack, buffer, light, player);
+        poseStack.popPose();
+        event.setCanceled(true);
     }
 }

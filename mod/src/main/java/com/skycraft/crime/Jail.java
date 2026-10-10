@@ -5,6 +5,7 @@ import com.skycraft.core.Notifier;
 import com.skycraft.core.PlayerData;
 import com.skycraft.core.SkyData;
 import com.skycraft.core.Skill;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
@@ -19,7 +20,9 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.BedBlock;
@@ -95,6 +98,7 @@ public final class Jail {
         j.putString("hold", hold);
         j.putInt("bounty", bounty);
         j.putInt("remaining", sentenceSeconds(bounty));
+        j.putInt("served", 0);
         j.putString("rdim", player.level().dimension().location().toString());
         j.putDouble("rx", player.getX());
         j.putDouble("ry", player.getY());
@@ -112,49 +116,166 @@ public final class Jail {
         Notifier.title(player, Component.translatable("crime.skycraft.jail.title"),
                 Component.translatable("crime.skycraft.jail.sentence", formatTime(sentenceSeconds(bounty))));
         teleportToCell(player, jail);
+
+        // Move possessions to Evidence Chest, keeping up to 2 lockpicks if skilled
+        int slot = JailData.get(player.server).slotFor(player.getUUID());
+        BlockPos origin = cellOrigin(slot);
+        BlockPos chestPos = origin.offset(2, 1, 1);
+        if (jail.getBlockEntity(chestPos) instanceof net.minecraft.world.level.block.entity.ChestBlockEntity chest) {
+            chest.clearContent();
+            var inv = player.getInventory();
+            int lockpickCount = 0;
+            for (int i = 0; i < inv.getContainerSize(); i++) {
+                ItemStack s = inv.getItem(i);
+                if (s.is(CrimeItems.LOCKPICK.get())) lockpickCount += s.getCount();
+            }
+            int keep = (data.getSkill(Skill.LOCKPICKING) >= 20 || data.getSkill(Skill.SNEAK) >= 20 || data.hasPerk("lockpicking.novice"))
+                    ? Math.min(2, lockpickCount) : (lockpickCount > 0 ? 1 : 0);
+            int kept = 0;
+            int chestSlot = 0;
+            for (int i = 0; i < inv.getContainerSize(); i++) {
+                ItemStack s = inv.getItem(i);
+                if (s.isEmpty()) continue;
+                if (s.is(CrimeItems.LOCKPICK.get()) && kept < keep) {
+                    int take = Math.min(s.getCount(), keep - kept);
+                    kept += take;
+                    if (s.getCount() > take) {
+                        ItemStack remainder = s.split(s.getCount() - take);
+                        if (chestSlot < chest.getContainerSize()) chest.setItem(chestSlot++, remainder);
+                    }
+                    continue;
+                }
+                if (chestSlot < chest.getContainerSize()) {
+                    chest.setItem(chestSlot++, s.copy());
+                }
+                inv.setItem(i, ItemStack.EMPTY);
+            }
+            chest.setChanged();
+            if (kept > 0) {
+                Notifier.message(player, Component.literal("§aYou managed to keep " + kept + " lockpick" + (kept > 1 ? "s" : "") + " concealed in your boot."));
+            }
+        }
     }
 
     private static void teleportToCell(ServerPlayer player, ServerLevel jail) {
         int slot = JailData.get(player.server).slotFor(player.getUUID());
         BlockPos origin = cellOrigin(slot);
         JailData data = JailData.get(player.server);
-        if (!data.built.contains(slot) || jail.getBlockState(origin.offset(3, 0, 3)).isAir()) {
+        if (!data.built.contains(slot) || jail.getBlockState(origin.offset(7, 1, 4)).isAir()) {
             buildCell(jail, origin);
             data.built.add(slot);
             data.setDirty();
         }
-        player.teleportTo(jail, origin.getX() + 4.5, CELL_Y + 1, origin.getZ() + 3.5, 90f, 0f);
+        player.teleportTo(jail, origin.getX() + 7.5, CELL_Y + 1, origin.getZ() + 4.5, 90f, 0f);
     }
 
     static BlockPos cellOrigin(int slot) {
         return new BlockPos(slot * CELL_SPACING, CELL_Y, 0);
     }
 
-    /** A 5x3x5 stone-brick cell with a barred window, a bed and a torch. Origin is the floor's corner. */
+    /** A hold jail with central corridor, evidence chest, guard patrol, and multiple cells with NPCs. */
     private static void buildCell(ServerLevel level, BlockPos o) {
         BlockState wall = Blocks.STONE_BRICKS.defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
-        for (int x = 0; x <= 6; x++) {
+        for (int x = 0; x <= 11; x++) {
             for (int y = 0; y <= 4; y++) {
-                for (int z = 0; z <= 6; z++) {
-                    boolean shell = x == 0 || x == 6 || y == 0 || y == 4 || z == 0 || z == 6;
+                for (int z = 0; z <= 25; z++) {
+                    boolean shell = x == 0 || x == 11 || y == 0 || y == 4 || z == 0 || z == 25;
                     BlockState s = shell ? (y == 0 && (x + z) % 3 == 0 ? Blocks.CRACKED_STONE_BRICKS.defaultBlockState()
                             : y > 0 && y < 4 && (x * 7 + z * 3 + y) % 5 == 0 ? Blocks.MOSSY_STONE_BRICKS.defaultBlockState() : wall) : air;
                     level.setBlock(o.offset(x, y, z), s, 2);
                 }
             }
         }
-        // barred window on the west wall
+
+        // Inner partition separating corridor (x: 1..4) from cells (x: 6..10)
+        for (int z = 1; z <= 24; z++) {
+            for (int y = 1; y <= 3; y++) {
+                level.setBlock(o.offset(5, y, z), wall, 2);
+            }
+        }
+        // Dividers between cells
+        for (int x = 6; x <= 10; x++) {
+            for (int y = 1; y <= 3; y++) {
+                level.setBlock(o.offset(x, y, 8), wall, 2);
+                level.setBlock(o.offset(x, y, 16), wall, 2);
+            }
+        }
+
+        // Corridor lanterns
+        level.setBlock(o.offset(2, 3, 4), Blocks.LANTERN.defaultBlockState().setValue(net.minecraft.world.level.block.LanternBlock.HANGING, true), 2);
+        level.setBlock(o.offset(2, 3, 12), Blocks.LANTERN.defaultBlockState().setValue(net.minecraft.world.level.block.LanternBlock.HANGING, true), 2);
+        level.setBlock(o.offset(2, 3, 20), Blocks.LANTERN.defaultBlockState().setValue(net.minecraft.world.level.block.LanternBlock.HANGING, true), 2);
+
+        // North end: Evidence Chest
+        BlockPos chestPos = o.offset(2, 1, 1);
+        level.setBlock(chestPos, Blocks.CHEST.defaultBlockState(), 3);
+        Locks.setLock(level, chestPos, Locks.MASTER);
+
+        // South end: Old sewer grate / Escape hatch
+        BlockPos escapePos = o.offset(2, 1, 23);
+        level.setBlock(escapePos, Blocks.IRON_TRAPDOOR.defaultBlockState(), 3);
+
+        // Setup Cell 1 (Player's cell: z: 2..7)
+        setupCell(level, o, 4, 3, true);
+        // Setup Cell 2 (NPC Outlaw: z: 9..15)
+        setupCell(level, o, 12, 11, false);
+        // Setup Cell 3 (NPC Thief: z: 17..23)
+        setupCell(level, o, 20, 19, false);
+
+        // Spawn prisoners in Cells 2 and 3
+        try {
+            var prisoner1 = net.minecraft.world.entity.EntityType.VILLAGER.create(level);
+            if (prisoner1 != null) {
+                prisoner1.setCustomName(Component.literal("Imprisoned Outlaw"));
+                prisoner1.setCustomNameVisible(true);
+                prisoner1.setPos(o.getX() + 7.5, CELL_Y + 1, o.getZ() + 12.5);
+                level.addFreshEntity(prisoner1);
+            }
+            var prisoner2 = net.minecraft.world.entity.EntityType.VILLAGER.create(level);
+            if (prisoner2 != null) {
+                prisoner2.setCustomName(Component.literal("Captured Thief"));
+                prisoner2.setCustomNameVisible(true);
+                prisoner2.setPos(o.getX() + 7.5, CELL_Y + 1, o.getZ() + 20.5);
+                level.addFreshEntity(prisoner2);
+            }
+            // Spawn patrolling Guard in corridor
+            var guard = com.skycraft.creatures.ModEntities.GUARD.get().create(level);
+            if (guard != null) {
+                guard.setCustomName(Component.literal("Jail Guard"));
+                guard.setCustomNameVisible(true);
+                guard.setPos(o.getX() + 2.5, CELL_Y + 1, o.getZ() + 12.5);
+                guard.restrictTo(o.offset(2, 1, 12), 10);
+                level.addFreshEntity(guard);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private static void setupCell(ServerLevel level, BlockPos o, int doorZ, int bedZ, boolean playerCell) {
+        // Iron Door facing corridor
+        BlockPos doorBottom = o.offset(5, 1, doorZ);
+        BlockPos doorTop = o.offset(5, 2, doorZ);
+        level.setBlock(doorBottom, Blocks.IRON_DOOR.defaultBlockState().setValue(net.minecraft.world.level.block.DoorBlock.HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER).setValue(net.minecraft.world.level.block.DoorBlock.FACING, Direction.WEST), 2);
+        level.setBlock(doorTop, Blocks.IRON_DOOR.defaultBlockState().setValue(net.minecraft.world.level.block.DoorBlock.HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER).setValue(net.minecraft.world.level.block.DoorBlock.FACING, Direction.WEST), 2);
+        Locks.setLock(level, doorBottom, Locks.MASTER);
+
+        // Iron bars beside door
         BlockState bars = Blocks.IRON_BARS.defaultBlockState().setValue(IronBarsBlock.NORTH, true).setValue(IronBarsBlock.SOUTH, true);
-        for (int z = 2; z <= 4; z++) level.setBlock(o.offset(0, 2, z), bars, 2);
-        // bed in the north-east corner, head against the north wall
-        BlockPos foot = o.offset(5, 1, 2);
-        BlockPos head = foot.north();
-        level.setBlock(head, Blocks.RED_BED.defaultBlockState().setValue(BedBlock.FACING, Direction.NORTH).setValue(BedBlock.PART, BedPart.HEAD), 2);
-        level.setBlock(foot, Blocks.RED_BED.defaultBlockState().setValue(BedBlock.FACING, Direction.NORTH).setValue(BedBlock.PART, BedPart.FOOT), 2);
-        level.setBlock(o.offset(1, 1, 5), Blocks.TORCH.defaultBlockState(), 2);
-        level.setBlock(o.offset(1, 1, 1), Blocks.CAULDRON.defaultBlockState(), 2);
-        level.setBlock(o.offset(3, 3, 3), Blocks.LANTERN.defaultBlockState().setValue(net.minecraft.world.level.block.LanternBlock.HANGING, true), 2);
+        for (int dz = -2; dz <= 2; dz++) {
+            if (dz == 0) continue;
+            level.setBlock(o.offset(5, 1, doorZ + dz), bars, 2);
+            level.setBlock(o.offset(5, 2, doorZ + dz), bars, 2);
+        }
+
+        // Bed inside cell
+        BlockPos head = o.offset(9, 1, bedZ);
+        BlockPos foot = o.offset(9, 1, bedZ + 1);
+        level.setBlock(head, Blocks.RED_BED.defaultBlockState().setValue(BedBlock.FACING, Direction.SOUTH).setValue(BedBlock.PART, BedPart.HEAD), 2);
+        level.setBlock(foot, Blocks.RED_BED.defaultBlockState().setValue(BedBlock.FACING, Direction.SOUTH).setValue(BedBlock.PART, BedPart.FOOT), 2);
+
+        // Cell furnishings
+        level.setBlock(o.offset(9, 1, doorZ + 2), Blocks.CAULDRON.defaultBlockState(), 2);
+        level.setBlock(o.offset(7, 3, doorZ), Blocks.LANTERN.defaultBlockState().setValue(net.minecraft.world.level.block.LanternBlock.HANGING, true), 2);
     }
 
     // ------------------------------------------------------------------ serving the sentence
@@ -166,7 +287,6 @@ public final class Jail {
         if (!isJailDimension(player.level())) {
             if (!player.isAlive()) return;
             if (player.isCreative() || player.isSpectator()) {
-                // an operator walked out: that's a jailbreak
                 String hold = j.getString("hold");
                 Bounty.state(player).remove("jail");
                 SkyData.get(player).markDirty();
@@ -177,6 +297,7 @@ public final class Jail {
             if (jail != null) teleportToCell(player, jail);
             return;
         }
+        j.putInt("served", j.getInt("served") + 1);
         int left = j.getInt("remaining") - 1;
         if (left <= 0) {
             release(player, false);
@@ -194,6 +315,24 @@ public final class Jail {
         String hold = j.getString("hold");
         int bounty = Math.max(j.getInt("bounty"), 1);
         Bounty.clear(player, hold);
+
+        // Restore non-stolen possessions from Evidence Chest
+        int slot = JailData.get(player.server).slotFor(player.getUUID());
+        BlockPos origin = cellOrigin(slot);
+        BlockPos chestPos = origin.offset(2, 1, 1);
+        ServerLevel jail = player.server.getLevel(JAIL);
+        if (jail != null && jail.getBlockEntity(chestPos) instanceof net.minecraft.world.level.block.entity.ChestBlockEntity chest) {
+            for (int i = 0; i < chest.getContainerSize(); i++) {
+                ItemStack s = chest.getItem(i);
+                if (!s.isEmpty()) {
+                    if (!Bounty.isStolen(s)) {
+                        if (!ActionHandler.addToBags(player, s)) player.drop(s, false);
+                    }
+                    chest.setItem(i, ItemStack.EMPTY);
+                }
+            }
+            chest.setChanged();
+        }
 
         List<Skill> lost = deteriorate(player, Math.max(1, bounty / 100));
         MutableComponent skills = Component.empty();
@@ -216,6 +355,36 @@ public final class Jail {
             player.teleportTo(target, j.getDouble("rx"), j.getDouble("ry"), j.getDouble("rz"), j.getFloat("ryaw"), j.getFloat("rpitch"));
         }
         SkyData.get(player).markDirty();
+    }
+
+    public static void escape(ServerPlayer player) {
+        if (!isJailed(player)) return;
+        boolean detected = false;
+        for (Mob m : player.level().getEntitiesOfClass(Mob.class, player.getBoundingBox().inflate(16),
+                e -> Crimes.isGuard(e) && e.isAlive())) {
+            if (m.getTarget() == player || m.hasLineOfSight(player)) {
+                detected = true;
+                break;
+            }
+        }
+        CompoundTag j = Bounty.state(player).getCompound("jail");
+        String hold = j.getString("hold");
+        Bounty.state(player).remove("jail");
+        SkyData.get(player).markDirty();
+
+        if (detected) {
+            Bounty.add(player, hold, Bounty.ESCAPE);
+            Notifier.title(player, Component.literal("§cEscaped from Jail!"), Component.literal("§cGuards sounded the alarm! Bounty added."));
+        } else {
+            Notifier.title(player, Component.literal("§aEscaped from Jail!"), Component.literal("§aYou slipped away into the night unnoticed."));
+        }
+
+        ServerLevel target = null;
+        ResourceLocation dimId = ResourceLocation.tryParse(j.getString("rdim"));
+        if (dimId != null) target = player.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimId));
+        if (target == null || target.dimension() == JAIL) target = player.server.overworld();
+
+        player.teleportTo(target, j.getDouble("rx"), j.getDouble("ry"), j.getDouble("rz"), j.getFloat("ryaw"), j.getFloat("rpitch"));
     }
 
     /** Skyrim: time in jail erodes skill progress. Picks {@code times} skills weighted by level and resets their progress. */
@@ -252,12 +421,44 @@ public final class Jail {
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         Level level = event.getLevel();
         if (!isJailDimension(level) || event.getEntity().isCreative()) return;
+        BlockState state = level.getBlockState(event.getPos());
+        BlockPos pos = event.getPos();
+
+        if (event.getEntity() instanceof ServerPlayer player && isJailed(player) && event.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND) {
+            int slot = JailData.get(player.server).slotFor(player.getUUID());
+            BlockPos origin = cellOrigin(slot);
+
+            if (state.getBlock() instanceof BedBlock) {
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.FAIL);
+                CompoundTag j = Bounty.state(player).getCompound("jail");
+                int served = j.getInt("served");
+                if (served < 60) {
+                    int remaining = 60 - served;
+                    Notifier.message(player, Component.literal("§cYou must serve at least 1 minute of your sentence before resting (" + remaining + "s remaining)."));
+                } else {
+                    release(player, true);
+                }
+                return;
+            }
+
+            if (pos.equals(origin.offset(2, 1, 23))) {
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+                escape(player);
+                return;
+            }
+        }
+
+        // Allow doors, trapdoors, and container block entities to be interacted with (for lockpicking and looting)
+        if (state.getBlock() instanceof net.minecraft.world.level.block.DoorBlock
+                || state.getBlock() instanceof net.minecraft.world.level.block.TrapDoorBlock
+                || level.getBlockEntity(pos) != null) {
+            return;
+        }
+
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.FAIL);
-        if (event.getEntity() instanceof ServerPlayer player && level.getBlockState(event.getPos()).getBlock() instanceof BedBlock
-                && isJailed(player) && event.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND) {
-            release(player, true);
-        }
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)

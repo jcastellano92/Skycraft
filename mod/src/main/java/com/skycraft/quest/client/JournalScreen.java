@@ -37,11 +37,11 @@ import java.util.UUID;
  * tracking), Factions (membership, rank, reputation), Stats and Party.
  */
 public class JournalScreen extends Screen {
-    private static final int QUESTS = 0, FACTIONS = 1, STATS = 2, PARTY = 3;
-    private static final String[] TABS = {"quests", "factions", "stats", "party"};
+    private static final int MAIN = 0, SIDE = 1, MISC = 2, FACTIONS = 3, REPUTATION = 4, STATS = 5, PARTY = 6;
+    private static final String[] TABS = {"main", "side", "misc", "factions", "reputation", "stats", "party"};
     private static final int ROW = 12;
 
-    private static int tab = QUESTS;
+    private static int tab = MAIN;
     private static String selectedQuest = "";
     private static int selectedFaction = 0;
 
@@ -49,7 +49,7 @@ public class JournalScreen extends Screen {
     private int listScroll, detailScroll, listHeight, detailHeight;
     private boolean abandonArmed;
     private final List<Row> rows = new ArrayList<>();
-    private Button trackButton, abandonButton, partyButton;
+    private Button trackButton, shareButton, abandonButton, partyButton;
 
     private record Row(@Nullable Quest quest, int y) {
     }
@@ -73,7 +73,9 @@ public class JournalScreen extends Screen {
         y1 = y0 + h;
         listX1 = x0 + w * 36 / 100;
         trackButton = addRenderableWidget(Button.builder(Component.translatable("journal.skycraft.track"), b -> toggleTrack())
-                .bounds(x1 - 200, y1 - 22, 110, 16).build());
+                .bounds(x1 - 180, y1 - 22, 90, 16).build());
+        shareButton = addRenderableWidget(Button.builder(Component.translatable("journal.skycraft.share"), b -> shareWithParty())
+                .bounds(x1 - 280, y1 - 22, 96, 16).build());
         abandonButton = addRenderableWidget(Button.builder(Component.translatable("journal.skycraft.abandon"), b -> abandon())
                 .bounds(x1 - 86, y1 - 22, 78, 16).build());
         partyButton = addRenderableWidget(Button.builder(Component.translatable("journal.skycraft.open_party"),
@@ -85,14 +87,24 @@ public class JournalScreen extends Screen {
 
     private List<Quest> activeQuests() {
         List<Quest> out = new ArrayList<>();
-        for (Quest q : ClientQuestData.quests()) if (q.isActive()) out.add(q);
+        for (Quest q : ClientQuestData.quests()) {
+            if (!q.isActive()) continue;
+            if (tab == MAIN && q.category == Quest.Category.MAIN) out.add(q);
+            else if (tab == SIDE && q.category == Quest.Category.SIDE) out.add(q);
+            else if (tab == MISC && q.category != Quest.Category.MAIN && q.category != Quest.Category.SIDE) out.add(q);
+        }
         out.sort(Comparator.comparingInt((Quest q) -> q.category.ordinal()).thenComparingLong(q -> -q.started));
         return out;
     }
 
     private List<Quest> finishedQuests() {
         List<Quest> out = new ArrayList<>();
-        for (Quest q : ClientQuestData.quests()) if (!q.isActive()) out.add(q);
+        for (Quest q : ClientQuestData.quests()) {
+            if (q.isActive()) continue;
+            if (tab == MAIN && q.category == Quest.Category.MAIN) out.add(q);
+            else if (tab == SIDE && q.category == Quest.Category.SIDE) out.add(q);
+            else if (tab == MISC && q.category != Quest.Category.MAIN && q.category != Quest.Category.SIDE) out.add(q);
+        }
         out.sort(Comparator.comparingLong((Quest q) -> -q.finished));
         return out;
     }
@@ -112,9 +124,11 @@ public class JournalScreen extends Screen {
     @Override
     public void tick() {
         Quest q = selected();
-        boolean show = tab == QUESTS && q != null && q.isActive();
+        boolean isQuestTab = tab == MAIN || tab == SIDE || tab == MISC;
+        boolean show = isQuestTab && q != null && q.isActive();
         trackButton.visible = show;
         abandonButton.visible = show && !q.isMain();
+        shareButton.visible = show && !q.isMain() && !q.shared && ClientQuestData.inParty();
         if (show) {
             boolean tracked = q.id.equals(ClientQuestData.tracked());
             trackButton.setMessage(Component.translatable(tracked ? "journal.skycraft.untrack" : "journal.skycraft.track"));
@@ -128,6 +142,12 @@ public class JournalScreen extends Screen {
         if (q == null) return;
         boolean tracked = q.id.equals(ClientQuestData.tracked());
         SkyNetwork.sendToServer(new QuestPackets.QuestAction(tracked ? QuestPackets.QuestAction.UNTRACK : QuestPackets.QuestAction.TRACK, q.id));
+    }
+
+    private void shareWithParty() {
+        Quest q = selected();
+        if (q == null || q.isMain() || q.shared || !ClientQuestData.inParty()) return;
+        SkyNetwork.sendToServer(new QuestPackets.QuestAction(QuestPackets.QuestAction.SHARE, q.id));
     }
 
     private void abandon() {
@@ -172,7 +192,7 @@ public class JournalScreen extends Screen {
         }
         int top = y0 + 30;
         if (mx >= x0 + 6 && mx < listX1 && my >= top && my < y1 - 8) {
-            if (tab == QUESTS) {
+            if (tab == MAIN || tab == SIDE || tab == MISC) {
                 for (Row r : rows) {
                     if (r.quest() != null && my >= r.y() - 1 && my < r.y() + ROW - 1) {
                         selectedQuest = r.quest().id;
@@ -198,7 +218,7 @@ public class JournalScreen extends Screen {
     public boolean mouseScrolled(double mx, double my, double delta) {
         int top = y0 + 30;
         int view = y1 - 8 - top;
-        if (mx < listX1 && tab != STATS) {
+        if (mx < listX1 && tab != STATS && tab != REPUTATION) {
             listScroll = Mth.clamp(listScroll - (int) (delta * 14), 0, Math.max(0, listHeight - view));
         } else {
             detailScroll = Mth.clamp(detailScroll - (int) (delta * 14), 0, Math.max(0, detailHeight - view + 24));
@@ -231,8 +251,9 @@ public class JournalScreen extends Screen {
         Parchment.page(g, x0, y0, x1, y1);
         drawTabs(g, mouseX, mouseY);
         switch (tab) {
-            case QUESTS -> renderQuests(g, mouseX, mouseY);
+            case MAIN, SIDE, MISC -> renderQuests(g, mouseX, mouseY);
             case FACTIONS -> renderFactions(g, mouseX, mouseY);
+            case REPUTATION -> renderReputation(g);
             case STATS -> renderStats(g);
             default -> renderParty(g);
         }
@@ -560,6 +581,62 @@ public class JournalScreen extends Screen {
     private static String prettify(String key) {
         String s = key.replace('_', ' ').replace('.', ' ');
         return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    // ------------------------------------------------------------------ reputation tab
+
+    private void renderReputation(GuiGraphics g) {
+        PlayerData data = SkyData.get(minecraft.player);
+        CompoundTag crime = data.module("crime");
+        CompoundTag bountyTag = crime.getCompound("bounty");
+
+        int top = y0 + 30;
+        int bottom = y1 - 8;
+        int colW = (x1 - x0 - 32) / 2;
+        int lx = x0 + 12;
+        int rx = lx + colW + 8;
+        Parchment.vrule(g, rx - 5, top, bottom);
+        g.enableScissor(x0 + 4, top, x1 - 4, bottom);
+        int y = top - detailScroll;
+
+        heading(g, Component.translatable("journal.skycraft.reputation_holds"), lx, y);
+        int ly = y + 14;
+        for (int i = 0; i < Holds.NAMES.length; i++) {
+            String hold = Holds.NAMES[i];
+            Component hName = Holds.displayName(hold);
+            int bounty = bountyTag.getInt(hold);
+            g.drawString(font, hName, lx + 4, ly, Parchment.INK, false);
+            if (bounty > 0) {
+                g.drawString(font, Component.translatable("journal.skycraft.bounty_val", bounty), lx + colW - 70, ly, Parchment.RED, false);
+            } else {
+                g.drawString(font, Component.translatable("journal.skycraft.law_abiding"), lx + colW - 70, ly, Parchment.GREEN, false);
+            }
+            ly += 14;
+        }
+
+        heading(g, Component.translatable("journal.skycraft.reputation_standing"), rx, y);
+        int ry = y + 14;
+        int completed = 0;
+        for (Quest q : ClientQuestData.quests()) if (q.status == Quest.Status.COMPLETED) completed++;
+        statLine(g, Component.translatable("journal.skycraft.standing_title"),
+                completed >= 10 ? I18n.get("journal.skycraft.title_hero") : I18n.get("journal.skycraft.title_traveler"), rx, ry, colW - 6);
+        ry += 13;
+        statLine(g, Component.translatable("journal.skycraft.standing_quests"), String.valueOf(completed), rx, ry, colW - 6);
+        ry += 13;
+        statLine(g, Component.translatable("journal.skycraft.total_bounty"), String.valueOf(totalBounty(data)), rx, ry, colW - 6);
+        ry += 13;
+        statLine(g, Component.translatable("journal.skycraft.stolen_goods"), String.valueOf(crime.getInt("items_stolen")), rx, ry, colW - 6);
+        ry += 13;
+
+        g.disableScissor();
+        detailHeight = Math.max(ly, ry) + detailScroll - top;
+    }
+
+    private int totalBounty(PlayerData data) {
+        int total = 0;
+        CompoundTag b = data.module("crime").getCompound("bounty");
+        for (String k : b.getAllKeys()) total += b.getInt(k);
+        return total;
     }
 
     // ------------------------------------------------------------------ party tab

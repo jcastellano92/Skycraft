@@ -149,12 +149,14 @@ public class InsectEntity extends AmbientCreature {
 
     @Override
     protected InteractionResult mobInteract(Player player, InteractionHand hand) {
-        if (hand != InteractionHand.MAIN_HAND || !player.getItemInHand(hand).isEmpty() || !this.isAlive()) {
+        if (hand != InteractionHand.MAIN_HAND || !this.isAlive()) {
             return super.mobInteract(player, hand);
         }
         if (this.level() instanceof ServerLevel level) {
             ItemStack loot = new ItemStack(ingredient());
-            if (!player.getInventory().add(loot)) player.drop(loot, false);
+            if (!com.skycraft.vitals.ActionHandler.addToBags(player, loot)) {
+                player.drop(loot, false);
+            }
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.35f, 1.6f + this.random.nextFloat() * 0.3f);
             level.sendParticles(ParticleTypes.POOF, getX(), getY() + 0.15, getZ(), 3, 0.05, 0.05, 0.05, 0.01);
             if (player instanceof ServerPlayer sp) Progression.addSkillXp(sp, Skill.ALCHEMY, 0.5f);

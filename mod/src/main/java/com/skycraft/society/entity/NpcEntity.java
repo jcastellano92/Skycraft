@@ -61,6 +61,7 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
     private static final EntityDataAccessor<String> ROLE = SynchedEntityData.defineId(NpcEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Integer> SKIN = SynchedEntityData.defineId(NpcEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Byte> FLAGS = SynchedEntityData.defineId(NpcEntity.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<Integer> CONVERSATION_PARTNER = SynchedEntityData.defineId(NpcEntity.class, EntityDataSerializers.INT);
     public static final int FLAG_PRISONER = 1;
     public static final int FLAG_CASTING = 2;
     public static final int FLAG_PLAYING = 4;
@@ -94,6 +95,18 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
     private boolean raisedDead;
     /** Bard: a player asked for a song. */
     private boolean songRequested;
+    /** Feared attacker: non-combatant civilians fear and flee this player until they leave. */
+    @Nullable
+    private UUID fearedPlayerUuid;
+
+    @Nullable
+    public UUID getFearedPlayer() {
+        return fearedPlayerUuid;
+    }
+
+    public void setFearedPlayer(@Nullable UUID player) {
+        this.fearedPlayerUuid = player;
+    }
 
     public NpcEntity(EntityType<? extends NpcEntity> type, Level level) {
         super(type, level);
@@ -118,6 +131,7 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
         this.entityData.define(ROLE, "");
         this.entityData.define(SKIN, 0);
         this.entityData.define(FLAGS, (byte) 0);
+        this.entityData.define(CONVERSATION_PARTNER, -1);
     }
 
     @Override
@@ -129,6 +143,7 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
+        this.goalSelector.addGoal(1, new NpcGoals.Follower(this));
         this.goalSelector.addGoal(1, new NpcGoals.Panic(this));
         this.goalSelector.addGoal(2, new NpcGoals.Avoid(this));
         this.goalSelector.addGoal(2, new NpcGoals.Caster(this));
@@ -137,6 +152,7 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
         this.goalSelector.addGoal(4, new NpcGoals.Travel(this));
         this.goalSelector.addGoal(5, new OpenDoorGoal(this, true));
         this.goalSelector.addGoal(6, new NpcGoals.Work(this));
+        this.goalSelector.addGoal(6, new NpcGoals.NightRest(this));
         this.goalSelector.addGoal(7, new MoveTowardsRestrictionGoal(this, 0.6D));
         this.goalSelector.addGoal(8, new WaterAvoidingRandomStrollGoal(this, 0.55D) {
             @Override
@@ -298,20 +314,37 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
         this.letter = letter;
     }
 
+    public int getConversationPartner() {
+        return this.entityData.get(CONVERSATION_PARTNER);
+    }
+
+    public void setConversationPartner(int partnerId) {
+        this.entityData.set(CONVERSATION_PARTNER, partnerId);
+    }
+
+    public boolean isConversing() {
+        return getConversationPartner() >= 0;
+    }
+
     /** Walking somewhere on purpose (no idle strolling). */
     public boolean isBusy() {
-        return isPrisoner() || huntTarget != null || seekTarget != null || leader != null || destination != null || isPlaying();
+        return isConversing() || isPrisoner() || huntTarget != null || seekTarget != null || leader != null || destination != null || isPlaying() || com.skycraft.society.Followers.isFollower(this);
+    }
+
+    public boolean willFightBack() {
+        // Deterministic courage: roughly half of civilians will fight back when attacked
+        boolean brave = (this.getUUID().hashCode() & 1) == 0;
+        return role().combatant || (brave && this.getHealth() > this.getMaxHealth() * 0.25f);
     }
 
     public boolean canFight() {
-        return role().combatant && !isPrisoner();
+        return willFightBack() && !isPrisoner();
     }
 
     public Style style() {
-        NpcRole r = role();
-        if (!r.combatant || isPrisoner()) return Style.NONE;
+        if (!canFight() || isPrisoner()) return Style.NONE;
         if (this.getMainHandItem().getItem() instanceof BowItem) return Style.BOW;
-        if (r.caster && r != NpcRole.THALMOR) return Style.CASTER;
+        if (role().caster && role() != NpcRole.THALMOR) return Style.CASTER;
         return Style.MELEE;
     }
 
@@ -468,12 +501,30 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
     public void tick() {
         super.tick();
         if (!this.level().isClientSide && !initialized) initialize();
+        if (!this.level().isClientSide && isConversing()) {
+            this.getNavigation().stop();
+        }
     }
 
     @Override
     protected void customServerAiStep() {
         super.customServerAiStep();
+        if (isConversing()) {
+            Entity partner = this.level().getEntity(getConversationPartner());
+            if (partner == null || !partner.isAlive() || this.distanceToSqr(partner) > 64) {
+                setConversationPartner(-1);
+            } else {
+                this.getNavigation().stop();
+                this.getLookControl().setLookAt(partner, 30.0F, 30.0F);
+            }
+        }
         if (this.tickCount % 20 != 0) return;
+        if (fearedPlayerUuid != null) {
+            Player p = this.level().getPlayerByUUID(fearedPlayerUuid);
+            if (p == null || !p.isAlive() || this.distanceToSqr(p) > 28.0 * 28.0) {
+                fearedPlayerUuid = null; // calmed down after player left
+            }
+        }
         LivingEntity target = this.getTarget();
         if (target != null) {
             boolean provoked = provoker != null && provoker.equals(target.getUUID())
@@ -535,6 +586,7 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
             tag.putInt("HomeRadius", (int) this.getRestrictRadius());
         }
         if (letter >= 0) tag.putInt("Letter", letter);
+        if (fearedPlayerUuid != null) tag.putUUID("FearedPlayer", fearedPlayerUuid);
     }
 
     @Override
@@ -551,5 +603,6 @@ public class NpcEntity extends PathfinderMob implements RangedAttackMob {
         destination = tag.contains("Destination") ? NbtUtils.readBlockPos(tag.getCompound("Destination")) : null;
         if (tag.contains("Home")) setHome(NbtUtils.readBlockPos(tag.getCompound("Home")), Math.max(8, tag.getInt("HomeRadius")));
         letter = tag.contains("Letter") ? tag.getInt("Letter") : -1;
+        fearedPlayerUuid = tag.hasUUID("FearedPlayer") ? tag.getUUID("FearedPlayer") : null;
     }
 }

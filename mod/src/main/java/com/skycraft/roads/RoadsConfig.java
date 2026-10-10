@@ -33,6 +33,10 @@ public final class RoadsConfig {
     public static final ForgeConfigSpec.BooleanValue COMPASS_MARKERS;
     public static final ForgeConfigSpec.IntValue COMPASS_RANGE;
 
+    // ------------------------------------------------------------------ carriage
+    public static final ForgeConfigSpec.BooleanValue CARRIAGES;
+    public static final ForgeConfigSpec.IntValue CARRIAGE_COST;
+
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
         b.push("roads");
@@ -50,7 +54,7 @@ public final class RoadsConfig {
         MAX_BRIDGE_LENGTH = b.comment("Water crossings longer than this (blocks) get no bridge; the road simply stops at the shore.")
                 .defineInRange("maxBridgeLength", 64, 0, 512);
         LANTERN_SPACING = b.comment("Distance in blocks between lantern posts along a road (0 = none).")
-                .defineInRange("lanternSpacing", 96, 0, 4096);
+                .defineInRange("lanternSpacing", 40, 0, 4096);
         SIGNPOSTS = b.comment("Place signposts at settlement exits and road junctions.").define("signposts", true);
         LANTERNS = b.comment("Place lantern posts along roads.").define("lanterns", true);
         b.pop();
@@ -82,6 +86,13 @@ public final class RoadsConfig {
                 .define("markers", true);
         COMPASS_RANGE = b.comment("Range in blocks of settlement compass markers.")
                 .defineInRange("range", 400, 32, 4096);
+        b.pop();
+
+        b.push("carriage");
+        CARRIAGES = b.comment("Enable paid horse carriage transport between hold capitals and settlements.")
+                .define("enabled", true);
+        CARRIAGE_COST = b.comment("Base Septim fare for carriage travel between holds (major holds cost 20-50).")
+                .defineInRange("baseFare", 20, 0, 1000);
         b.pop();
         SPEC = b.build();
     }

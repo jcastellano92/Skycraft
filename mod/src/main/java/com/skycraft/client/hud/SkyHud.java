@@ -26,7 +26,7 @@ public final class SkyHud {
 
     public static void renderVitals(ForgeGui gui, GuiGraphics g, float partialTick, int width, int height) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.options.hideGui || !gui.shouldDrawSurvivalElements()) return;
+        if (mc.player == null || mc.options.hideGui || mc.screen != null || !gui.shouldDrawSurvivalElements()) return;
         PlayerData data = SkyData.get(mc.player);
         boolean combat = ClientState.has(CorePackets.SyncVitals.IN_COMBAT);
 
@@ -48,6 +48,25 @@ public final class SkyHud {
             Font font = mc.font;
             Component hint = Component.translatable("hud.skycraft.perks_available", data.getPerkPoints());
             g.drawString(font, hint, width - font.width(hint) - 6, 6, 0xFFE8D9A0, true);
+        }
+
+        // Daily racial power recharge indicator
+        com.skycraft.core.Race race = data.getRace();
+        if (race != null && !race.power.isEmpty() && mc.level != null) {
+            long readyAt = data.getPowerReadyAt();
+            long now = mc.level.getGameTime();
+            long diff = readyAt - now;
+            String text;
+            int col;
+            if (diff <= 0) {
+                text = "[Z] " + race.powerName().getString();
+                col = 0xFFE0C060;
+            } else {
+                long sec = diff / 20;
+                text = race.powerName().getString() + " (" + (sec >= 60 ? (sec / 60) + "m" : sec + "s") + ")";
+                col = 0xFFA09888;
+            }
+            g.drawString(mc.font, text, 12, height - 26, col, true);
         }
     }
 
@@ -113,8 +132,8 @@ public final class SkyHud {
         HudNotifications.prune();
         Font font = mc.font;
 
-        // Top-left message log
-        int my = 6;
+        // Top-left message log (below compass bar)
+        int my = 32;
         for (HudNotifications.Entry e : HudNotifications.MESSAGES) {
             float age = e.age();
             int alpha = (int) (255 * Mth.clamp((1 - age) * 4, 0, 1));

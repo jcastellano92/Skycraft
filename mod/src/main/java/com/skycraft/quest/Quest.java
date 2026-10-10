@@ -22,7 +22,7 @@ import java.util.UUID;
 public class Quest {
     public enum Status { ACTIVE, COMPLETED, FAILED }
 
-    public enum Category { MAIN, FACTION, BOUNTY, MISC }
+    public enum Category { MAIN, SIDE, FACTION, BOUNTY, MISC }
 
     public String id = "";
     /** Generator kind, e.g. {@code villager_fetch}, {@code bounty_bandit}, {@code main_3}, {@code companions_contract}. */

@@ -216,6 +216,14 @@ public class FavoritesScreen extends Screen {
             choose(false);
             return true;
         }
+        if (key >= GLFW.GLFW_KEY_1 && key <= GLFW.GLFW_KEY_8) {
+            int idx = key - GLFW.GLFW_KEY_1;
+            if (idx >= 0 && idx < entries.size()) {
+                select(idx);
+                choose(false);
+                return true;
+            }
+        }
         if (key == GLFW.GLFW_KEY_TAB || InventoryKeys.FAVORITES.matches(key, scan)) {
             onClose();
             return true;

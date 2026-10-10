@@ -56,4 +56,39 @@ public final class Currency {
         }
         return 0;
     }
+
+    /** Formats large currency amounts with compact suffixes (e.g. 2500 -> "2.5k", 10000 -> "10k", 1500000 -> "1.5M"). */
+    public static String formatCompact(long amount) {
+        if (amount < 0) return "-" + formatCompact(-amount);
+        if (amount < 1_000) return String.valueOf(amount);
+        if (amount < 1_000_000) {
+            double v = amount / 1000.0;
+            if (amount % 1000 == 0) return String.format(java.util.Locale.ROOT, "%.0fk", v);
+            String formatted = String.format(java.util.Locale.ROOT, "%.1fk", v);
+            return formatted.endsWith(".0k") ? formatted.substring(0, formatted.length() - 3) + "k" : formatted;
+        }
+        if (amount < 1_000_000_000L) {
+            double v = amount / 1_000_000.0;
+            if (amount % 1_000_000 == 0) return String.format(java.util.Locale.ROOT, "%.0fM", v);
+            String formatted = String.format(java.util.Locale.ROOT, "%.1fM", v);
+            return formatted.endsWith(".0M") ? formatted.substring(0, formatted.length() - 3) + "M" : formatted;
+        }
+        double v = amount / 1_000_000_000.0;
+        if (amount % 1_000_000_000L == 0) return String.format(java.util.Locale.ROOT, "%.0fB", v);
+        String formatted = String.format(java.util.Locale.ROOT, "%.1fB", v);
+        return formatted.endsWith(".0B") ? formatted.substring(0, formatted.length() - 3) + "B" : formatted;
+    }
+
+    /** Formats currency with standard digit separators (e.g. 2500 -> "2,500"). */
+    public static String formatFull(long amount) {
+        return java.text.NumberFormat.getNumberInstance(java.util.Locale.US).format(amount);
+    }
+
+    /** Formats gold with compact and full forms when large (e.g. "2.5k (2,500)"). */
+    public static String formatGold(long amount) {
+        if (amount >= 1_000) {
+            return formatCompact(amount) + "g (" + formatFull(amount) + ")";
+        }
+        return amount + "g";
+    }
 }

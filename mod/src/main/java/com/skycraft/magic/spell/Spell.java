@@ -70,9 +70,9 @@ public final class Spell {
      */
     public final boolean dual;
 
-    /** Skyrim dual casting: 2.2x the magicka for 2.5x the effect. */
-    public static final float DUAL_COST = 2.2f;
-    public static final float DUAL_MAGNITUDE = 2.5f;
+    /** Skyrim dual casting: 2.8x the magicka for 2.2x the effect with the Dual Casting perk. */
+    public static final float DUAL_COST = 2.8f;
+    public static final float DUAL_MAGNITUDE = 2.2f;
 
     private Spell(Builder b) {
         this.id = b.id;

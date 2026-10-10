@@ -24,6 +24,7 @@ public final class RoadsModule {
     /** Registers this module's DeferredRegisters and mod-bus listeners. Called from the mod constructor. */
     public static void init(IEventBus modBus) {
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, RoadsConfig.SPEC, "skycraft-roads.toml");
+        Carriages.register();
     }
 
     /** Registers this module's packets via {@link com.skycraft.network.SkyNetwork#register}. Called once at startup. */

@@ -75,6 +75,8 @@ public final class SurvivalRegistry {
 
     public static final RegistryObject<Feature<NoneFeatureConfiguration>> WAYSIDE_SHRINE = FEATURES.register("wayside_shrine",
             () -> new WaysideShrineFeature(NoneFeatureConfiguration.CODEC));
+    public static final RegistryObject<Feature<NoneFeatureConfiguration>> NIRNROOT_PATCH = FEATURES.register("nirnroot_patch",
+            () -> new com.skycraft.survival.world.NirnrootFeature(NoneFeatureConfiguration.CODEC));
 
     // ================================================================ items: blocks
     public static final RegistryObject<Item> COOKING_POT_ITEM = ITEMS.register("cooking_pot",

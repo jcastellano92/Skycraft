@@ -58,8 +58,15 @@ public final class Guards {
             double distSqr = guard.distanceToSqr(player);
             boolean sees = distSqr < 64 || guard.hasLineOfSight(player);
             if (hostile) {
-                if (sees && guard.getTarget() != player) guard.setTarget(player);
-                continue;
+                // Yielding: if player sheathes their weapon (or has empty hands) and bounty < KILL_ON_SIGHT, guards stand down to arrest
+                if (com.skycraft.combat.Sheathe.isSheathed(player) && bounty < Bounty.KILL_ON_SIGHT) {
+                    Bounty.clearHostile(player);
+                    hostile = false;
+                    calm(guard);
+                } else {
+                    if (sees && guard.getTarget() != player) guard.setTarget(player);
+                    continue;
+                }
             }
             if (guard.getTarget() == player) calm(guard);
             if (!sees) continue;
@@ -108,6 +115,21 @@ public final class Guards {
         guard.setLastHurtByMob(null);
     }
 
+    public static void handleAccidentalHit(ServerPlayer player, Mob guard) {
+        String hold = Holds.holdAt(player.level(), guard.blockPosition());
+        int bounty = Bounty.get(player, hold);
+        if (bounty < Bounty.KILL_ON_SIGHT) {
+            guard.getNavigation().moveTo(player, 1.0);
+            guard.getLookControl().setLookAt(player, 30f, 30f);
+            calm(guard);
+            Bounty.add(player, hold, 10);
+            Dialogue.open(player, guard, Component.translatableWithFallback("crime.skycraft.guard.watch_it", "Smart move. Put your weapon away and watch it next time."));
+        } else {
+            guard.setTarget(player);
+            resist(player);
+        }
+    }
+
     static void resist(ServerPlayer player) {
         Bounty.makeHostile(player, RESIST_TICKS);
         attack(player, RESIST_RANGE);
@@ -133,7 +155,7 @@ public final class Guards {
         boolean violent = Bounty.violent(player, hold);
         boolean triedPersuasion = Bounty.state(player).getInt("persuade_" + hold) == bounty;
 
-        out.add(new DialogueOption("crime.pay", Component.translatable("dialogue.skycraft.crime.pay", bounty), 1,
+        out.add(new DialogueOption("crime.pay", Component.translatable("dialogue.skycraft.crime.pay", Currency.formatCompact(bounty)), 1,
                 (p, n) -> pay(p, n, hold)));
         out.add(new DialogueOption("crime.jail", Component.translatable("dialogue.skycraft.crime.jail"), 2,
                 (p, n) -> Jail.send(p, hold)));
@@ -144,7 +166,7 @@ public final class Guards {
         }
         if (Perks.has(player, "speech.bribery")) {
             int cost = bribeCost(bounty);
-            out.add(new DialogueOption("crime.bribe", Component.translatable("dialogue.skycraft.crime.bribe", cost), 4,
+            out.add(new DialogueOption("crime.bribe", Component.translatable("dialogue.skycraft.crime.bribe", Currency.formatCompact(cost)), 4,
                     (p, n) -> bribe(p, n, hold)));
         }
         if (!violent && bounty <= 500 && Perks.has(player, "speech.intimidation") && !triedPersuasion) {

@@ -92,14 +92,37 @@ public final class MainQuest {
         switch (stage) {
             case 1 -> {
                 BlockPos village = level.dimension() == Level.OVERWORLD ? Locate.nearestVillage(level, at) : null;
-                Objective o = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1"));
+                BlockPos center = village != null ? village : at;
+                // Guided starter steps: basic gear through steps rather than a chest, all around the starting settlement
+                BlockPos p1 = center.offset(8, 0, 8);
+                Objective o1 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1a"))
+                        .at(p1, dim, 12).guessY().label("Camp Wreckage");
+                o1.onComplete = "give:minecraft:leather_chestplate,give:minecraft:leather_boots";
+
+                BlockPos p2 = center.offset(-12, 0, 8);
+                Objective o2 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1b"))
+                        .at(p2, dim, 14).guessY().label("Weapon Cache");
+                o2.onComplete = "give:minecraft:iron_sword";
+
+                BlockPos p3 = center.offset(8, 0, -14);
+                Objective o3 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1c"))
+                        .at(p3, dim, 16).guessY().label("Traveler Cache");
+                o3.onComplete = "give:minecraft:shield,give:skycraft:spell_tome_flames";
+
+                BlockPos p4 = center.offset(-10, 0, -12);
+                Objective o4 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1d"))
+                        .at(p4, dim, 18).guessY().label("Provisions");
+                o4.onComplete = "give:minecraft:bread*4,give:minecraft:cooked_beef*2";
+
+                Objective o5 = new Objective(Objective.Type.GO_TO, Component.translatable("quest.skycraft.obj.main_1e"));
                 if (village != null) {
-                    o.at(village, "minecraft:overworld", 48).guessY().label("Village");
+                    o5.at(village, "minecraft:overworld", 48).guessY().label("Village");
                     q.extra.putLong("village", village.asLong());
                 } else {
-                    o.target("near:villager");
+                    o5.target("near:villager");
                 }
-                q.add(o).reward(100);
+
+                q.add(o1).add(o2).add(o3).add(o4).add(o5).reward(100);
             }
             case 2 -> {
                 Objective o = new Objective(Objective.Type.TALK_TO, Component.translatable("quest.skycraft.obj.main_2"))
@@ -109,12 +132,15 @@ public final class MainQuest {
             }
             case 3 -> {
                 BlockPos spot = Locate.randomSpot(level, player.getRandom(), at, 180, 230);
-                String name = Names.dragon(player.getRandom());
+                String name = "Mirmulnir";
                 q.description = Component.translatable("quest.skycraft.main_3.desc", Names.direction(at, spot));
                 Objective o = new Objective(Objective.Type.KILL_TARGET, Component.translatable("quest.skycraft.obj.main_3"))
-                        .at(spot, dim, 0).guessY().placement("surface").label("Watchtower")
+                        .at(spot, dim, 0).guessY().placement("surface").label("Western Watchtower")
                         .spawn(Spawn.of("skycraft:dragon", 1).name(Component.literal(name)).target().boss().build());
-                q.add(o).reward(500, new ItemStack(Items.IRON_SWORD));
+                ItemStack axe = new ItemStack(Items.IRON_AXE);
+                axe.setHoverName(Component.translatable("item.skycraft.reward.axe_of_whiterun"));
+                axe.enchant(Enchantments.SHARPNESS, 2);
+                q.add(o).reward(600, axe);
             }
             case 4 -> {
                 q.add(new Objective(Objective.Type.CONDITION, Component.translatable("quest.skycraft.obj.main_4")).target("word"));

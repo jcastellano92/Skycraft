@@ -61,10 +61,32 @@ public final class Shouting {
 
     private Shouting() {}
 
+    /** Handles the Voice slot activation (Z key): executes equipped shout or power. */
+    public static void executeVoice(ServerPlayer p, int requested) {
+        if (!p.isAlive() || p.isSpectator() || p.hasEffect(ModEffects.PARALYSIS.get())) return;
+        String voice = MagicData.selectedVoice(p);
+        if (voice.startsWith("shout:")) {
+            String shoutId = voice.substring("shout:".length());
+            shout(p, shoutId, requested);
+        } else if (voice.equals("power:racial")) {
+            com.skycraft.vitals.RacePowers.use(p);
+        } else if (voice.startsWith("power:stone:")) {
+            com.skycraft.lore.StandingStones.usePower(p);
+        } else {
+            Shout shout = Shout.byId(voice);
+            if (shout != null) shout(p, shout.id(), requested);
+            else com.skycraft.vitals.RacePowers.use(p);
+        }
+    }
+
     /** Handles a shout key release: {@code requested} words (1..3, from how long the key was held). */
     public static void shout(ServerPlayer p, int requested) {
+        shout(p, MagicData.selectedShout(p), requested);
+    }
+
+    public static void shout(ServerPlayer p, String shoutId, int requested) {
         if (!p.isAlive() || p.isSpectator() || p.hasEffect(ModEffects.PARALYSIS.get())) return;
-        Shout shout = Shout.byId(MagicData.selectedShout(p));
+        Shout shout = Shout.byId(shoutId);
         if (shout == null) {
             Notifier.message(p, Component.translatable("message.skycraft.no_shout", Component.keybind("key.skycraft.magic_menu")));
             return;
@@ -88,8 +110,13 @@ public final class Shouting {
         if (!p.isCreative()) MagicData.setShoutCooldown(p, now + cooldown, cooldown);
         SkyNetwork.sendToTracking(p, new MagicPackets.ShoutFx(p.getId(), shout.ordinal(), words));
         ServerLevel level = p.serverLevel();
-        level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENDER_DRAGON_GROWL, SoundSource.PLAYERS, 0.35f + 0.2f * words, 1.7f - 0.15f * words);
-        if (words == 3) level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 0.8f, 1.3f);
+        net.minecraft.sounds.SoundEvent shoutSound = switch (shout) {
+            case UNRELENTING_FORCE -> com.skycraft.world.WorldSounds.SHOUT_FUS_RO_DAH.get();
+            case WHIRLWIND_SPRINT -> com.skycraft.world.WorldSounds.SHOUT_WULD_NAH_KEST.get();
+            case FIRE_BREATH -> com.skycraft.world.WorldSounds.SHOUT_YOL_TOOR_SHUL.get();
+            default -> com.skycraft.world.WorldSounds.SHOUT_GENERIC.get();
+        };
+        level.playSound(null, p.getX(), p.getY(), p.getZ(), shoutSound, SoundSource.PLAYERS, 1.4f + 0.3f * words, 1.0f);
         p.swing(InteractionHand.MAIN_HAND, true);
         SkyData.get(p).addStat("shouts", 1);
     }

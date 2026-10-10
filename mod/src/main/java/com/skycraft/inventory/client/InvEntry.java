@@ -87,9 +87,29 @@ public final class InvEntry {
         return slot != null && slot.getType() == EquipmentSlot.Type.ARMOR;
     }
 
-    /** Can be held in the left hand (anything but armor and two-handed weapons). */
+    /**
+     * Equippable items rule: only items meant for combat, defense, light or harvesting
+     * can be equipped (weapons, shields, armor, tools, torches). Blocks and misc items cannot be held.
+     */
+    public boolean isUsableEquipment() {
+        if (isArmor()) return true;
+        if (com.skycraft.economy.ItemCategory.isJewelry(stack)) return true;
+        net.minecraft.world.item.Item it = stack.getItem();
+        if (it instanceof net.minecraft.world.item.SwordItem || it instanceof net.minecraft.world.item.DiggerItem
+                || it instanceof net.minecraft.world.item.ProjectileWeaponItem || it instanceof net.minecraft.world.item.ShieldItem
+                || it instanceof net.minecraft.world.item.TridentItem || it instanceof net.minecraft.world.item.FishingRodItem
+                || it instanceof net.minecraft.world.item.ShearsItem) {
+            return true;
+        }
+        if (it == net.minecraft.world.item.Items.TORCH || it == net.minecraft.world.item.Items.SOUL_TORCH) {
+            return true;
+        }
+        return false;
+    }
+
+    /** Can be held in the left hand (shields, torches, one-handed weapons, offhand tools). */
     public boolean leftHandable() {
-        return !isArmor() && !consumable() && !com.skycraft.combat.WeaponClass.of(stack).twoHanded();
+        return !isArmor() && !consumable() && isUsableEquipment() && !com.skycraft.combat.WeaponClass.of(stack).twoHanded();
     }
 
     // ------------------------------------------------------------------ building
@@ -103,6 +123,14 @@ public final class InvEntry {
             ItemStack s = inv.getItem(i);
             if (s.isEmpty()) continue;
             int equip = InventoryActions.isArmorSlot(i) ? WORN : i == InventoryActions.OFFHAND ? LEFT : i == inv.selected ? RIGHT : NONE;
+            if (equip == NONE && com.skycraft.economy.ItemCategory.isJewelry(s)) {
+                net.minecraft.nbt.CompoundTag apparel = com.skycraft.core.SkyData.get(player).module("apparel");
+                net.minecraft.resources.ResourceLocation key = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(s.getItem());
+                String itemId = key != null ? key.toString() : "";
+                if (itemId.equals(apparel.getString("necklace")) || itemId.equals(apparel.getString("ring")) || itemId.equals(apparel.getString("circlet"))) {
+                    equip = WORN;
+                }
+            }
             if (equip == NONE) {
                 InvEntry merged = null;
                 for (InvEntry e : out) {

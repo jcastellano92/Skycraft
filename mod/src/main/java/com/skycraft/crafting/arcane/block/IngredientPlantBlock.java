@@ -1,6 +1,7 @@
 package com.skycraft.crafting.arcane.block;
 
 import com.skycraft.perk.Perks;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -62,7 +63,7 @@ public class IngredientPlantBlock extends FlowerBlock {
         if (state.getValue(HARVESTED)) return InteractionResult.PASS;
         if (!level.isClientSide) {
             ItemStack harvest = new ItemStack(this.asItem(), Perks.has(player, "alchemy.green_thumb") ? 2 : 1);
-            if (!player.getInventory().add(harvest)) Block.popResource(level, pos, harvest);
+            if (!ActionHandler.addToBags(player, harvest)) Block.popResource(level, pos, harvest);
             level.setBlock(pos, state.setValue(HARVESTED, true), Block.UPDATE_CLIENTS);
             level.playSound(null, pos, SoundEvents.SWEET_BERRY_BUSH_PICK_BERRIES, SoundSource.BLOCKS, 1.0f, 0.8f + level.random.nextFloat() * 0.4f);
             level.gameEvent(player, GameEvent.BLOCK_CHANGE, pos);
@@ -86,9 +87,15 @@ public class IngredientPlantBlock extends FlowerBlock {
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
         // Nirnroot glitters and hums
-        if (glowing && !state.getValue(HARVESTED) && random.nextInt(4) == 0) {
-            level.addParticle(ParticleTypes.END_ROD, pos.getX() + 0.3 + random.nextDouble() * 0.4, pos.getY() + 0.4 + random.nextDouble() * 0.5,
-                    pos.getZ() + 0.3 + random.nextDouble() * 0.4, 0, 0.01, 0);
+        if (glowing && !state.getValue(HARVESTED)) {
+            if (random.nextInt(4) == 0) {
+                level.addParticle(ParticleTypes.END_ROD, pos.getX() + 0.3 + random.nextDouble() * 0.4, pos.getY() + 0.4 + random.nextDouble() * 0.5,
+                        pos.getZ() + 0.3 + random.nextDouble() * 0.4, 0, 0.01, 0);
+            }
+            if (random.nextInt(35) == 0) {
+                level.playLocalSound(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                        com.skycraft.world.WorldSounds.WORLD_NIRNROOT_HUM.get(), net.minecraft.sounds.SoundSource.BLOCKS, 0.6f, 1.0f, false);
+            }
         }
     }
 }

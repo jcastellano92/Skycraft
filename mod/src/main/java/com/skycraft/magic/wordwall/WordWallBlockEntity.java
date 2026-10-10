@@ -46,9 +46,17 @@ public class WordWallBlockEntity extends BlockEntity {
         tag.putString("shout", shout);
     }
 
-    /** Players who walk up to the wall (within 3 blocks) read it. */
+    /** Players who walk up to the wall (within 3 blocks) read it; nearby players hear the Nordic throat chant. */
     public static void serverTick(Level level, BlockPos pos, BlockState state, WordWallBlockEntity be) {
-        if (level.getGameTime() % 20 != (pos.asLong() & 15) || !(level instanceof ServerLevel server)) return;
+        if (!(level instanceof ServerLevel server)) return;
+        long time = level.getGameTime();
+        if (time % 80 == (pos.asLong() & 31)) {
+            AABB chantArea = new AABB(pos).inflate(16.0);
+            if (!server.getEntitiesOfClass(ServerPlayer.class, chantArea, pl -> pl.isAlive() && !pl.isSpectator()).isEmpty()) {
+                server.playSound(null, pos, com.skycraft.world.WorldSounds.WORDWALL_CHANT.get(), net.minecraft.sounds.SoundSource.BLOCKS, 1.4f, 1.0f);
+            }
+        }
+        if (time % 20 != (pos.asLong() & 15)) return;
         AABB area = new AABB(pos).inflate(3.0);
         for (ServerPlayer p : server.getEntitiesOfClass(ServerPlayer.class, area, pl -> pl.isAlive() && !pl.isSpectator())) {
             if (p.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 3.5 * 3.5) {

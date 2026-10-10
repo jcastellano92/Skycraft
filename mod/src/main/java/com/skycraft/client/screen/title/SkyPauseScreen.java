@@ -1,0 +1,248 @@
+package com.skycraft.client.screen.title;
+
+import com.skycraft.client.ClientState;
+import com.skycraft.network.CorePackets;
+import com.skycraft.network.SkyNetwork;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ConfirmScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Authentic Skyrim-style System / Pause Menu:
+ * Clean Nordic styling, vertical menu with Resume, Quicksave, Load, Settings, Multiplayer/Invite, Unstuck, and Quit.
+ * Eliminates third-party skin/wardrobe intrusions from the pause screen while keeping Essential invite fully functional.
+ */
+public class SkyPauseScreen extends Screen {
+    private static final int COLOR_GOLD = 0xFFE8C060;
+    private static final int COLOR_HOVER = 0xFFFFFFFF;
+    private static final int COLOR_NORMAL = 0xFF9E9689;
+    private static final int COLOR_DIM = 0xFF605A50;
+
+    private enum MenuItem {
+        RESUME("menu.skycraft.resume", "Resume"),
+        QUICKSAVE("menu.skycraft.quicksave", "Quicksave"),
+        LOAD("menu.skycraft.load", "Load Game"),
+        SETTINGS("menu.skycraft.settings", "Settings"),
+        MODS("menu.skycraft.mods", "Mods"),
+        INVITE("menu.skycraft.invite", "Multiplayer / Invite Friends"),
+        UNSTUCK("menu.skycraft.unstuck", "Unstuck / Respawn"),
+        QUIT_TITLE("menu.skycraft.quit_title", "Quit to Main Menu"),
+        QUIT_DESKTOP("menu.skycraft.quit_desktop", "Quit to Desktop");
+
+        final String key;
+        final String fallback;
+
+        MenuItem(String key, String fallback) {
+            this.key = key;
+            this.fallback = fallback;
+        }
+
+        Component getLabel() {
+            return Component.translatableWithFallback(key, fallback);
+        }
+    }
+
+    private final List<MenuItem> menuItems = new ArrayList<>();
+    private int selectedIndex = 0;
+    private String statusMessage = null;
+    private long statusMessageExpire = 0;
+
+    public SkyPauseScreen() {
+        super(Component.literal("System"));
+    }
+
+    @Override
+    public boolean isPauseScreen() {
+        return true;
+    }
+
+    @Override
+    protected void init() {
+        menuItems.clear();
+        menuItems.add(MenuItem.RESUME);
+        menuItems.add(MenuItem.QUICKSAVE);
+        menuItems.add(MenuItem.LOAD);
+        menuItems.add(MenuItem.SETTINGS);
+        menuItems.add(MenuItem.MODS);
+        menuItems.add(MenuItem.INVITE);
+        menuItems.add(MenuItem.UNSTUCK);
+        menuItems.add(MenuItem.QUIT_TITLE);
+        menuItems.add(MenuItem.QUIT_DESKTOP);
+
+        if (selectedIndex >= menuItems.size()) {
+            selectedIndex = 0;
+        }
+    }
+
+    @Override
+    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        // Dark Nordic slate background
+        g.fillGradient(0, 0, width, height, 0xB0080808, 0xD0141210);
+        g.fillGradient(0, 0, Math.min(300, width / 2), height, 0x90000000, 0x20000000);
+
+        int titleX = 50;
+        int titleY = Math.max(20, height / 6);
+
+        // Header
+        g.drawString(font, "S Y S T E M", titleX, titleY, COLOR_GOLD, true);
+        g.drawString(font, "SKYCRAFT", titleX, titleY + 12, 0xFF8A8272, false);
+
+        // Divider
+        int divW = 180;
+        g.fill(titleX, titleY + 25, titleX + divW, titleY + 26, COLOR_GOLD);
+        g.fill(titleX + divW, titleY + 25, titleX + divW + 20, titleY + 26, 0x40E8C060);
+
+        // Menu items
+        int menuStartY = titleY + 36;
+        int itemHeight = 20;
+
+        for (int i = 0; i < menuItems.size(); i++) {
+            MenuItem item = menuItems.get(i);
+            int itemY = menuStartY + i * itemHeight;
+
+            boolean isHovered = mouseX >= titleX - 10 && mouseX <= titleX + 220 && mouseY >= itemY && mouseY < itemY + itemHeight;
+            if (isHovered && selectedIndex != i) {
+                selectedIndex = i;
+            }
+
+            boolean isSelected = (selectedIndex == i);
+            int textColor = isSelected ? COLOR_HOVER : COLOR_NORMAL;
+
+            if (isSelected) {
+                g.drawString(font, "▶", titleX - 12, itemY + 2, COLOR_GOLD, false);
+                g.fill(titleX - 2, itemY + itemHeight - 3, titleX + 160, itemY + itemHeight - 2, 0x50E8C060);
+            }
+
+            g.drawString(font, item.getLabel().getString().toUpperCase(java.util.Locale.ROOT), titleX, itemY + 2, textColor, isSelected);
+        }
+
+        // Status message if quicksave or unstuck was pressed
+        if (statusMessage != null && System.currentTimeMillis() < statusMessageExpire) {
+            g.drawString(font, statusMessage, titleX, menuStartY + menuItems.size() * itemHeight + 14, COLOR_GOLD, true);
+        }
+
+        super.render(g, mouseX, mouseY, partialTick);
+    }
+
+    @Override
+    public boolean mouseClicked(double mx, double my, int button) {
+        if (button == 0) {
+            int titleX = 50;
+            int menuStartY = Math.max(20, height / 6) + 36;
+            int itemHeight = 20;
+
+            for (int i = 0; i < menuItems.size(); i++) {
+                int itemY = menuStartY + i * itemHeight;
+                if (mx >= titleX - 10 && mx <= titleX + 220 && my >= itemY && my < itemY + itemHeight) {
+                    selectedIndex = i;
+                    activateItem(menuItems.get(i));
+                    return true;
+                }
+            }
+        }
+        return super.mouseClicked(mx, my, button);
+    }
+
+    @Override
+    public boolean keyPressed(int key, int scan, int mods) {
+        if (key == GLFW.GLFW_KEY_ESCAPE) {
+            onClose();
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_UP || key == GLFW.GLFW_KEY_W) {
+            selectedIndex = (selectedIndex - 1 + menuItems.size()) % menuItems.size();
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_DOWN || key == GLFW.GLFW_KEY_S) {
+            selectedIndex = (selectedIndex + 1) % menuItems.size();
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_SPACE) {
+            if (selectedIndex >= 0 && selectedIndex < menuItems.size()) {
+                activateItem(menuItems.get(selectedIndex));
+                return true;
+            }
+        }
+        return super.keyPressed(key, scan, mods);
+    }
+
+    private void activateItem(MenuItem item) {
+        Minecraft mc = Minecraft.getInstance();
+        switch (item) {
+            case RESUME -> onClose();
+            case QUICKSAVE -> {
+                if (mc.hasSingleplayerServer() && mc.getSingleplayerServer() != null) {
+                    mc.getSingleplayerServer().saveAllChunks(false, true, false);
+                    statusMessage = "Game Saved";
+                    statusMessageExpire = System.currentTimeMillis() + 3000;
+                } else {
+                    statusMessage = "World saved";
+                    statusMessageExpire = System.currentTimeMillis() + 3000;
+                }
+            }
+            case LOAD -> mc.setScreen(new SkyLoadWorldScreen(this));
+            case SETTINGS -> mc.setScreen(new net.minecraft.client.gui.screens.OptionsScreen(this, mc.options));
+            case MODS -> mc.setScreen(new net.minecraftforge.client.gui.ModListScreen(this));
+            case INVITE -> openInviteScreen();
+            case UNSTUCK -> {
+                if (ClientState.has(CorePackets.SyncVitals.IN_COMBAT)) {
+                    statusMessage = "Cannot use while in combat";
+                    statusMessageExpire = System.currentTimeMillis() + 3000;
+                    return;
+                }
+                SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.UNSTUCK, 0));
+                onClose();
+            }
+            case QUIT_TITLE -> {
+                boolean single = mc.isLocalServer();
+                mc.setScreen(new ConfirmScreen(confirmed -> {
+                    if (confirmed) {
+                        if (mc.level != null) mc.level.disconnect();
+                        if (single) mc.clearLevel(new net.minecraft.client.gui.screens.GenericDirtMessageScreen(Component.translatable("menu.savingLevel")));
+                        else mc.clearLevel();
+                        mc.setScreen(new SkyTitleScreen());
+                    } else {
+                        mc.setScreen(this);
+                    }
+                }, Component.literal("Quit to Main Menu?"), Component.literal("Any unsaved progress will be saved.")));
+            }
+            case QUIT_DESKTOP -> {
+                mc.setScreen(new ConfirmScreen(confirmed -> {
+                    if (confirmed) {
+                        mc.stop();
+                    } else {
+                        mc.setScreen(this);
+                    }
+                }, Component.literal("Quit to Desktop?"), CommonComponents.EMPTY));
+            }
+        }
+    }
+
+    private void openInviteScreen() {
+        Minecraft mc = Minecraft.getInstance();
+        try {
+            Class<?> modalFlow = Class.forName("gg.essential.gui.sps.InviteOrHostModalFlowKt");
+            java.lang.reflect.Method m = modalFlow.getMethod("launchInviteOrHostModalFlow");
+            m.invoke(null);
+            return;
+        } catch (Throwable t) {
+            try {
+                Class<?> cmdClass = Class.forName("gg.essential.commands.impl.CommandMcFriends");
+                Object cmd = cmdClass.getConstructor().newInstance();
+                cmdClass.getMethod("handle").invoke(cmd);
+                return;
+            } catch (Throwable t2) {
+                // Fallback to vanilla Open to LAN screen
+                mc.setScreen(new net.minecraft.client.gui.screens.ShareToLanScreen(this));
+            }
+        }
+    }
+}

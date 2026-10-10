@@ -38,11 +38,27 @@ public final class QuestItems {
         ITEMS.register(modBus);
     }
 
+    /** Contract 2: an ItemStack is a quest item when its tag has the boolean skycraft_quest = true. */
+    public static boolean isQuestItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        var tag = stack.getTag();
+        if (tag == null) return false;
+        return tag.getBoolean("skycraft_quest") || tag.getBoolean("skycraft_quest_item");
+    }
+
+    public static ItemStack markQuest(ItemStack stack) {
+        if (stack != null && !stack.isEmpty()) {
+            stack.getOrCreateTag().putBoolean("skycraft_quest", true);
+        }
+        return stack;
+    }
+
     /** Creates a trophy for a slain legendary monster. */
     public static ItemStack trophy(String monsterName, int value) {
         ItemStack stack = new ItemStack(MONSTER_TROPHY.get());
         stack.getOrCreateTag().putString("monster", monsterName);
         stack.getOrCreateTag().putInt("value", value);
+        stack.getOrCreateTag().putBoolean("skycraft_quest", true);
         return stack;
     }
 
@@ -50,6 +66,7 @@ public final class QuestItems {
     public static ItemStack letter(String destination) {
         ItemStack stack = new ItemStack(COURIER_LETTER.get());
         stack.getOrCreateTag().putString("destination", destination);
+        stack.getOrCreateTag().putBoolean("skycraft_quest", true);
         return stack;
     }
 

@@ -73,6 +73,15 @@ public final class InventoryActions {
     /** The armor or offhand slot an item goes to, or null for "hold it in the right hand". */
     @Nullable
     public static EquipmentSlot equipSlotFor(ItemStack stack) {
+        if (com.skycraft.economy.ItemCategory.isJewelry(stack)) {
+            ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            if (key != null) {
+                String path = key.getPath();
+                if (path.contains("circlet")) return EquipmentSlot.HEAD;
+                if (path.contains("necklace") || path.contains("amulet") || path.contains("pendant")) return EquipmentSlot.CHEST;
+                if (path.contains("ring")) return EquipmentSlot.OFFHAND;
+            }
+        }
         EquipmentSlot forge = stack.getEquipmentSlot();
         if (forge != null && forge != EquipmentSlot.MAINHAND) return forge;
         Equipable eq = null;
@@ -115,11 +124,44 @@ public final class InventoryActions {
 
     // ------------------------------------------------------------------ equip
 
+    private static boolean isUsableEquipment(ItemStack stack) {
+        EquipmentSlot slot = equipSlotFor(stack);
+        if (slot != null && slot.getType() == EquipmentSlot.Type.ARMOR) return true;
+        net.minecraft.world.item.Item it = stack.getItem();
+        if (it instanceof net.minecraft.world.item.SwordItem || it instanceof net.minecraft.world.item.DiggerItem
+                || it instanceof net.minecraft.world.item.ProjectileWeaponItem || it instanceof net.minecraft.world.item.ShieldItem
+                || it instanceof net.minecraft.world.item.TridentItem || it instanceof net.minecraft.world.item.FishingRodItem
+                || it instanceof net.minecraft.world.item.ShearsItem) {
+            return true;
+        }
+        return it == net.minecraft.world.item.Items.TORCH || it == net.minecraft.world.item.Items.SOUL_TORCH;
+    }
+
     private static void equip(ServerPlayer player, Inventory inv, int slot, ItemStack stack) {
         if (isArmorSlot(slot) || slot == OFFHAND) {
             unequip(player, inv, slot, stack);
             return;
         }
+        if (!isUsableEquipment(stack)) return;
+
+        if (com.skycraft.economy.ItemCategory.isJewelry(stack)) {
+            ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            String path = key != null ? key.getPath() : "";
+            String kind = path.contains("circlet") ? "circlet" : path.contains("ring") ? "ring" : "necklace";
+            com.skycraft.core.PlayerData data = com.skycraft.core.SkyData.get(player);
+            CompoundTag apparel = data.module("apparel");
+            String curWorn = apparel.getString(kind);
+            String thisId = key != null ? key.toString() : "";
+            if (thisId.equals(curWorn)) {
+                apparel.remove(kind);
+            } else {
+                apparel.putString(kind, thisId);
+            }
+            data.markDirty();
+            com.skycraft.core.PlayerDataEvents.fullSync(player);
+            return;
+        }
+
         EquipmentSlot target = equipSlotFor(stack);
         if (target != null && target.getType() == EquipmentSlot.Type.ARMOR) {
             wear(player, inv, slot, stack, target);
@@ -230,6 +272,19 @@ public final class InventoryActions {
 
     private static void use(ServerPlayer player, Inventory inv, int slot, ItemStack stack) {
         if (!InvCategory.isConsumable(stack)) return;
+        com.skycraft.crafting.arcane.alchemy.Ingredients.Ingredient ing = com.skycraft.crafting.arcane.alchemy.Ingredients.get(stack);
+        if (ing != null && !stack.isEdible()) {
+            com.skycraft.crafting.arcane.alchemy.Alchemy.discoverByTasting(player, ing);
+            if (!player.getAbilities().instabuild) {
+                stack.shrink(1);
+            }
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.GENERIC_EAT, SoundSource.PLAYERS, 0.7f, 0.9f + player.getRandom().nextFloat() * 0.2f);
+            if (stack.isEmpty()) {
+                inv.setItem(slot, ItemStack.EMPTY);
+            }
+            return;
+        }
         if (stack.isEdible()) {
             FoodProperties food = stack.getFoodProperties(player);
             if (food != null && !player.canEat(food.canAlwaysEat())) {
@@ -283,6 +338,10 @@ public final class InventoryActions {
             message(player, "bound");
             return;
         }
+        if (com.skycraft.quest.QuestItems.isQuestItem(stack)) {
+            message(player, "quest_item");
+            return;
+        }
         if (!all) {
             toss(player, inv, inv.removeItem(slot, 1));
             return;
@@ -296,7 +355,9 @@ public final class InventoryActions {
         for (int i = 0; i < Inventory.INVENTORY_SIZE; i++) {
             if (i == inv.selected) continue;
             ItemStack s = inv.getItem(i);
-            if (!s.isEmpty() && ItemStack.isSameItemSameTags(s, template)) toss(player, inv, inv.removeItem(i, s.getCount()));
+            if (!s.isEmpty() && !com.skycraft.quest.QuestItems.isQuestItem(s) && ItemStack.isSameItemSameTags(s, template)) {
+                toss(player, inv, inv.removeItem(i, s.getCount()));
+            }
         }
     }
 

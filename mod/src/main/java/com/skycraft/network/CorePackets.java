@@ -33,6 +33,9 @@ public final class CorePackets {
         SkyNetwork.register(UnlockPerk.class, NetworkDirection.PLAY_TO_SERVER, UnlockPerk::encode, UnlockPerk::decode, UnlockPerk::handle);
         SkyNetwork.register(ChooseRace.class, NetworkDirection.PLAY_TO_SERVER, ChooseRace::encode, ChooseRace::decode, ChooseRace::handle);
         SkyNetwork.register(Action.class, NetworkDirection.PLAY_TO_SERVER, Action::encode, Action::decode, Action::handle);
+        SkyNetwork.register(HarvestBlock.class, NetworkDirection.PLAY_TO_SERVER, HarvestBlock::encode, HarvestBlock::decode, HarvestBlock::handle);
+        SkyNetwork.register(ContainerTake.class, NetworkDirection.PLAY_TO_SERVER, ContainerTake::encode, ContainerTake::decode, ContainerTake::handle);
+        SkyNetwork.register(ContainerStore.class, NetworkDirection.PLAY_TO_SERVER, ContainerStore::encode, ContainerStore::decode, ContainerStore::handle);
     }
 
     // ------------------------------------------------------------------ S2C
@@ -187,6 +190,12 @@ public final class CorePackets {
         public static final int USE_POWER = 3;
         public static final int MAKE_LEGENDARY = 4;
         public static final int SPRINT_EXHAUSTED = 5;
+        public static final int SHEATHE_TOGGLE = 6;
+        public static final int DODGE_ROLL = 7;
+        public static final int CLIMB_TICK = 8;
+        public static final int UNSTUCK = 9;
+        public static final int TAKE_WORLD_ITEM = 10;
+        public static final int SHIELD_BASH = 11;
 
         static void encode(Action m, FriendlyByteBuf buf) {
             buf.writeVarInt(m.action);
@@ -200,6 +209,61 @@ public final class CorePackets {
         static void handle(Action m, Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer player = ctx.get().getSender();
             if (player != null) ActionHandler.handle(player, m.action, m.arg);
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Harvest wild plants, tall grass, flora and mature crops directly into bags. */
+    public record HarvestBlock(net.minecraft.core.BlockPos pos) {
+        static void encode(HarvestBlock m, FriendlyByteBuf buf) {
+            buf.writeBlockPos(m.pos);
+        }
+
+        static HarvestBlock decode(FriendlyByteBuf buf) {
+            return new HarvestBlock(buf.readBlockPos());
+        }
+
+        static void handle(HarvestBlock m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            if (player != null) com.skycraft.survival.Harvesting.harvest(player, m.pos);
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Take item or all items from an open container directly into bags without equipping to hand. */
+    public record ContainerTake(int containerId, int slotIndex, boolean all) {
+        static void encode(ContainerTake m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.containerId);
+            buf.writeVarInt(m.slotIndex);
+            buf.writeBoolean(m.all);
+        }
+
+        static ContainerTake decode(FriendlyByteBuf buf) {
+            return new ContainerTake(buf.readVarInt(), buf.readVarInt(), buf.readBoolean());
+        }
+
+        static void handle(ContainerTake m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            if (player != null) ActionHandler.handleContainerTake(player, m.containerId, m.slotIndex, m.all);
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Store item or all items from player inventory into an open container. */
+    public record ContainerStore(int containerId, int slotIndex, boolean all) {
+        static void encode(ContainerStore m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.containerId);
+            buf.writeVarInt(m.slotIndex);
+            buf.writeBoolean(m.all);
+        }
+
+        static ContainerStore decode(FriendlyByteBuf buf) {
+            return new ContainerStore(buf.readVarInt(), buf.readVarInt(), buf.readBoolean());
+        }
+
+        static void handle(ContainerStore m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            if (player != null) ActionHandler.handleContainerStore(player, m.containerId, m.slotIndex, m.all);
             ctx.get().setPacketHandled(true);
         }
     }

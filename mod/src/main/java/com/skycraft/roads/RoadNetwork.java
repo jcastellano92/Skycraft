@@ -97,9 +97,40 @@ public final class RoadNetwork {
             if (tick % RoadsConfig.PLAN_INTERVAL_TICKS.get() == 0) startPlanning(level, data);
             Paver.tick(level, data, tick);
             Travelers.tick(level, data, tick);
+            if (tick % 100 == 13) clearRoadSnow(level, data);
             if (tick % 200 == 17) RoadsPackets.sendMarkers(level, data);
         } catch (RuntimeException e) {
             Skycraft.LOGGER.error("Skycraft roads tick failed", e);
+        }
+    }
+
+    /** Clears snow settling on active road chunks near players so the road surface is always visible. */
+    private static void clearRoadSnow(ServerLevel level, RoadsData data) {
+        for (net.minecraft.server.level.ServerPlayer player : level.players()) {
+            ChunkPos cp = player.chunkPosition();
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    long c = ChunkPos.asLong(cp.x + dx, cp.z + dz);
+                    if (data.paved.contains(c)) {
+                        LevelChunk chunk = level.getChunkSource().getChunkNow(cp.x + dx, cp.z + dz);
+                        if (chunk == null) continue;
+                        for (int bx = 0; bx < 16; bx += 2) {
+                            for (int bz = 0; bz < 16; bz += 2) {
+                                int x = (cp.x + dx) * 16 + bx;
+                                int z = (cp.z + dz) * 16 + bz;
+                                int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+                                net.minecraft.core.BlockPos above = new net.minecraft.core.BlockPos(x, y - 1, z);
+                                if (level.getBlockState(above).is(net.minecraft.world.level.block.Blocks.SNOW)) {
+                                    net.minecraft.world.level.block.state.BlockState ground = level.getBlockState(above.below());
+                                    if (Paver.isRoadMaterial(ground)) {
+                                        level.setBlock(above, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -129,6 +160,15 @@ public final class RoadNetwork {
             Optional<ResourceKey<Structure>> key = registry.getResourceKey(f.structure());
             if (key.isEmpty()) continue;
             boolean settlement = registry.getHolder(key.get()).map(h -> h.is(SETTLEMENTS)).orElse(false);
+            if (!settlement) {
+                String path = key.get().location().getPath().toLowerCase();
+                String ns = key.get().location().getNamespace().toLowerCase();
+                if (path.contains("village") || path.contains("town") || path.contains("tavern") || path.contains("settlement")
+                        || path.contains("inn") || path.contains("hamlet") || path.contains("outpost")
+                        || ns.equals("ctov") || ns.equals("towns_and_towers") || ns.equals("dungeons_and_taverns")) {
+                    settlement = true;
+                }
+            }
             if (!settlement) continue;
             register(level, data, f, key.get().location());
         }
@@ -178,7 +218,46 @@ public final class RoadNetwork {
             Settlement nearest = others.get(0);
             if (Math.sqrt(s.distSq(nearest.x + 0.5, nearest.z + 0.5)) <= maxDist * 2.0 && queue(data, s, nearest)) queued++;
         }
+        queued += bridgeComponents(data, s, others, maxDist * 3.0);
         return queued;
+    }
+
+    /**
+     * No orphan towns: if {@code s}'s connected group does not reach every known settlement, links the group to the
+     * nearest settlement of another group (within {@code limit} blocks).
+     */
+    private static int bridgeComponents(RoadsData data, Settlement s, List<Settlement> others, double limit) {
+        java.util.Map<Integer, Integer> parent = new java.util.HashMap<>();
+        for (Settlement o : data.settlements) parent.put(o.id, o.id);
+        for (long pair : data.pairs) {
+            int ra = find(parent, RoadsData.pairA(pair)), rb = find(parent, RoadsData.pairB(pair));
+            if (ra != rb) parent.put(ra, rb);
+        }
+        int mine = find(parent, s.id);
+        Settlement best = null;
+        Settlement from = null;
+        double bestD = Double.MAX_VALUE;
+        // nearest pair between s's group and any other group
+        for (Settlement a : data.settlements) {
+            if (find(parent, a.id) != mine) continue;
+            for (Settlement o : others) {
+                if (find(parent, o.id) == mine) continue;
+                double d = a.distSq(o.x + 0.5, o.z + 0.5);
+                if (d < bestD) {
+                    bestD = d;
+                    best = o;
+                    from = a;
+                }
+            }
+        }
+        if (best == null || Math.sqrt(bestD) > limit) return 0;
+        return queue(data, from, best) ? 1 : 0;
+    }
+
+    private static int find(java.util.Map<Integer, Integer> parent, int x) {
+        int root = x;
+        while (parent.getOrDefault(root, root) != root) root = parent.get(root);
+        return root;
     }
 
     private static boolean queue(RoadsData data, Settlement a, Settlement b) {

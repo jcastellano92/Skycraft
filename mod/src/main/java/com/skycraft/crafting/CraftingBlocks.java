@@ -37,7 +37,10 @@ public final class CraftingBlocks {
         for (StationType type : StationType.values()) {
             STATIONS.put(type, register(type.blockId, () -> new StationBlock(type, type.properties())));
         }
+        DRAFTING_TABLE = register("drafting_table", com.skycraft.homestead.DraftingTableBlock::new);
     }
+
+    public static final RegistryObject<Block> DRAFTING_TABLE;
 
     private CraftingBlocks() {}
 

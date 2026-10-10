@@ -53,6 +53,7 @@ public class CorpseRenderer extends EntityRenderer<CorpseEntity> {
                     }
                     renderer.render(dummy, 0.0f, 0.0f, poseStack, buffers, packedLight);
                 } catch (Throwable error) {
+                    com.skycraft.Skycraft.LOGGER.warn("Corpse dummy render failed for {}: {}", corpse.getDisplayName().getString(), error.getMessage());
                     corpse.markRenderFailed();
                 } finally {
                     poseStack.popPose();

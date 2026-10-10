@@ -49,6 +49,7 @@ public class MapScreen extends Screen {
     private static final int[] HOLD_TINTS = {0xC8A040, 0xC06020, 0x6080A0, 0x8090B0, 0xA0B8D0, 0x7A9060, 0x507060, 0xA05040, 0x408050};
 
     private static double savedScale = DEFAULT_SCALE;
+    public static BlockPos customWaypoint = null;
 
     private double centerX;
     private double centerZ;
@@ -176,6 +177,17 @@ public class MapScreen extends Screen {
             cancelTravel();
             return true;
         }
+        if (button == 1 && onMap(mx, my)) {
+            // Right-click clears custom waypoint
+            if (customWaypoint != null) {
+                customWaypoint = null;
+                com.skycraft.client.hud.CompassMarkers.clear("custom_waypoint");
+                if (minecraft != null && minecraft.player != null) {
+                    minecraft.player.playSound(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value(), 0.5f, 0.8f);
+                }
+                return true;
+            }
+        }
         if (button == 0 && onMap(mx, my)) {
             pressedOnMap = true;
             dragDistance = 0;
@@ -202,9 +214,30 @@ public class MapScreen extends Screen {
             if (dragDistance < 4 && hoveredMember != null) {
                 pendingMember = hoveredMember;
                 updateButtons();
-            } else if (dragDistance < 4 && hoveredLocation != null) {
+            } else if (dragDistance < 4 && hoveredLocation != null && !hoveredLocation.getBoolean("known")) {
                 pendingTravel = hoveredLocation;
                 updateButtons();
+            } else if (dragDistance < 4 && onMap(mx, my) && hoveredLocation == null && hoveredMember == null) {
+                // If clicked close to existing custom waypoint, clear it
+                if (customWaypoint != null && Math.abs(screenX(customWaypoint.getX() + 0.5) - mx) <= 8 && Math.abs(screenY(customWaypoint.getZ() + 0.5) - my) <= 8) {
+                    customWaypoint = null;
+                    com.skycraft.client.hud.CompassMarkers.clear("custom_waypoint");
+                    if (minecraft != null && minecraft.player != null) {
+                        minecraft.player.playSound(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value(), 0.5f, 0.8f);
+                    }
+                } else {
+                    // Set custom waypoint at clicked location!
+                    int wx = (int) Math.round(worldX(mx));
+                    int wz = (int) Math.round(worldZ(my));
+                    int wy = minecraft != null && minecraft.player != null ? minecraft.player.getBlockY() : 64;
+                    customWaypoint = new BlockPos(wx, wy, wz);
+                    com.skycraft.client.hud.CompassMarkers.set("custom_waypoint", List.of(
+                            new com.skycraft.client.hud.CompassMarkers.Marker(Vec3.atBottomCenterOf(customWaypoint), com.skycraft.client.hud.CompassMarkers.Shape.QUEST, 0x38B0DE, "Custom Destination", 0)
+                    ));
+                    if (minecraft != null && minecraft.player != null) {
+                        minecraft.player.playSound(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value(), 0.5f, 1.2f);
+                    }
+                }
             }
             return true;
         }
@@ -276,10 +309,13 @@ public class MapScreen extends Screen {
         g.blit(PARCHMENT, left, top, right - left, bottom - top, 0f, 0f, 256, 256, 256, 256);
 
         g.enableScissor(left, top, right, bottom);
+        drawLandscape(g, level, player);
         drawHolds(g, level);
         drawGrid(g);
+        drawFog(g, level, player);
         drawLocations(g, level, player, mouseX, mouseY);
         drawQuestMarkers(g, level, mouseX, mouseY);
+        drawCustomWaypoint(g, level, player, mouseX, mouseY);
         drawPlayers(g, level, player, partialTick, mouseX, mouseY);
         drawPartyMembers(g, level, player, mouseX, mouseY);
         g.disableScissor();
@@ -291,6 +327,78 @@ public class MapScreen extends Screen {
         if (pendingTravel != null || pendingMember != null) drawTravelDialog(g, player);
         super.render(g, mouseX, mouseY, partialTick);
         if (tooltip != null && pendingTravel == null && pendingMember == null) g.renderComponentTooltip(font, tooltip, mouseX, mouseY);
+    }
+
+    private void drawLandscape(GuiGraphics g, Level level, Player player) {
+        if (level.dimension() != Level.OVERWORLD) return;
+        int step = (int) Math.max(6, Math.min(24, 16 * scale));
+        if (step <= 0) step = 12;
+
+        for (int sy = top; sy < bottom; sy += step) {
+            double wz = worldZ(sy + step / 2.0);
+            for (int sx = left; sx < right; sx += step) {
+                double wx = worldX(sx + step / 2.0);
+                int bx = Mth.floor(wx);
+                int bz = Mth.floor(wz);
+
+                int color;
+                if (level.hasChunk(bx >> 4, bz >> 4)) {
+                    int h = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
+                    if (h <= 63) {
+                        color = 0x551E4870; // fjord / river water
+                    } else if (h > 120) {
+                        int alpha = Math.min(180, 80 + (h - 120) * 3);
+                        color = (alpha << 24) | 0xEDE8DC; // high mountain peak snow
+                    } else if (h > 88) {
+                        int alpha = Math.min(130, 40 + (h - 88) * 2);
+                        color = (alpha << 24) | 0x8A7E72; // mountain slopes & crags
+                    } else if (h > 72) {
+                        color = 0x303E4A28; // pine hills & tundra uplands
+                    } else {
+                        color = 0x24425232; // fertile plains & river valleys
+                    }
+                } else {
+                    double n = Math.sin(wx * 0.003) * Math.cos(wz * 0.003) + 0.5 * Math.sin(wx * 0.007 + wz * 0.005);
+                    if (n > 0.5) {
+                        color = 0x3882786A; // distant mountain range
+                    } else if (n < -0.6) {
+                        color = 0x35203858; // water body
+                    } else {
+                        color = 0x18485238; // forested valley
+                    }
+                }
+                g.fill(sx, sy, Math.min(right, sx + step), Math.min(bottom, sy + step), color);
+            }
+        }
+    }
+
+    private void drawCustomWaypoint(GuiGraphics g, Level level, Player player, int mouseX, int mouseY) {
+        if (customWaypoint == null) return;
+        int sx = (int) Math.round(screenX(customWaypoint.getX() + 0.5));
+        int sy = (int) Math.round(screenY(customWaypoint.getZ() + 0.5));
+        if (sx < left - 10 || sx > right + 10 || sy < top - 10 || sy > bottom + 10) return;
+
+        // Glowing Azure Skyrim Waypoint marker
+        int color = 0xFF38B0DE;
+        diamond(g, sx, sy, 7, 0xFF101820);
+        diamond(g, sx, sy, 5, color);
+        diamond(g, sx, sy, 2, 0xFFFFFFFF);
+
+        // Downward pointer
+        g.fill(sx - 1, sy + 5, sx + 2, sy + 9, color);
+        g.fill(sx, sy + 9, sx + 1, sy + 11, color);
+
+        if (Math.abs(mouseX - sx) <= 8 && Math.abs(mouseY - sy) <= 8 && onMap(mouseX, mouseY)) {
+            double dx = customWaypoint.getX() - player.getX();
+            double dz = customWaypoint.getZ() - player.getZ();
+            int dist = (int) Math.sqrt(dx * dx + dz * dz);
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.literal("Custom Destination").withStyle(ChatFormatting.AQUA));
+            lines.add(Component.literal("X: " + customWaypoint.getX() + ", Z: " + customWaypoint.getZ()).withStyle(ChatFormatting.GRAY));
+            lines.add(Component.translatable("world.skycraft.map.distance", dist).withStyle(ChatFormatting.DARK_GRAY));
+            lines.add(Component.literal("[Click or R-Click to Remove]").withStyle(ChatFormatting.RED));
+            tooltip = lines;
+        }
     }
 
     private void drawHolds(GuiGraphics g, Level level) {
@@ -404,7 +512,9 @@ public class MapScreen extends Screen {
             int sy = (int) Math.round(screenY(loc.getInt("z") + 0.5));
             if (sx < left - 10 || sx > right + 10 || sy < top - 10 || sy > bottom + 10) continue;
             LocationKind kind = LocationKind.byId(loc.getString("type"));
-            drawIcon(g, kind.icon, sx, sy);
+            boolean knownOnly = loc.getBoolean("known");
+            int iconIdx = knownOnly ? LocationKind.UNKNOWN_ICON : kind.icon;
+            drawIcon(g, iconIdx, sx, sy);
             double d = (mouseX - sx) * (double) (mouseX - sx) + (mouseY - sy) * (double) (mouseY - sy);
             if (d < best && onMap(mouseX, mouseY)) {
                 best = d;
@@ -425,8 +535,46 @@ public class MapScreen extends Screen {
             double dx = hovered.getInt("x") - player.getX();
             double dz = hovered.getInt("z") - player.getZ();
             lines.add(Component.translatable("world.skycraft.map.distance", (int) Math.sqrt(dx * dx + dz * dz)).withStyle(ChatFormatting.DARK_GRAY));
-            lines.add(Component.translatable("world.skycraft.map.click_travel").withStyle(ChatFormatting.YELLOW));
+            if (hovered.getBoolean("known")) {
+                lines.add(Component.translatable("world.skycraft.map.undiscovered").withStyle(ChatFormatting.DARK_GRAY));
+            } else {
+                lines.add(Component.translatable("world.skycraft.map.click_travel").withStyle(ChatFormatting.YELLOW));
+            }
             tooltip = lines;
+        }
+    }
+
+    private void drawFog(GuiGraphics g, Level level, Player player) {
+        if (level.dimension() != Level.OVERWORLD) return;
+        ListTag list = SkyData.get(player).module(WorldData.MODULE).getList("discovered", Tag.TAG_COMPOUND);
+        String dim = level.dimension().location().toString();
+        int step = 20;
+        int fogColor = 0x70302214;
+
+        for (int y = top; y < bottom; y += step) {
+            for (int x = left; x < right; x += step) {
+                double wx = worldX(x + step / 2.0);
+                double wz = worldZ(y + step / 2.0);
+
+                double pDx = wx - player.getX();
+                double pDz = wz - player.getZ();
+                if (pDx * pDx + pDz * pDz < 350.0 * 350.0) continue;
+
+                boolean explored = false;
+                for (int i = 0; i < list.size(); i++) {
+                    CompoundTag loc = list.getCompound(i);
+                    if (!loc.getString("dim").equals(dim) || loc.getBoolean("known")) continue;
+                    double lDx = wx - loc.getInt("x");
+                    double lDz = wz - loc.getInt("z");
+                    if (lDx * lDx + lDz * lDz < 250.0 * 250.0) {
+                        explored = true;
+                        break;
+                    }
+                }
+                if (!explored) {
+                    g.fill(x, y, Math.min(right, x + step), Math.min(bottom, y + step), fogColor);
+                }
+            }
         }
     }
 
@@ -588,7 +736,7 @@ public class MapScreen extends Screen {
     }
 
     private void drawFooter(GuiGraphics g, int mouseX, int mouseY) {
-        Component help = Component.translatable("world.skycraft.map.help");
+        String help = "[L-Click] Travel / Waypoint   [R-Click] Clear   [Scroll] Zoom   [Space] Recenter";
         g.drawString(font, help, left, bottom + 9, 0xFF8A7F66);
         if (onMap(mouseX, mouseY)) {
             String coords = "X " + Mth.floor(worldX(mouseX)) + "   Z " + Mth.floor(worldZ(mouseY));

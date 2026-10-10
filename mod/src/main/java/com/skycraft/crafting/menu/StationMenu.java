@@ -49,8 +49,16 @@ public class StationMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return access.evaluate((level, pos) -> level.getBlockState(pos).getBlock() instanceof StationBlock block && block.type == type
-                && player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 64.0, true);
+        return access.evaluate((level, pos) -> {
+            net.minecraft.world.level.block.Block b = level.getBlockState(pos).getBlock();
+            boolean valid = false;
+            if (b instanceof StationBlock block && block.type == type) valid = true;
+            else if (type == StationType.ARMOR_WORKBENCH && (b == net.minecraft.world.level.block.Blocks.CRAFTING_TABLE || b == net.minecraft.world.level.block.Blocks.SMITHING_TABLE)) valid = true;
+            else if (type == StationType.FORGE && (b instanceof net.minecraft.world.level.block.AnvilBlock)) valid = true;
+            else if (type == StationType.SMELTER && (b == net.minecraft.world.level.block.Blocks.FURNACE || b == net.minecraft.world.level.block.Blocks.BLAST_FURNACE)) valid = true;
+            else if (type == StationType.GRINDSTONE && b == net.minecraft.world.level.block.Blocks.GRINDSTONE) valid = true;
+            return valid && player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 64.0;
+        }, true);
     }
 
     /** Invisible, locked mirror of a player inventory slot. */

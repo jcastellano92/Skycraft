@@ -141,6 +141,12 @@ public final class Enchanting {
     /** Whether the item can receive a new enchantment from this player (unenchanted, or Extra Effect). */
     public static boolean canEnchantItem(Player player, ItemStack stack) {
         if (stack.isEmpty() || stack.is(Items.BOOK) || stack.is(Items.ENCHANTED_BOOK)) return false;
+        if (com.skycraft.economy.ItemCategory.isJewelry(stack)) {
+            if (!stack.isEnchanted()) return true;
+            CompoundTag tag = stack.getTag();
+            return tag != null && tag.getInt(MARK) == 1 && EnchantmentHelper.getEnchantments(stack).size() == 1
+                    && Perks.has(player, "enchanting.extra_effect");
+        }
         if (stack.isEnchantable()) return true;
         if (!stack.isDamageableItem() && !stack.getItem().isEnchantable(stack)) return false;
         CompoundTag tag = stack.getTag();
@@ -150,12 +156,26 @@ public final class Enchanting {
 
     /** Whether the enchantment can be bound into the item (known, applicable and compatible). */
     public static boolean canApply(Player player, ItemStack stack, Enchantment ench) {
-        if (ench.isCurse() || !knows(player, ench) || !ench.canEnchant(stack)) return false;
+        if (ench.isCurse() || !knows(player, ench)) return false;
+        boolean canOnItem = ench.canEnchant(stack) || isJewelryEnchant(stack, ench);
+        if (!canOnItem) return false;
         Set<Enchantment> existing = EnchantmentHelper.getEnchantments(stack).keySet();
         for (Enchantment other : existing) {
             if (other == ench || !other.isCompatibleWith(ench)) return false;
         }
         return true;
+    }
+
+    private static boolean isJewelryEnchant(ItemStack stack, Enchantment ench) {
+        if (!com.skycraft.economy.ItemCategory.isJewelry(stack)) return false;
+        var cat = ench.category;
+        return cat == net.minecraft.world.item.enchantment.EnchantmentCategory.ARMOR
+                || cat == net.minecraft.world.item.enchantment.EnchantmentCategory.ARMOR_HEAD
+                || cat == net.minecraft.world.item.enchantment.EnchantmentCategory.ARMOR_CHEST
+                || cat == net.minecraft.world.item.enchantment.EnchantmentCategory.ARMOR_LEGS
+                || cat == net.minecraft.world.item.enchantment.EnchantmentCategory.ARMOR_FEET
+                || cat == net.minecraft.world.item.enchantment.EnchantmentCategory.WEARABLE
+                || cat == net.minecraft.world.item.enchantment.EnchantmentCategory.VANISHABLE;
     }
 
     public static List<Enchantment> applicable(Player player, ItemStack stack) {

@@ -76,6 +76,38 @@ public class PlayerData {
         markDirty();
     }
 
+    public void addSkillXp(Skill skill, float xp) {
+        awardSkill(skill, xp);
+    }
+
+    public void awardSkill(Skill skill, float xp) {
+        int currentLvl = getSkill(skill);
+        if (currentLvl >= Skill.MAX_LEVEL) return;
+        float currentXp = getSkillXp(skill) + xp;
+        float needed = skill.xpToNext(currentLvl);
+        while (currentXp >= needed && currentLvl < Skill.MAX_LEVEL) {
+            currentXp -= needed;
+            currentLvl++;
+            setSkill(skill, currentLvl);
+            addLevelXp(currentLvl);
+            needed = skill.xpToNext(currentLvl);
+        }
+        setSkillXp(skill, currentXp);
+    }
+
+    public void addLevelXp(float xp) {
+        this.levelXp += xp;
+        float needed = levelXpToNext(this.level);
+        while (this.levelXp >= needed) {
+            this.levelXp -= needed;
+            this.level++;
+            this.perkPoints++;
+            this.pendingLevelUps++;
+            needed = levelXpToNext(this.level);
+        }
+        markDirty();
+    }
+
     /** Progress 0..1 towards the next skill level. */
     public float skillProgress(Skill skill) {
         int lvl = getSkill(skill);

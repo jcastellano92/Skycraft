@@ -44,6 +44,29 @@ public class SpellTomeItem extends Item {
             Notifier.message(sp, Component.translatable("message.skycraft.spell_known", spell.displayName()));
             return InteractionResultHolder.fail(stack);
         }
+        if (spell.tier != Tier.NOVICE && !sp.isCreative()) {
+            com.skycraft.core.PlayerData data = com.skycraft.core.SkyData.get(sp);
+            if (!com.skycraft.quest.Factions.isMember(data, com.skycraft.quest.Faction.COLLEGE)) {
+                Notifier.message(sp, Component.translatable("message.skycraft.tome_requires_college", spell.school.displayName()));
+                return InteractionResultHolder.fail(stack);
+            }
+            int collegeRank = com.skycraft.quest.Factions.rank(data, com.skycraft.quest.Faction.COLLEGE);
+            String schoolQuestKey = "college_" + spell.school.id();
+            boolean completedSchoolQuest = data.module("quest").getBoolean(schoolQuestKey + "_completed");
+            int skillLevel = data.getSkill(spell.school.skill);
+            boolean allowed = switch (spell.tier) {
+                case NOVICE -> true;
+                case APPRENTICE -> skillLevel >= 25 || collegeRank >= 1;
+                case ADEPT -> (collegeRank >= 1 && skillLevel >= 40) || completedSchoolQuest;
+                case EXPERT -> (collegeRank >= 2 && skillLevel >= 65) || (completedSchoolQuest && skillLevel >= 60);
+                case MASTER -> (collegeRank >= 3 && skillLevel >= 85) || (completedSchoolQuest && skillLevel >= 80);
+            };
+            if (!allowed) {
+                Notifier.message(sp, Component.translatable("message.skycraft.tome_requires_school_progress",
+                        spell.school.displayName(), spell.tier.displayName()));
+                return InteractionResultHolder.fail(stack);
+            }
+        }
         MagicData.learn(sp, spell.id);
         if (!sp.isCreative()) stack.shrink(1);
         Notifier.title(sp, Component.translatable("notify.skycraft.spell_learned"), spell.displayName());
@@ -66,6 +89,10 @@ public class SpellTomeItem extends Item {
         tooltip.add(Component.translatable(unit, Math.round(spell.cost)).withStyle(ChatFormatting.AQUA));
         if (spell.chargeTicks > 0) tooltip.add(Component.translatable("tooltip.skycraft.spell_charged").withStyle(ChatFormatting.DARK_AQUA));
         tooltip.add(spell.description().copy().withStyle(ChatFormatting.GRAY));
+        if (spell.tier != Tier.NOVICE) {
+            tooltip.add(Component.translatable("tooltip.skycraft.spell_tome_requires_college", spell.school.displayName())
+                    .withStyle(ChatFormatting.DARK_PURPLE));
+        }
         tooltip.add(Component.translatable("tooltip.skycraft.spell_tome_hint").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
     }
 

@@ -20,18 +20,25 @@ public final class SkyKeys {
     public static final String CATEGORY = "key.categories.skycraft";
 
     public static final KeyMapping SKILLS = key("skills", GLFW.GLFW_KEY_K);
-    public static final KeyMapping JOURNAL = key("journal", GLFW.GLFW_KEY_J);
-    public static final KeyMapping MAGIC_MENU = key("magic_menu", GLFW.GLFW_KEY_G);
-    public static final KeyMapping CAST = key("cast", GLFW.GLFW_KEY_R);
+    public static final KeyMapping HUB = key("hub", GLFW.GLFW_KEY_TAB);
+    public static final KeyMapping JOURNAL = key("journal", GLFW.GLFW_KEY_R);
+    public static final KeyMapping MAGIC_MENU = key("magic_menu", GLFW.GLFW_KEY_P);
     public static final KeyMapping SHOUT = key("shout", GLFW.GLFW_KEY_Z);
-    public static final KeyMapping POWER_ATTACK = key("power_attack", GLFW.GLFW_KEY_LEFT_ALT);
-    public static final KeyMapping BLOCK = key("block", GLFW.GLFW_KEY_V);
-    public static final KeyMapping RACIAL_POWER = key("racial_power", GLFW.GLFW_KEY_H);
     public static final KeyMapping WAIT = key("wait", GLFW.GLFW_KEY_I);
-    public static final KeyMapping PARTY = key("party", GLFW.GLFW_KEY_U);
-    public static final KeyMapping MAP = key("map", GLFW.GLFW_KEY_N);
+    public static final KeyMapping MAP = key("map", GLFW.GLFW_KEY_M);
+    public static final KeyMapping SHEATHE = key("sheathe", InputConstants.UNKNOWN.getValue());
+    public static final KeyMapping DODGE = key("dodge", GLFW.GLFW_KEY_LEFT_ALT);
+    public static final KeyMapping CALL_HORSE = key("call_horse", GLFW.GLFW_KEY_H);
+    public static final KeyMapping INTERACT = key("interact", GLFW.GLFW_KEY_F);
 
-    public static final KeyMapping[] ALL = {SKILLS, JOURNAL, MAGIC_MENU, CAST, SHOUT, POWER_ATTACK, BLOCK, RACIAL_POWER, WAIT, PARTY, MAP};
+    // Compatibility aliases for keys transitioning to mouse/hold/journal controls
+    public static final KeyMapping CAST = key("cast", InputConstants.UNKNOWN.getValue());
+    public static final KeyMapping POWER_ATTACK = key("power_attack", InputConstants.UNKNOWN.getValue());
+    public static final KeyMapping BLOCK = key("block", InputConstants.UNKNOWN.getValue());
+    public static final KeyMapping RACIAL_POWER = SHOUT;
+    public static final KeyMapping PARTY = JOURNAL;
+
+    public static final KeyMapping[] ALL = {SKILLS, HUB, JOURNAL, MAGIC_MENU, SHOUT, WAIT, MAP, SHEATHE, DODGE, CALL_HORSE, INTERACT};
 
     private SkyKeys() {}
 

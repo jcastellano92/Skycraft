@@ -39,8 +39,8 @@ public final class DragonSouls {
         }
         if (absorbers.isEmpty()) return;
 
-        level.playSound(null, corpse.x, corpse.y, corpse.z, SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 3f, 0.6f);
-        level.playSound(null, corpse.x, corpse.y, corpse.z, SoundEvents.WITHER_DEATH, SoundSource.HOSTILE, 0.6f, 1.6f);
+        level.playSound(null, corpse.x, corpse.y, corpse.z, com.skycraft.world.WorldSounds.MAGIC_DRAGON_SOUL.get(), SoundSource.HOSTILE, 2.5f, 1.0f);
+        level.playSound(null, corpse.x, corpse.y, corpse.z, SoundEvents.WITHER_DEATH, SoundSource.HOSTILE, 0.4f, 1.6f);
 
         // The corpse burns while the soul streams out.
         for (int i = 0; i < ABSORB_TICKS; i += 5) {
@@ -80,8 +80,7 @@ public final class DragonSouls {
         Notifier.title(p, Component.translatable("notify.skycraft.dragon_soul"),
                 Component.translatable(first ? "notify.skycraft.dragonborn" : "notify.skycraft.dragon_souls_count", souls + 1));
         MagicFx.send(p, MagicFx.AURA, Element.SOUL, p.position(), p.position(), p.getId(), 4);
-        p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 0.6f, 0.6f);
-        p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 1f, 0.5f);
+        p.level().playSound(null, p.getX(), p.getY(), p.getZ(), com.skycraft.world.WorldSounds.MAGIC_DRAGON_SOUL.get(), SoundSource.PLAYERS, 1.4f, 1.0f);
         SkyData.get(p).markDirty();
     }
 }

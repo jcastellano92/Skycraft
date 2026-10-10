@@ -19,6 +19,9 @@ import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import net.minecraft.tags.BiomeTags;
+import net.minecraftforge.common.Tags;
+
 import java.util.UUID;
 
 /**
@@ -35,6 +38,28 @@ public final class Leveling {
 
     private Leveling() {}
 
+    /**
+     * Contract 3 (docs/PLAYTEST-1.md): the difficulty level of a place, 1..60. Low near the world spawn and rising
+     * with distance and dangerous terrain.
+     */
+    public static int regionLevel(net.minecraft.server.level.ServerLevel level, net.minecraft.core.BlockPos pos) {
+        net.minecraft.core.BlockPos spawn = level.getSharedSpawnPos();
+        double dist = Math.sqrt(spawn.distSqr(new net.minecraft.core.BlockPos(pos.getX(), spawn.getY(), pos.getZ())));
+        int distLevel = 1 + (int) (dist / 120.0);
+
+        int terrainBonus = 0;
+        if (pos.getY() < 0) {
+            terrainBonus += Math.min(15, (-pos.getY()) / 6);
+        }
+        var biome = level.getBiome(pos);
+        if (biome.is(BiomeTags.IS_MOUNTAIN)) {
+            terrainBonus += 8;
+        } else if (biome.is(Tags.Biomes.IS_SNOWY)) {
+            terrainBonus += 4;
+        }
+        return Math.max(1, Math.min(60, distLevel + terrainBonus));
+    }
+
     /** The creature's level, or 0 if it isn't leveled. */
     public static int levelOf(Entity entity) {
         return entity.getPersistentData().getInt(LEVEL_KEY);
@@ -48,9 +73,12 @@ public final class Leveling {
         if (mob.getType().is(CombatHandler.BOSSES) || mob instanceof EnderDragon || mob instanceof WitherBoss) return;
         if (!CreaturesConfig.LEVELED_ENEMIES.get()) return;
 
+        int regLevel = (mob.level() instanceof net.minecraft.server.level.ServerLevel sl)
+                ? regionLevel(sl, mob.blockPosition()) : 1;
         Player nearest = event.getLevel().getNearestPlayer(mob, 128);
-        int base = nearest != null ? SkyData.get(nearest).getLevel() : 1;
-        int level = Math.max(1, base + mob.getRandom().nextInt(6) - 2);
+        int playerLevel = nearest != null ? SkyData.get(nearest).getLevel() : 1;
+        int base = Math.max(regLevel, (regLevel + playerLevel) / 2);
+        int level = Math.max(1, Math.min(60, base + mob.getRandom().nextInt(5) - 2));
         apply(mob, level);
     }
 

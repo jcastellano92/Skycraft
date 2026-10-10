@@ -57,9 +57,28 @@ public final class DiggingRules {
     /** Returns the translation key of the reason the player can't break this block, or null if allowed. */
     public static String denyReason(Player player, BlockState state, BlockPos pos) {
         if (player.isCreative() || player.isSpectator()) return null;
+        if (player instanceof ServerPlayer sp && sp.getServer() != null) {
+            com.skycraft.homestead.HomesteadClaim claim = com.skycraft.homestead.HomesteadData.get(sp.getServer()).getClaimHorizontal(sp.level(), pos);
+            if (claim != null) {
+                if (!claim.canBuild(sp)) return "message.skycraft.homestead.no_build_permission";
+                if (pos.getY() < claim.getCenter().getY() - claim.getMinDepth()) return "message.skycraft.homestead.depth_limit";
+                if (PlacedBlocks.isPlayerPlaced(player.level(), pos)) return null;
+            }
+        }
         if (state.is(ALWAYS)) return null;
         if (PlacedBlocks.isPlayerPlaced(player.level(), pos)) return null;
         ItemStack tool = player.getMainHandItem();
+        Block b = state.getBlock();
+        // Flowers, mushrooms, bushes, and crops are freely harvestable by hand (Skyrim style)
+        if (b instanceof net.minecraft.world.level.block.FlowerBlock
+                || b instanceof net.minecraft.world.level.block.MushroomBlock
+                || b instanceof net.minecraft.world.level.block.BushBlock
+                || b instanceof net.minecraft.world.level.block.DoublePlantBlock
+                || b instanceof net.minecraft.world.level.block.FlowerPotBlock
+                || state.is(net.minecraft.tags.BlockTags.FLOWERS)
+                || state.is(net.minecraft.tags.BlockTags.CROPS)) {
+            return null;
+        }
         if (SkyConfig.REQUIRE_CORRECT_TOOL.get()) {
             if (state.is(Tags.Blocks.ORES) && !(tool.getItem() instanceof PickaxeItem)) return "message.skycraft.need_pickaxe";
             if (state.is(BlockTags.LOGS) && !(tool.getItem() instanceof AxeItem)) return "message.skycraft.need_axe";

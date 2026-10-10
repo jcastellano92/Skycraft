@@ -5,6 +5,7 @@ import com.skycraft.core.Skill;
 import com.skycraft.dialogue.Dialogue;
 import com.skycraft.network.SkyNetwork;
 import com.skycraft.skills.Progression;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -38,6 +39,10 @@ public final class Barter {
     /** Opens the barter menu with a merchant. */
     public static void open(ServerPlayer player, LivingEntity npc) {
         if (!Merchants.isMerchant(npc)) return;
+        if (!Shop.isOpen(player.level())) {
+            Dialogue.open(player, npc, Component.translatable("dialogue.skycraft.economy.closed"));
+            return;
+        }
         Shop shop = Shop.of(npc);
         sendState(player, npc, shop, Merchants.greeting(npc), true);
     }
@@ -52,6 +57,13 @@ public final class Barter {
         Shop shop = Shop.of(npc);
         Component msg = buy ? buy(player, shop, index, all, itemId) : sell(player, shop, index, all, itemId);
         sendState(player, npc, shop, msg, false);
+
+        // Sync stock & gold to all players viewing this merchant
+        for (ServerPlayer other : player.serverLevel().players()) {
+            if (other != player && canReach(other, npc)) {
+                sendState(other, npc, shop, Component.empty(), false);
+            }
+        }
     }
 
     private static boolean matches(ItemStack stack, ResourceLocation itemId) {
@@ -71,7 +83,7 @@ public final class Barter {
 
         ItemStack give = stack.copy();
         give.setCount(affordable);
-        player.getInventory().add(give);
+        ActionHandler.addToBags(player, give);
         int bought = affordable - give.getCount();
         if (bought <= 0) return Component.translatable("message.skycraft.economy.inventory_full");
         int total = unit * bought;
@@ -126,7 +138,7 @@ public final class Barter {
         if (stack.isEmpty() || Currency.valueOf(stack) > 0) return false;
         CompoundTag tag = stack.getTag();
         if (tag == null) return true;
-        if (tag.getBoolean(NO_SELL_NBT)) return false;
+        if (tag.getBoolean(NO_SELL_NBT) || com.skycraft.quest.QuestItems.isQuestItem(stack)) return false;
         if (tag.contains("Items", Tag.TAG_LIST) && !tag.getList("Items", Tag.TAG_COMPOUND).isEmpty()) return false;
         CompoundTag be = tag.getCompound("BlockEntityTag");
         return !(be.contains("Items", Tag.TAG_LIST) && !be.getList("Items", Tag.TAG_COMPOUND).isEmpty());
@@ -151,8 +163,10 @@ public final class Barter {
             int price = Pricing.sellPrice(player, s);
             if (price <= 0) continue;
             byte status = STATUS_OK;
-            if (!Merchants.buysFrom(player, npc, s)) status = STATUS_NOT_DEALT;
-            else if (Merchants.isStolen(s) && !fence) status = STATUS_STOLEN;
+            if (!Merchants.buysFrom(player, npc, s)) {
+                if (!com.skycraft.perk.Perks.has(player, "speech.merchant")) continue;
+            }
+            if (Merchants.isStolen(s) && !fence) status = STATUS_STOLEN;
             mine.add(new EconomyPackets.Entry(slot, s.copy(), price, (byte) ItemCategory.of(s).ordinal(), status));
         }
         SkyNetwork.sendToPlayer(player, new EconomyPackets.BarterState(npc.getId(), npc.getDisplayName(), open,

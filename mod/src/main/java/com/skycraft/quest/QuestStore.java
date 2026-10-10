@@ -24,9 +24,20 @@ public class QuestStore extends SavedData {
 
     private final Map<String, List<Quest>> quests = new HashMap<>();
     private final Map<UUID, ListTag> pending = new HashMap<>();
+    private final Map<String, UUID> designatedGivers = new HashMap<>();
 
     public static QuestStore get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(QuestStore::load, QuestStore::new, NAME);
+    }
+
+    @Nullable
+    public UUID getDesignatedGiver(String questId) {
+        return designatedGivers.get(questId);
+    }
+
+    public void setDesignatedGiver(String questId, UUID giver) {
+        designatedGivers.put(questId, giver);
+        setDirty();
     }
 
     public List<Quest> quests(String owner) {
@@ -95,6 +106,13 @@ public class QuestStore extends SavedData {
             } catch (IllegalArgumentException ignored) {
             }
         }
+        CompoundTag givers = tag.getCompound("designated_givers");
+        for (String qId : givers.getAllKeys()) {
+            try {
+                store.designatedGivers.put(qId, UUID.fromString(givers.getString(qId)));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
         return store;
     }
 
@@ -111,6 +129,9 @@ public class QuestStore extends SavedData {
         CompoundTag pend = new CompoundTag();
         pending.forEach((id, list) -> pend.put(id.toString(), list.copy()));
         tag.put("pending", pend);
+        CompoundTag givers = new CompoundTag();
+        designatedGivers.forEach((qId, uuid) -> givers.putString(qId, uuid.toString()));
+        tag.put("designated_givers", givers);
         return tag;
     }
 }

@@ -87,5 +87,17 @@
   "message.skycraft.economy.trained": "%s trained to %s (%s/%s this level)",
   "tooltip.skycraft.economy.skill_book": "Skill book: %s",
   "tooltip.skycraft.economy.skill_book_read": "You have read this book",
-  "tooltip.skycraft.economy.value": "Value: %s"
+  "tooltip.skycraft.economy.value": "Value: %s",
+  "barter.skycraft.mode.buy": "BUY",
+  "barter.skycraft.mode.sell": "SELL",
+  "dialogue.skycraft.economy.closed": "The shop is closed. Come back between 8 in the morning and 8 in the evening.",
+  "dialogue.skycraft.economy.house.buy": "I'd like to purchase a home in town. (%s gold)",
+  "dialogue.skycraft.economy.house.furnish": "I'd like to decorate my home.",
+  "dialogue.skycraft.economy.house.furnish_option": "Purchase %s (%s gold)",
+  "dialogue.skycraft.economy.house.already_owned": "You already own %s here.",
+  "dialogue.skycraft.economy.house.no_gold": "A home here costs %s gold. Come back when you have the coin.",
+  "dialogue.skycraft.economy.house.none_available": "There are no homes for sale in this hold right now.",
+  "message.skycraft.economy.house.bought": "You are now the proud owner of %s!",
+  "message.skycraft.economy.house.not_enough_gold": "You need %s gold to purchase %s.",
+  "message.skycraft.economy.house.furnish_bought": "Purchased %s for %s!"
 }

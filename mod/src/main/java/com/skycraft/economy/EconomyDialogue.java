@@ -41,7 +41,7 @@ public final class EconomyDialogue {
             }
 
             if (Perks.has(player, "speech.investor") && !Shop.of(npc).invested()) {
-                out.add(new DialogueOption("economy.invest", Component.translatable("dialogue.skycraft.economy.invest", Shop.INVEST_COST), 150,
+                out.add(new DialogueOption("economy.invest", Component.translatable("dialogue.skycraft.economy.invest", Currency.formatCompact(Shop.INVEST_COST)), 150,
                         EconomyDialogue::invest));
             }
         }
@@ -49,9 +49,39 @@ public final class EconomyDialogue {
         Skill skill = Trainers.skillFor(npc);
         if (skill != null) {
             int cost = Trainers.cost(SkyData.get(player).getSkill(skill));
-            out.add(new DialogueOption("economy.train", Component.translatable("dialogue.skycraft.economy.train", skill.displayName(), cost), 200,
+            out.add(new DialogueOption("economy.train", Component.translatable("dialogue.skycraft.economy.train", skill.displayName(), Currency.formatCompact(cost)), 200,
                     Trainers::train));
         }
+
+        // Town steward / Jarl house options - guards and regular soldiers never sell houses
+        String hold = com.skycraft.core.Holds.holdAt(player.level(), npc.blockPosition());
+        Houses.HouseDef house = Houses.houseForHold(hold);
+        if (house != null && isStewardOrJarl(npc)) {
+            if (!Houses.isHouseOwner(player, house)) {
+                out.add(new DialogueOption("economy.buy_house", Component.translatable("dialogue.skycraft.economy.house.buy", Currency.formatCompact(house.cost())), 250,
+                        (p, n) -> Houses.purchaseHouse(p, p.serverLevel(), house, null)));
+            } else {
+                Houses.HousesData data = Houses.HousesData.get(player.server.overworld().getServer());
+                for (Houses.Furnishing furn : Houses.UPGRADES) {
+                    if (!data.hasFurnishing(house.id(), furn.id())) {
+                        out.add(new DialogueOption("economy.furnish." + furn.id(),
+                                Component.translatable("dialogue.skycraft.economy.house.furnish_option", furn.name(), Currency.formatCompact(furn.cost())), 260,
+                                (p, n) -> Houses.purchaseFurnishing(p, p.serverLevel(), house, furn)));
+                    }
+                }
+            }
+        }
+    }
+
+    public static boolean isStewardOrJarl(LivingEntity npc) {
+        if (com.skycraft.crime.Crimes.isGuard(npc) || npc.getType().getDescriptionId().contains("guard")) {
+            return false;
+        }
+        if (npc instanceof com.skycraft.society.entity.NpcEntity ne) {
+            return ne.role() == com.skycraft.society.NpcRole.JARL;
+        }
+        String name = npc.getName().getString().toLowerCase(java.util.Locale.ROOT);
+        return name.contains("jarl") || name.contains("steward") || name.contains("proventius") || name.contains("elder");
     }
 
     private static void invest(ServerPlayer player, LivingEntity npc) {

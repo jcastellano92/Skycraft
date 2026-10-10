@@ -20,6 +20,7 @@ import net.minecraftforge.fml.common.Mod;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,8 +46,8 @@ public final class Dialogue {
     }
 
     private static final List<DialogueProvider> PROVIDERS = new CopyOnWriteArrayList<>();
-    /** Players currently being passed through to the NPC's native interaction ("Chat"). */
-    private static final Set<UUID> PASS_THROUGH = ConcurrentHashMap.newKeySet();
+    /** Entity ID -> player UUID currently in conversation with that entity. */
+    private static final Map<Integer, UUID> TALKING = new ConcurrentHashMap<>();
 
     private Dialogue() {}
 
@@ -68,41 +69,57 @@ public final class Dialogue {
                 Skycraft.LOGGER.error("Dialogue provider failed", e);
             }
         }
-        if (npc instanceof AbstractVillager) {
-            out.add(new DialogueOption("core.chat", Component.translatable("dialogue.skycraft.chat"), 900, Dialogue::passThrough));
-        }
-        out.add(new DialogueOption("core.goodbye", Component.translatable("dialogue.skycraft.goodbye"), 1000, (pl, n) -> {}));
+        out.add(new DialogueOption("core.goodbye", Component.translatable("dialogue.skycraft.goodbye"), 1000, Dialogue::onGoodbye));
         out.sort(Comparator.comparingInt(DialogueOption::order));
         return out;
     }
 
+    private static void onGoodbye(ServerPlayer player, LivingEntity npc) {
+        endConversation(player, npc.getId());
+    }
+
     /** Opens (or refreshes) the dialogue menu for {@code npc}, with an optional line spoken by the NPC. */
     public static void open(ServerPlayer player, LivingEntity npc, Component greeting) {
+        UUID partner = TALKING.get(npc.getId());
+        if (partner != null && !partner.equals(player.getUUID())) {
+            ServerPlayer currentPartner = player.server.getPlayerList().getPlayer(partner);
+            if (currentPartner != null && currentPartner.isAlive() && currentPartner.distanceToSqr(npc) <= 64) {
+                com.skycraft.core.Notifier.message(player, Component.translatable("society.skycraft.busy"));
+                return;
+            }
+        }
+        TALKING.put(npc.getId(), player.getUUID());
+        if (npc instanceof com.skycraft.society.entity.NpcEntity n) {
+            n.setConversationPartner(player.getId());
+            n.getNavigation().stop();
+            n.getLookControl().setLookAt(player, 30.0F, 30.0F);
+        }
         List<DialogueOption> options = collect(player, npc);
         List<DialoguePackets.Line> lines = new ArrayList<>();
         for (DialogueOption o : options) lines.add(new DialoguePackets.Line(o.id(), o.label()));
         SkyNetwork.sendToPlayer(player, new DialoguePackets.OpenDialogue(npc.getId(), npc.getDisplayName(), greeting, lines));
     }
 
+    public static void endConversation(ServerPlayer player, int entityId) {
+        UUID partner = TALKING.get(entityId);
+        if (partner != null && partner.equals(player.getUUID())) {
+            TALKING.remove(entityId);
+            if (player.level().getEntity(entityId) instanceof com.skycraft.society.entity.NpcEntity n) {
+                n.setConversationPartner(-1);
+            }
+        }
+    }
+
     static void choose(ServerPlayer player, int entityId, String optionId) {
-        if (!(player.level().getEntity(entityId) instanceof LivingEntity npc) || player.distanceToSqr(npc) > 64) return;
+        if (!(player.level().getEntity(entityId) instanceof LivingEntity npc) || player.distanceToSqr(npc) > 64) {
+            endConversation(player, entityId);
+            return;
+        }
         for (DialogueOption option : collect(player, npc)) {
             if (option.id().equals(optionId)) {
                 option.action().accept(player, npc);
                 return;
             }
-        }
-    }
-
-    private static void passThrough(ServerPlayer player, LivingEntity npc) {
-        PASS_THROUGH.add(player.getUUID());
-        try {
-            if (npc instanceof net.minecraft.world.entity.Mob mob) {
-                InteractionResult result = player.interactOn(mob, InteractionHand.MAIN_HAND);
-                if (!result.consumesAction()) player.swing(InteractionHand.MAIN_HAND);
-            }
-        } finally {
-            PASS_THROUGH.remove(player.getUUID());
         }
     }
 
@@ -112,10 +129,17 @@ public final class Dialogue {
         if (!(event.getTarget() instanceof LivingEntity npc) || !canTalk(npc)) return;
         if (event.getEntity().isShiftKeyDown()) return; // sneaking is reserved for pickpocketing
         if (event.getEntity() instanceof ServerPlayer player) {
-            if (PASS_THROUGH.contains(player.getUUID())) return;
+            UUID current = TALKING.get(npc.getId());
+            if (current != null && !current.equals(player.getUUID())) {
+                ServerPlayer sp = player.server.getPlayerList().getPlayer(current);
+                if (sp != null && sp.isAlive() && sp.distanceToSqr(npc) <= 64) {
+                    com.skycraft.core.Notifier.message(player, Component.translatable("society.skycraft.busy"));
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                    event.setCanceled(true);
+                    return;
+                }
+            }
             open(player, npc, Component.empty());
-        } else if (PASS_THROUGH.isEmpty()) {
-            // client: just consume the click so the vanilla trade screen doesn't flash open
         }
         event.setCancellationResult(InteractionResult.SUCCESS);
         event.setCanceled(true);

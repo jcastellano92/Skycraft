@@ -8,6 +8,7 @@ import com.skycraft.core.Skill;
 import com.skycraft.dig.PlacedBlocks;
 import com.skycraft.perk.Perks;
 import com.skycraft.skills.Progression;
+import com.skycraft.vitals.ActionHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -39,10 +40,18 @@ import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.TrapDoorBlock;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -101,6 +110,14 @@ public final class Locks {
         return level.dimension().location() + "|" + pos.getX() + "|" + pos.getY() + "|" + pos.getZ();
     }
 
+    public static BlockPos normalizePos(Level level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (state.getBlock() instanceof DoorBlock && state.hasProperty(DoorBlock.HALF) && state.getValue(DoorBlock.HALF) == DoubleBlockHalf.UPPER) {
+            return pos.below();
+        }
+        return pos;
+    }
+
     /** Whether the block entity still has loot to generate (or is a Lootr container). */
     static boolean isCandidate(Level level, BlockPos pos, BlockEntity be) {
         if (be == null) return false;
@@ -109,18 +126,43 @@ public final class Locks {
         return be instanceof RandomizableContainerBlockEntity && Theft.lootTable(be) != null;
     }
 
-    /** The lock difficulty of the container at {@code pos}, or {@link #NOT_LOCKED}. Decides (and remembers) on first use. */
-    public static int lockLevel(ServerLevel level, BlockPos pos) {
+    /** The lock difficulty of the container or door at {@code pos}, or {@link #NOT_LOCKED}. Decides (and remembers) on first use. */
+    public static int lockLevel(ServerLevel level, BlockPos rawPos) {
+        BlockPos pos = normalizePos(level, rawPos);
         LockData data = LockData.get(level.getServer());
         String key = key(level, pos);
         Integer stored = data.locks.get(key);
         if (stored != null) return stored;
+        if (PlacedBlocks.isPlayerPlaced(level, pos) || Jail.isJailDimension(level)) return NOT_LOCKED;
+
         BlockEntity be = level.getBlockEntity(pos);
-        if (!isCandidate(level, pos, be) || PlacedBlocks.isPlayerPlaced(level, pos) || Jail.isJailDimension(level)) return NOT_LOCKED;
-        int decided = decide(level, pos);
-        data.locks.put(key, decided);
-        data.setDirty();
-        return decided;
+        if (isCandidate(level, pos, be)) {
+            int decided = decide(level, pos);
+            data.locks.put(key, decided);
+            data.setDirty();
+            return decided;
+        }
+
+        BlockState state = level.getBlockState(pos);
+        if (state.getBlock() instanceof DoorBlock || state.getBlock() instanceof TrapDoorBlock) {
+            long dayTime = level.getDayTime() % 24000L;
+            boolean isNight = dayTime >= 13000L && dayTime <= 23000L;
+            if (Theft.inVillage(level, pos)) {
+                if (isNight) {
+                    int decided = decide(level, pos);
+                    if (decided == NOT_LOCKED) decided = APPRENTICE;
+                    return decided;
+                }
+                return NOT_LOCKED;
+            } else {
+                int decided = decide(level, pos);
+                data.locks.put(key, decided);
+                data.setDirty();
+                return decided;
+            }
+        }
+
+        return NOT_LOCKED;
     }
 
     private static int decide(ServerLevel level, BlockPos pos) {
@@ -173,9 +215,34 @@ public final class Locks {
         return Component.translatable("crime.skycraft.lock." + TIERS[Math.max(0, Math.min(MASTER, tier))]);
     }
 
+    public static void setLock(ServerLevel level, BlockPos rawPos, int tier) {
+        BlockPos pos = normalizePos(level, rawPos);
+        LockData data = LockData.get(level.getServer());
+        data.locks.put(key(level, pos), tier);
+        data.setDirty();
+    }
+
+    public static boolean hasJailKey(Player player) {
+        for (ItemStack s : player.getInventory().items) {
+            if (s.is(CrimeItems.JAIL_KEY.get())) return true;
+        }
+        return false;
+    }
+
     /** Whether the player must pick this lock before using the block. */
-    public static boolean blocks(ServerPlayer player, ServerLevel level, BlockPos pos) {
+    public static boolean blocks(ServerPlayer player, ServerLevel level, BlockPos rawPos) {
         if (player.isCreative() || player.isSpectator()) return false;
+        BlockPos pos = normalizePos(level, rawPos);
+        BlockState state = level.getBlockState(pos);
+        if (state.getBlock() instanceof DoorBlock || state.getBlock() instanceof TrapDoorBlock) {
+            if (!Jail.isJailDimension(level) && !Ownership.isOwnedByOther(player, level, pos)) {
+                String key = key(level, pos);
+                if (!LockData.get(level.getServer()).locks.containsKey(key)) {
+                    return false;
+                }
+            }
+        }
+        if (Jail.isJailDimension(level) && hasJailKey(player)) return false;
         int tier = lockLevel(level, pos);
         return tier != NOT_LOCKED && !isUnlocked(player, level, pos);
     }
@@ -184,21 +251,51 @@ public final class Locks {
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)) return;
+        if (event.isCanceled()) return;
+        if (event.getLevel().isClientSide) return;
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (!(event.getLevel() instanceof ServerLevel level)) return;
-        BlockPos pos = event.getPos();
+        BlockPos pos = normalizePos(level, event.getPos());
+        BlockState state = level.getBlockState(pos);
         BlockEntity be = level.getBlockEntity(pos);
-        if (be == null) return;
-        // sneaking with something in hand places a block instead of opening the container
-        if (player.isSecondaryUseActive() && (!player.getMainHandItem().isEmpty() || !player.getOffhandItem().isEmpty())) return;
-        if (!blocks(player, level, pos)) return;
+        boolean isDoor = state.getBlock() instanceof DoorBlock || state.getBlock() instanceof TrapDoorBlock;
+        if (be == null && !isDoor) return;
+        if (!blocks(player, level, pos)) {
+            if (state.getBlock() instanceof DoorBlock door) {
+                if (state.is(net.minecraft.world.level.block.Blocks.IRON_DOOR)) {
+                    boolean open = !state.getValue(DoorBlock.OPEN);
+                    door.setOpen(player, level, state, pos, open);
+                    level.playSound(null, pos, open ? SoundEvents.IRON_DOOR_OPEN : SoundEvents.IRON_DOOR_CLOSE, SoundSource.BLOCKS, 1f, 1f);
+                    event.setCanceled(true);
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                } else if (player.isSecondaryUseActive()) {
+                    boolean open = !state.getValue(DoorBlock.OPEN);
+                    door.setOpen(player, level, state, pos, open);
+                    level.playSound(null, pos, open ? door.type().doorOpen() : door.type().doorClose(), SoundSource.BLOCKS, 1f, 1f);
+                    event.setCanceled(true);
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                }
+            } else if (state.getBlock() instanceof TrapDoorBlock trapdoor && state.is(net.minecraft.world.level.block.Blocks.IRON_TRAPDOOR)) {
+                boolean open = !state.getValue(TrapDoorBlock.OPEN);
+                level.setBlock(pos, state.setValue(TrapDoorBlock.OPEN, open), 2);
+                level.playSound(null, pos, open ? SoundEvents.IRON_TRAPDOOR_OPEN : SoundEvents.IRON_TRAPDOOR_CLOSE, SoundSource.BLOCKS, 1f, 1f);
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            } else if (player.isSecondaryUseActive() && be instanceof net.minecraft.world.MenuProvider mp) {
+                // In Skyrim, crouching to open containers and loot/steal is standard stealth gameplay.
+                // Vanilla blocks container opening while sneaking with held items; open menu directly!
+                player.openMenu(mp);
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            }
+            return;
+        }
 
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.FAIL);
         if (event.getHand() != InteractionHand.MAIN_HAND) return;
 
         int tier = lockLevel(level, pos);
-        BlockState state = level.getBlockState(pos);
         level.playSound(null, pos, SoundEvents.CHEST_LOCKED, SoundSource.BLOCKS, 0.8f, 1.2f);
         int picks = countPicks(player);
         if (picks <= 0) {
@@ -211,8 +308,10 @@ public final class Locks {
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onBreak(BlockEvent.BreakEvent event) {
         if (!(event.getPlayer() instanceof ServerPlayer player) || !(event.getLevel() instanceof ServerLevel level)) return;
-        BlockPos pos = event.getPos();
-        if (level.getBlockEntity(pos) == null) return;
+        BlockPos pos = normalizePos(level, event.getPos());
+        BlockState state = level.getBlockState(pos);
+        boolean isDoor = state.getBlock() instanceof DoorBlock || state.getBlock() instanceof TrapDoorBlock;
+        if (level.getBlockEntity(pos) == null && !isDoor) return;
         if (blocks(player, level, pos)) {
             event.setCanceled(true);
             Notifier.message(player, Component.translatable("crime.skycraft.lock.cant_break", tierName(lockLevel(level, pos))));
@@ -277,8 +376,11 @@ public final class Locks {
             reply(player, RESULT_CLOSE, 0);
             return;
         }
-        if (player.level().dimension() != s.dim || player.distanceToSqr(Vec3.atCenterOf(s.pos)) > 49
-                || !(player.level() instanceof ServerLevel level) || level.getBlockEntity(s.pos) == null) {
+        ServerLevel level = player.serverLevel();
+        BlockState state = level.getBlockState(s.pos);
+        boolean isDoor = state.getBlock() instanceof DoorBlock || state.getBlock() instanceof TrapDoorBlock;
+        if (level.dimension() != s.dim || player.distanceToSqr(Vec3.atCenterOf(s.pos)) > 49
+                || (level.getBlockEntity(s.pos) == null && !isDoor)) {
             SESSIONS.remove(player.getUUID());
             reply(player, RESULT_CLOSE, 0);
             return;
@@ -329,6 +431,11 @@ public final class Locks {
         Progression.addSkillXp(player, Skill.LOCKPICKING, XP[s.difficulty]);
         level.playSound(null, s.pos, SoundEvents.IRON_TRAPDOOR_OPEN, SoundSource.BLOCKS, 0.7f, 1.6f);
 
+        // Contract 5: Roll lock bonus loot for containers
+        if (level.getBlockEntity(s.pos) != null) {
+            rollLockBonus(player, level, s.pos, s.difficulty);
+        }
+
         if (Perks.has(player, "lockpicking.golden_touch")) {
             Currency.give(player, 10 + player.getRandom().nextInt(41) + s.difficulty * 10);
         }
@@ -349,11 +456,38 @@ public final class Locks {
         }
 
         reply(player, RESULT_UNLOCKED, 1);
-        // open the container right away, like Skyrim
+        // open the container or door right away, like Skyrim
         BlockState state = level.getBlockState(s.pos);
         Theft.noteClick(player, s.pos);
-        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(s.pos), Direction.UP, s.pos, false);
-        state.use(level, player, InteractionHand.MAIN_HAND, hit);
+        if (state.getBlock() instanceof DoorBlock door) {
+            door.setOpen(player, level, state, s.pos, true);
+        } else if (state.getBlock() instanceof TrapDoorBlock) {
+            state = state.cycle(TrapDoorBlock.OPEN);
+            level.setBlock(s.pos, state, 10);
+            level.playSound(null, s.pos, state.getValue(TrapDoorBlock.OPEN) ? SoundEvents.WOODEN_TRAPDOOR_OPEN : SoundEvents.WOODEN_TRAPDOOR_CLOSE, SoundSource.BLOCKS, 1f, 1f);
+        } else {
+            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(s.pos), Direction.UP, s.pos, false);
+            state.use(level, player, InteractionHand.MAIN_HAND, hit);
+        }
+    }
+
+    private static void rollLockBonus(ServerPlayer player, ServerLevel level, BlockPos pos, int difficulty) {
+        int tierIdx = Math.max(0, Math.min(MASTER, difficulty));
+        ResourceLocation loc = new ResourceLocation(Skycraft.MODID, "chests/lock_bonus/" + TIERS[tierIdx]);
+        LootTable lootTable = level.getServer().getLootData().getLootTable(loc);
+        LootParams params = new LootParams.Builder(level)
+                .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos))
+                .withParameter(LootContextParams.THIS_ENTITY, player)
+                .withLuck(player.getLuck())
+                .create(LootContextParamSets.CHEST);
+        List<ItemStack> bonusItems = lootTable.getRandomItems(params);
+        for (ItemStack stack : bonusItems) {
+            if (!stack.isEmpty()) {
+                if (!ActionHandler.addToBags(player, stack)) {
+                    player.drop(stack, false);
+                }
+            }
+        }
     }
 
     static void forget(UUID player) {

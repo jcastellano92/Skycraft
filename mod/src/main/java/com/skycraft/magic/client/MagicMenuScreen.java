@@ -83,6 +83,9 @@ public class MagicMenuScreen extends Screen {
 
     @Override
     protected void init() {
+        if (minecraft != null) {
+            minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_MENU_OPEN.get(), 1.0f, 0.8f));
+        }
         tabW = Mth.clamp(width / 5, 80, 120);
         listW = Mth.clamp(width * 32 / 100, 130, 220);
         tabX = 14;
@@ -115,6 +118,14 @@ public class MagicMenuScreen extends Screen {
         return false;
     }
 
+    @Override
+    public void onClose() {
+        if (minecraft != null) {
+            minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(com.skycraft.world.WorldSounds.UI_MENU_CLOSE.get(), 1.0f, 0.8f));
+        }
+        super.onClose();
+    }
+
     // ------------------------------------------------------------------ data
 
     private void rebuild() {
@@ -130,6 +141,13 @@ public class MagicMenuScreen extends Screen {
                     if (s != null && known.contains(id)) entries.add(spellEntry(s));
                     Shout sh = Shout.byId(id);
                     if (sh != null && MagicData.wordsLearned(p, sh) > 0) entries.add(new Entry(Kind.SHOUT, id, sh.displayName(), 0xBFD8F0));
+                    if ("power:racial".equals(id)) {
+                        Race race = data.getRace();
+                        if (race != null) entries.add(new Entry(Kind.POWER, "power:racial", race.powerName(), 0xD0A060));
+                    } else if (id.startsWith("power:stone:")) {
+                        com.skycraft.lore.StandingStone stone = com.skycraft.lore.StandingStone.byId(id.substring("power:stone:".length()));
+                        if (stone != null && stone.hasPower) entries.add(new Entry(Kind.POWER, id, stone.powerName(), stone.color));
+                    }
                 }
             }
             case SHOUTS -> {
@@ -139,7 +157,11 @@ public class MagicMenuScreen extends Screen {
             }
             case POWERS -> {
                 Race race = data.getRace();
-                if (race != null) entries.add(new Entry(Kind.POWER, race.power, race.powerName(), 0xD0A060));
+                if (race != null) entries.add(new Entry(Kind.POWER, "power:racial", race.powerName(), 0xD0A060));
+                com.skycraft.lore.StandingStone stone = com.skycraft.lore.StandingStones.current(p);
+                if (stone != null && stone.hasPower) {
+                    entries.add(new Entry(Kind.POWER, "power:stone:" + stone.id(), stone.powerName(), stone.color));
+                }
             }
             default -> {
                 for (Spell s : Spells.of(tab.school)) {
@@ -180,29 +202,27 @@ public class MagicMenuScreen extends Screen {
 
     private boolean isEquipped(Entry e) {
         LocalPlayer p = player();
+        String voice = MagicData.selectedVoice(p);
         return switch (e.kind) {
             case SPELL -> e.id.equals(MagicData.selectedSpell(p)) || e.id.equals(MagicData.leftSpell(p));
-            case SHOUT -> e.id.equals(MagicData.selectedShout(p));
-            case POWER -> true;
+            case SHOUT -> ("shout:" + e.id).equals(voice) || e.id.equals(MagicData.selectedShout(p));
+            case POWER -> e.id.equals(voice);
         };
     }
 
-    /** Skyrim style: left click equips the right hand, right click the left hand. */
+    /** Skyrim style: left click equips the right hand / voice slot, right click the left hand. */
     private void equip(Entry e, boolean leftHand) {
         switch (e.kind) {
             case SPELL -> SkyNetwork.sendToServer(new MagicPackets.MenuAction(
                     leftHand ? MagicPackets.MenuAction.SELECT_LEFT : MagicPackets.MenuAction.SELECT_SPELL, e.id));
             case SHOUT -> SkyNetwork.sendToServer(new MagicPackets.MenuAction(MagicPackets.MenuAction.SELECT_SHOUT, e.id));
-            default -> {
-                return;
-            }
+            case POWER -> SkyNetwork.sendToServer(new MagicPackets.MenuAction(MagicPackets.MenuAction.SELECT_POWER, e.id));
         }
         Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
                 net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN, 1.4f, 0.6f));
     }
 
     private void favorite(Entry e) {
-        if (e.kind == Kind.POWER) return;
         SkyNetwork.sendToServer(new MagicPackets.MenuAction(MagicPackets.MenuAction.TOGGLE_FAVORITE, e.id));
     }
 
@@ -418,7 +438,7 @@ public class MagicMenuScreen extends Screen {
             switch (d.kind) {
                 case SPELL -> spellDetails(g, font, p, Spells.byId(d.id));
                 case SHOUT -> shoutDetails(g, font, p, Shout.byId(d.id));
-                case POWER -> powerDetails(g, font, p, data);
+                case POWER -> powerDetails(g, font, p, data, d);
             }
         }
 
@@ -511,7 +531,24 @@ public class MagicMenuScreen extends Screen {
         }
     }
 
-    private void powerDetails(GuiGraphics g, Font font, LocalPlayer p, PlayerData data) {
+    private void powerDetails(GuiGraphics g, Font font, LocalPlayer p, PlayerData data, Entry entry) {
+        if (entry.id.startsWith("power:stone:")) {
+            String stoneId = entry.id.substring("power:stone:".length());
+            com.skycraft.lore.StandingStone stone = com.skycraft.lore.StandingStone.byId(stoneId);
+            if (stone == null) return;
+            int y = heading(g, font, stone.powerName(), stone.color);
+            g.drawString(font, stone.stoneName(), detailX, y, 0xFF000000 | stone.color, false);
+            y += 12;
+            long now = p.level().getGameTime();
+            long ready = data.module("lore").getLong("power_" + stone.id());
+            Component status = ready <= now ? Component.translatable("magic.skycraft.power_ready")
+                    : Component.translatable("magic.skycraft.power_recharging", (ready - now) / 1000 + 1);
+            g.drawString(font, status, detailX, y, ready <= now ? 0xFF90D090 : 0xFFE8C080, false);
+            y += 16;
+            y = paragraph(g, font, stone.description(), y, 0xFFD8D2C0);
+            paragraph(g, font, Component.translatable("magic.skycraft.power_hint", SkyKeys.SHOUT.getTranslatedKeyMessage()), y + 6, 0xFF807A6A);
+            return;
+        }
         Race race = data.getRace();
         if (race == null) return;
         int y = heading(g, font, race.powerName(), 0xE8C080);
@@ -524,6 +561,6 @@ public class MagicMenuScreen extends Screen {
         g.drawString(font, status, detailX, y, ready <= now ? 0xFF90D090 : 0xFFE8C080, false);
         y += 16;
         y = paragraph(g, font, Component.translatable("power.skycraft." + race.power + ".desc"), y, 0xFFD8D2C0);
-        paragraph(g, font, Component.translatable("magic.skycraft.power_hint", SkyKeys.RACIAL_POWER.getTranslatedKeyMessage()), y + 6, 0xFF807A6A);
+        paragraph(g, font, Component.translatable("magic.skycraft.power_hint", SkyKeys.SHOUT.getTranslatedKeyMessage()), y + 6, 0xFF807A6A);
     }
 }

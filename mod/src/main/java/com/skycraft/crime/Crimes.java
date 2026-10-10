@@ -122,13 +122,33 @@ public final class Crimes {
     public static void onHurt(LivingHurtEvent event) {
         if (event.isCanceled() || event.getAmount() <= 0) return;
         LivingEntity victim = event.getEntity();
-        if (victim.level().isClientSide || !isCivilian(victim)) return;
+        if (victim.level().isClientSide) return;
         ServerPlayer player = attacker(event.getSource());
         if (player == null || !canCommitCrime(player)) return;
 
+        // Attacking an owned farm animal in a settlement
+        if (victim instanceof net.minecraft.world.entity.animal.Animal animal && Ownership.isOwnedByOther(player, animal)) {
+            report(player, victim.blockPosition(), 15, false, null);
+            return;
+        }
+
+        if (!isCivilian(victim)) return;
+
+        // Attacking a guard
+        if (isGuard(victim)) {
+            if (victim instanceof Mob mob) {
+                if ((com.skycraft.combat.Sheathe.isSheathed(player) || event.getAmount() < 6.0f) && !Bounty.isHostile(player)) {
+                    Guards.handleAccidentalHit(player, mob);
+                    return;
+                }
+                mob.setTarget(player);
+            }
+            Guards.resist(player);
+            return;
+        }
+
         // fighting back against someone who's already attacking you isn't a new crime
         if (victim instanceof Mob mob && mob.getTarget() == player) return;
-        if (isGuard(victim) && Bounty.isHostile(player)) return;
 
         long now = victim.level().getGameTime();
         String key = victim.getUUID() + "|" + player.getUUID();
@@ -137,21 +157,48 @@ public final class Crimes {
         if (LAST_ASSAULT.size() > 2048) LAST_ASSAULT.entrySet().removeIf(e -> now - e.getValue() > ASSAULT_THROTTLE);
         LAST_ASSAULT.put(key, now);
 
-        Bounty.increment(player, "assaults", 1);
-        // the victim always witnesses its own assault
-        report(player, victim.blockPosition(), Bounty.ASSAULT, true, null);
-        Bounty.makeHostile(player, ASSAULT_HOSTILE_TICKS);
-        Guards.attack(player, 24);
-        if (victim instanceof Mob mob && isGuard(victim)) mob.setTarget(player);
+        // Fear tracking: victim and nearby civilians fear the attacker until the player leaves
+        if (victim instanceof com.skycraft.society.entity.NpcEntity ne) {
+            ne.setFearedPlayer(player.getUUID());
+        }
+        for (com.skycraft.society.entity.NpcEntity nearbyCivilian : victim.level().getEntitiesOfClass(com.skycraft.society.entity.NpcEntity.class, victim.getBoundingBox().inflate(12), e -> e.role().civilian)) {
+            nearbyCivilian.setFearedPlayer(player.getUUID());
+        }
+
+        // Only report immediately if witnessed by other bystanders or guards are nearby
+        boolean witnessedByOther = witnessed(player, victim);
+        boolean guardsNearby = !victim.level().getEntitiesOfClass(Mob.class, victim.getBoundingBox().inflate(24), Crimes::isGuard).isEmpty();
+
+        if (witnessedByOther || guardsNearby) {
+            Bounty.increment(player, "assaults", 1);
+            report(player, victim.blockPosition(), Bounty.ASSAULT, true, null);
+            Bounty.makeHostile(player, ASSAULT_HOSTILE_TICKS);
+            Guards.attack(player, 24);
+        } else {
+            // Unwitnessed: no immediate bounty! Queue report if victim flees to a guard
+            Theft.queueWitnessReport(player, victim, victim.blockPosition(), Bounty.ASSAULT);
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onDeath(LivingDeathEvent event) {
         if (event.isCanceled()) return;
         LivingEntity victim = event.getEntity();
-        if (victim.level().isClientSide || !isCivilian(victim)) return;
+        if (victim.level().isClientSide) return;
         ServerPlayer player = attacker(event.getSource());
         if (player == null || !canCommitCrime(player)) return;
+
+        // Killing an owned farm animal in a settlement
+        if (victim instanceof net.minecraft.world.entity.animal.Animal animal && Ownership.isOwnedByOther(player, animal)) {
+            if (witnessed(player, victim)) {
+                String hold = Holds.holdAt(player.level(), victim.blockPosition());
+                Bounty.add(player, hold, 50);
+                Guards.alert(player);
+            }
+            return;
+        }
+
+        if (!isCivilian(victim)) return;
 
         // the Dark Brotherhood always knows
         Bounty.increment(player, "murders", 1);

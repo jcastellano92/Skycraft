@@ -70,6 +70,9 @@
   "inventory.skycraft.hint.sort": "Sort",
   "inventory.skycraft.hint.crafting": "Crafting",
   "inventory.skycraft.hint.close": "Close",
+  "inventory.skycraft.hint.inspect": "Inspect",
+  "inventory.skycraft.my_items": "My Items",
+  "inventory.skycraft.empty_container": "Container is empty",
 
   "inventory.skycraft.favorites": "Favorites",
   "inventory.skycraft.favorites.spell_right": "Right",
@@ -85,5 +88,6 @@
   "inventory.skycraft.overencumbered_travel": "You are carrying too much to fast travel.",
   "inventory.skycraft.msg.bound": "That item is bound to you and can't be removed.",
   "inventory.skycraft.msg.full": "You have no room for that.",
-  "inventory.skycraft.msg.not_hungry": "You can't eat that right now."
+  "inventory.skycraft.msg.not_hungry": "You can't eat that right now.",
+  "inventory.skycraft.msg.quest_item": "Quest items cannot be dropped."
 }

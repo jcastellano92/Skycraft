@@ -24,6 +24,8 @@ import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import java.util.List;
+
 /**
  * Forge-bus client events of the inventory module: swapping the vanilla survival inventory for the Skyrim one, the
  * favorites key, keeping an over-encumbered player from running, and item weights in tooltips.
@@ -60,14 +62,18 @@ public final class InventoryClientEvents {
         if (player == null || next == null) return;
 
         if (next.getClass() == InventoryScreen.class) {
-            if (vanillaOnce) {
-                vanillaOnce = false;
-                return;
-            }
-            if (replaceInventory() && !player.isCreative() && !player.isSpectator()) {
-                event.setNewScreen(new SkyrimInventoryScreen());
+            if (!player.isCreative() && !player.isSpectator()) {
+                event.setNewScreen(new com.skycraft.client.screen.HubScreen());
             }
             return;
+        }
+
+        if (next instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> acs
+                && acs.getMenu() instanceof net.minecraft.world.inventory.ChestMenu cm) {
+            if (!player.isCreative() && !player.isSpectator()) {
+                event.setNewScreen(new SkyrimContainerScreen(cm, player.getInventory(), acs.getTitle()));
+                return;
+            }
         }
 
         // The world map is where fast travel happens: remind an over-encumbered player they can't.
@@ -96,14 +102,146 @@ public final class InventoryClientEvents {
         LocalPlayer player = mc.player;
         if (player == null) return;
 
+        // Universal [F] Key for Interactions (talk to NPCs, pick up items, open doors, harvest plants)
+        while (com.skycraft.client.SkyKeys.INTERACT.consumeClick()) {
+            if (mc.screen != null || player.isSpectator()) continue;
+            // 1. Pick up looked-at world item
+            var lookedItem = com.skycraft.crime.client.CrimeHud.getLookedAtItem(mc, 3.5);
+            if (lookedItem != null) {
+                com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.TAKE_WORLD_ITEM, lookedItem.getId()));
+                continue;
+            }
+            // 2. Interact with entity under crosshair (NPC, villager, horse, corpse)
+            if (mc.crosshairPickEntity != null) {
+                if (mc.crosshairPickEntity instanceof com.skycraft.creatures.entity.CorpseEntity corpse) {
+                    if (mc.gameMode != null) {
+                        mc.gameMode.interact(player, corpse, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    }
+                    continue;
+                }
+                if (mc.crosshairPickEntity instanceof net.minecraft.world.entity.LivingEntity le && le.isAlive()) {
+                    if (mc.gameMode != null) {
+                        mc.gameMode.interact(player, le, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    }
+                    continue;
+                }
+            }
+            // 3. Interact with block under crosshair (door, chest, plant, flower, mushroom, crafting table)
+            if (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult bhr && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                net.minecraft.core.BlockPos bpos = bhr.getBlockPos();
+                net.minecraft.world.level.block.state.BlockState bs = player.level().getBlockState(bpos);
+                if (com.skycraft.survival.Harvesting.isHarvestable(bs)) {
+                    com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.HarvestBlock(bpos));
+                    continue;
+                }
+                if (mc.gameMode != null) {
+                    mc.gameMode.useItemOn(player, net.minecraft.world.InteractionHand.MAIN_HAND, bhr);
+                }
+            }
+        }
+
         while (InventoryKeys.FAVORITES.consumeClick()) {
             if (mc.screen == null && !player.isSpectator()) mc.setScreen(new FavoritesScreen());
+        }
+
+        // Favorites hotbar mapping: number keys 1-8 map to Favorites 1-8
+        if (mc.options != null && mc.options.keyHotbarSlots != null && !player.isCreative() && mc.screen == null) {
+            for (int i = 0; i < Math.min(8, mc.options.keyHotbarSlots.length); i++) {
+                if (mc.options.keyHotbarSlots[i].consumeClick()) {
+                    List<InvEntry> favs = getFavorites(player);
+                    if (i < favs.size()) {
+                        if (com.skycraft.combat.Sheathe.isSheathed(player)) {
+                            com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+                        }
+                        ClientInventoryHandlers.primary(favs.get(i));
+                    }
+                }
+            }
+            for (int i = 8; i < mc.options.keyHotbarSlots.length; i++) {
+                while (mc.options.keyHotbarSlots[i].consumeClick()) {}
+            }
         }
 
         // Over-encumbered: no running.
         if (ClientInventoryHandlers.over && !player.isCreative() && !player.isSpectator()) {
             if (player.isSprinting()) player.setSprinting(false);
             mc.options.keySprint.setDown(false);
+        }
+    }
+
+    private static int scrollFavIndex = -1;
+
+    public static List<InvEntry> getFavorites(LocalPlayer player) {
+        List<InvEntry> list = new java.util.ArrayList<>();
+        for (InvEntry e : InvEntry.build(player)) {
+            if (e.favorite) list.add(e);
+        }
+        list.sort(java.util.Comparator.comparingInt((InvEntry e) -> e.category.ordinal())
+                .thenComparing(e -> e.name, String.CASE_INSENSITIVE_ORDER)
+                .thenComparingInt(e -> e.equip));
+        return list;
+    }
+
+    private static int lastDrawnMainSlot = 0;
+
+    @SubscribeEvent
+    public static void onMouseScroll(net.minecraftforge.client.event.InputEvent.MouseScrollingEvent event) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.screen != null || player.isCreative() || player.isSpectator()) return;
+        double delta = event.getScrollDelta();
+        if (delta == 0) return;
+        event.setCanceled(true);
+
+        List<InvEntry> favs = getFavorites(player);
+        if (favs.isEmpty()) {
+            boolean wasSheathed = com.skycraft.combat.Sheathe.isSheathed(player);
+            if (!wasSheathed) {
+                if (!player.getMainHandItem().isEmpty()) lastDrawnMainSlot = player.getInventory().selected;
+                com.skycraft.combat.Sheathe.setSheathed(player, true);
+                com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+                for (int i = 0; i < 9; i++) {
+                    if (player.getInventory().getItem(i).isEmpty()) {
+                        player.getInventory().selected = i;
+                        break;
+                    }
+                }
+                ClientPacketHandlers.notify(new CorePackets.Notify(NotifyKind.MESSAGE, Component.literal("Hands Sheathed"), Component.empty(), 0, 0f));
+            } else {
+                com.skycraft.combat.Sheathe.setSheathed(player, false);
+                com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+                player.getInventory().selected = lastDrawnMainSlot;
+                ClientPacketHandlers.notify(new CorePackets.Notify(NotifyKind.MESSAGE, Component.literal("Hands Drawn"), Component.empty(), 0, 0f));
+            }
+            return;
+        }
+
+        int total = favs.size() + 1;
+        if (scrollFavIndex < 0) scrollFavIndex = 0;
+        if (delta > 0) {
+            scrollFavIndex = Math.floorMod(scrollFavIndex - 1, total);
+        } else {
+            scrollFavIndex = Math.floorMod(scrollFavIndex + 1, total);
+        }
+
+        if (scrollFavIndex == favs.size()) {
+            if (!player.getMainHandItem().isEmpty()) lastDrawnMainSlot = player.getInventory().selected;
+            com.skycraft.combat.Sheathe.setSheathed(player, true);
+            com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+            for (int i = 0; i < 9; i++) {
+                if (player.getInventory().getItem(i).isEmpty()) {
+                    player.getInventory().selected = i;
+                    break;
+                }
+            }
+            ClientPacketHandlers.notify(new CorePackets.Notify(NotifyKind.MESSAGE, Component.literal("Hands Sheathed"), Component.empty(), 0, 0f));
+        } else {
+            InvEntry chosen = favs.get(scrollFavIndex);
+            if (com.skycraft.combat.Sheathe.isSheathed(player)) {
+                com.skycraft.combat.Sheathe.setSheathed(player, false);
+                com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+            }
+            ClientInventoryHandlers.primary(chosen);
         }
     }
 

@@ -70,11 +70,36 @@ public final class RestManager {
         BlockState state = level.getBlockState(event.getPos());
         if (!(state.getBlock() instanceof BedBlock)) return;
         if (!BedBlock.canSetSpawn(level)) return; // Oblivion and Sovngarde: beds behave (explode) like vanilla
+
+        BlockPos pos = event.getPos();
+        if (state.hasProperty(BedBlock.OCCUPIED) && state.getValue(BedBlock.OCCUPIED)) {
+            event.setCanceled(true);
+            if (player instanceof ServerPlayer sp) Notifier.message(sp, Component.translatable("block.minecraft.bed.occupied"));
+            return;
+        }
+        if (com.skycraft.crime.Ownership.isOwnedByOther(player, level, pos)) {
+            event.setCanceled(true);
+            if (player instanceof ServerPlayer sp) Notifier.message(sp, Component.translatable("world.skycraft.rest.bed_owned"));
+            return;
+        }
+
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.SUCCESS);
         if (level.isClientSide && event.getHand() == InteractionHand.MAIN_HAND) {
-            BlockPos pos = event.getPos().immutable();
-            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> WorldClient.openRest(true, pos));
+            BlockPos bpos = event.getPos().immutable();
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> WorldClient.openRest(true, bpos));
+        }
+    }
+
+    /** Ensure vanilla sleeping (e.g. shift-clicking a bed) also checks bed ownership and occupancy. */
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onPlayerSleepInBed(net.minecraftforge.event.entity.player.PlayerSleepInBedEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            BlockPos pos = event.getPos();
+            if (com.skycraft.crime.Ownership.isOwnedByOther(player, player.level(), pos)) {
+                event.setResult(Player.BedSleepingProblem.OTHER_PROBLEM);
+                Notifier.message(player, Component.translatable("world.skycraft.rest.bed_owned"));
+            }
         }
     }
 
@@ -109,6 +134,13 @@ public final class RestManager {
                 return Component.translatable("world.skycraft.rest.no_bed");
             }
             if (!BedBlock.canSetSpawn(player.level())) return Component.translatable("world.skycraft.rest.no_bed");
+            BlockState state = player.level().getBlockState(bed);
+            if (state.hasProperty(BedBlock.OCCUPIED) && state.getValue(BedBlock.OCCUPIED)) {
+                return Component.translatable("block.minecraft.bed.occupied");
+            }
+            if (com.skycraft.crime.Ownership.isOwnedByOther(player, player.level(), bed)) {
+                return Component.translatable("world.skycraft.rest.bed_owned");
+            }
         }
         return null;
     }

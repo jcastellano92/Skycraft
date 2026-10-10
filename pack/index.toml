@@ -1,6 +1,38 @@
 hash-format = "sha256"
 
 [[files]]
+file = "config/controllable.json"
+hash = "55c6ba013b8727d970bc2b892084fe9348d9dd3fb7dd3f856ed1e36a671e78a6"
+
+[[files]]
+file = "config/corpse-common.toml"
+hash = "12b40b93fb0ddea5787704a4200826ebe0f378d5b5b140a74e3e11353d792b1e"
+
+[[files]]
+file = "config/defaultoptions/options.txt"
+hash = "f96fa1efa01b017acbe35f4f10b473307e1299d3413943d853cc5d59313476ab"
+
+[[files]]
+file = "config/mca.json"
+hash = "cc1383c1b08ecd75102f0443047885280aac53259071535b724a31d15232a675"
+
+[[files]]
+file = "config/physicsmod/physics_client_config.json"
+hash = "eac1e64d645f66a447c2b02df97a8e05e3d453626f1bd68186068fb04449c0c5"
+
+[[files]]
+file = "config/tectonic.json"
+hash = "6511c3816a9bab400950d03b775587b0e33d6c4ec2d313c9740fbb75191a266c"
+
+[[files]]
+file = "config/towns_and_towers/structure_enable_or_disable_new.json5"
+hash = "675fad2f8467b4de380c77d54c6353af88b6a237474dadfe7a7c7296c7ed6c6a"
+
+[[files]]
+file = "config/towns_and_towers/structure_rarity_new.json5"
+hash = "1f6cddbcb2d89fbcc774d7bdae9987ccb031ba8fe024307357076ca617b17eeb"
+
+[[files]]
 file = "mods/aquaculture.pw.toml"
 hash = "04aae524d364de0ec8ac66db6eaff094b9c9b9d69e5de89f11acb2a00ce35261"
 metafile = true
@@ -33,6 +65,11 @@ metafile = true
 [[files]]
 file = "mods/comforts.pw.toml"
 hash = "a2c5d820180d2610e5017e3f08957010e30cf05d50ee3180272dac6f969260cf"
+metafile = true
+
+[[files]]
+file = "mods/controllable.pw.toml"
+hash = "26057db5e04510c3d99742c479d59542a8c8a434d4d26eb872590ebf57d60177"
 metafile = true
 
 [[files]]
@@ -102,7 +139,7 @@ metafile = true
 
 [[files]]
 file = "mods/essential.pw.toml"
-hash = "92db92fc9161c4283b25e4b2a809ebe683b5ad27c1497531a8c79a066e4cc99e"
+hash = "ef11cf405ecfcb4403b6387dfa3e5b16e5fa4abf55f885eb096aa0977d8012b1"
 metafile = true
 
 [[files]]
@@ -116,18 +153,13 @@ hash = "902bac905b93271f02bd0951a22bac06a3da24f5c237fcaeb469e14a7679e508"
 metafile = true
 
 [[files]]
+file = "mods/framework.pw.toml"
+hash = "86621230dbc7c1b076d579f68e49eb454dededcb0f63f2305cf5d3ca55f9c46f"
+metafile = true
+
+[[files]]
 file = "mods/itemphysic-lite.pw.toml"
 hash = "cf31130ba0da56362298409418b9a6b6e5ab01822d9c04e0aee61c0682662b01"
-metafile = true
-
-[[files]]
-file = "mods/jade.pw.toml"
-hash = "5d03d20b037a8b7a4765ded0e25146fc970964be46401dff5f9b1059875084e8"
-metafile = true
-
-[[files]]
-file = "mods/jei.pw.toml"
-hash = "df724beef20c6a6458b6eced0a36d6ac72dffe00849676f80bdf328207f6d061"
 metafile = true
 
 [[files]]
@@ -187,7 +219,7 @@ metafile = true
 
 [[files]]
 file = "mods/skycraft-core.jar"
-hash = "275f1e776f7c9aacdd2d225a1f0713c7428059d0fe8cb5d7c995fba734ff0902"
+hash = "984f5d4ba8f6472cfa63243e867e78e7da6e196a341ff6a03e0175db28c0c00b"
 
 [[files]]
 file = "mods/sodium-options-api.pw.toml"
@@ -215,18 +247,13 @@ hash = "7b7108d879e1e1c141b24d0d8fa268a6bbcd5c227875d156fcc62c3beec55f63"
 metafile = true
 
 [[files]]
+file = "mods/treechop.pw.toml"
+hash = "7d676de4988d6d176fcc327a1a2f27b17091962565785cb0214af1ec6826dca0"
+metafile = true
+
+[[files]]
 file = "mods/vampirism.pw.toml"
 hash = "2e23c17c935bd2bb323320e68b38c7bd0ffca332fc715c2f25ada7bf56ac7795"
-metafile = true
-
-[[files]]
-file = "mods/villager-recruits.pw.toml"
-hash = "d5f4503ebad66eef05027dd7e158d21276a0ec7ea49343a4e60b793b43f4bf07"
-metafile = true
-
-[[files]]
-file = "mods/waystones.pw.toml"
-hash = "1dc6ca31c7b6912c494caa2a4f5f9f7250af50fbeb9ce9141ae9b741f9861987"
 metafile = true
 
 [[files]]
@@ -237,11 +264,6 @@ metafile = true
 [[files]]
 file = "mods/when-dungeons-arise.pw.toml"
 hash = "1901cefc095dfaeafb78fc34610febb36f9e4a0ae32f7b96f484f0dacc94c681"
-metafile = true
-
-[[files]]
-file = "mods/xaeros-world-map.pw.toml"
-hash = "5290b1a5c4624ba20a080385052eb55cfdc42170dfc5cd5aeecd570115d5f947"
 metafile = true
 
 [[files]]

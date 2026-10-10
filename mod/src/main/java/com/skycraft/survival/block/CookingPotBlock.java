@@ -38,7 +38,16 @@ public class CookingPotBlock extends Block {
     @SuppressWarnings("deprecation")
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         if (level.isClientSide) return InteractionResult.SUCCESS;
-        if (player instanceof ServerPlayer sp) CookingMenu.open(sp, pos);
+        if (player instanceof ServerPlayer sp) {
+            if (com.skycraft.crime.Ownership.isOwnedByOther(sp, level, pos) && !com.skycraft.economy.Shop.isOpen(level)) {
+                if (com.skycraft.survival.inn.Innkeepers.roomHere(sp) == null) {
+                    com.skycraft.core.Notifier.message(sp, net.minecraft.network.chat.Component.translatable("dialogue.skycraft.economy.closed"));
+                    level.playSound(null, pos, net.minecraft.sounds.SoundEvents.CHEST_LOCKED, net.minecraft.sounds.SoundSource.BLOCKS, 0.8f, 1.0f);
+                    return InteractionResult.CONSUME;
+                }
+            }
+            CookingMenu.open(sp, pos);
+        }
         return InteractionResult.CONSUME;
     }
 

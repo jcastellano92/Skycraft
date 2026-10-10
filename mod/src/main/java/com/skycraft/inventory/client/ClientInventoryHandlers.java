@@ -84,7 +84,9 @@ public final class ClientInventoryHandlers {
             send(InventoryPackets.InvAction.READ, entry);
             return true;
         }
-        send(InventoryPackets.InvAction.EQUIP, entry);
+        if (entry.equipped() || entry.isUsableEquipment()) {
+            send(InventoryPackets.InvAction.EQUIP, entry);
+        }
         return false;
     }
 
@@ -101,6 +103,8 @@ public final class ClientInventoryHandlers {
     public static String primaryLabelKey(InvEntry entry) {
         if (entry.consumable() && entry.equip != InvEntry.WORN) return entry.drink() ? "drink" : "eat";
         if (entry.readable() && entry.equip != InvEntry.WORN) return "read";
-        return entry.equipped() ? "unequip" : "equip";
+        if (entry.equipped()) return "unequip";
+        if (entry.isUsableEquipment()) return "equip";
+        return null;
     }
 }

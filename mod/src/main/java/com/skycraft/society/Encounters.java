@@ -29,7 +29,9 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.npc.WanderingTrader;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.GameRules;
@@ -81,7 +83,7 @@ public final class Encounters {
     public enum Kind {
         HUNTER, BARD, THIEF, IMPERIAL_ESCORT, STORMCLOAK_ESCORT, THALMOR_ESCORT, MAGE_VS_NECROMANCER, ADVENTURERS_VS_BANDITS,
         GIANT_VS_HUNTER, WOLF_PACK, VAMPIRES, COURIER, BEGGAR, STRANDED_MERCHANT, DRAGON, FORSWORN_AMBUSH, ADVENTURER,
-        THALMOR_PATROL, SKIRMISH;
+        THALMOR_PATROL, SKIRMISH, OLD_ORC, FUGITIVE_AND_HUNTER, REVELERS;
 
         public String id() {
             return name().toLowerCase(Locale.ROOT);
@@ -356,6 +358,9 @@ public final class Encounters {
         w.put(Kind.ADVENTURER, 4);
         w.put(Kind.THALMOR_PATROL, 2);
         w.put(Kind.SKIRMISH, snowy ? 4 : 3);
+        w.put(Kind.OLD_ORC, mountain || snowy ? 5 : 2);
+        w.put(Kind.FUGITIVE_AND_HUNTER, 4);
+        w.put(Kind.REVELERS, night ? 2 : 5);
 
         int total = 0;
         for (Map.Entry<Kind, Integer> e : w.entrySet()) {
@@ -393,7 +398,7 @@ public final class Encounters {
 
     /** Ground level at a column (top of the highest solid non-leaf block), or null over water/unloaded chunks. */
     @Nullable
-    static BlockPos groundAt(ServerLevel level, int x, int z) {
+    public static BlockPos groundAt(ServerLevel level, int x, int z) {
         if (!level.isLoaded(new BlockPos(x, level.getSeaLevel(), z))) return null;
         int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
         BlockState below = level.getBlockState(new BlockPos(x, y - 1, z));
@@ -673,6 +678,57 @@ public final class Encounters {
                 }
                 for (int i = 0; i < Math.min(legion.size(), cloaks.size()); i++) fight(legion.get(i), cloaks.get(i));
                 return !legion.isEmpty() || !cloaks.isEmpty();
+            }
+            case OLD_ORC -> {
+                NpcEntity orc = g.npc(NpcRole.ADVENTURER, g.center);
+                if (orc == null) return false;
+                orc.setCustomName(Component.literal("Old Orc"));
+                orc.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_AXE));
+                orc.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.SHIELD));
+                orc.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.IRON_CHESTPLATE));
+                orc.setItemSlot(EquipmentSlot.LEGS, new ItemStack(Items.IRON_LEGGINGS));
+                orc.getPersistentData().putBoolean("skycraft_old_orc", true);
+                orc.setDestination(g.pastPlayer());
+                return true;
+            }
+            case FUGITIVE_AND_HUNTER -> {
+                NpcEntity fugitive = g.npc(NpcRole.THIEF, g.center);
+                if (fugitive == null) return false;
+                fugitive.setCustomName(Component.literal("Panicked Fugitive"));
+                fugitive.getPersistentData().putBoolean("skycraft_fugitive", true);
+                fugitive.setSeekTarget(g.player.getUUID());
+
+                // Bounty hunter appears 12 blocks behind pursuing him
+                BlockPos hunterPos = near(g.level, g.center.offset(-10, 0, -10), 4, g.random);
+                NpcEntity hunter = g.npc(NpcRole.ADVENTURER, hunterPos);
+                if (hunter != null) {
+                    hunter.setCustomName(Component.literal("Bounty Hunter"));
+                    hunter.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SWORD));
+                    hunter.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.IRON_CHESTPLATE));
+                    hunter.getPersistentData().putBoolean("skycraft_bounty_hunter", true);
+                    hunter.setDestination(g.player.blockPosition());
+                }
+                return true;
+            }
+            case REVELERS -> {
+                int count = 2 + g.random.nextInt(2);
+                NpcEntity leader = null;
+                for (int i = 0; i < count; i++) {
+                    BlockPos p = near(g.level, g.center, 3, g.random);
+                    NpcEntity rev = g.npc(NpcRole.ADVENTURER, p);
+                    if (rev == null) continue;
+                    rev.setCustomName(Component.literal("Nord Reveler"));
+                    ItemStack mead = new ItemStack(Items.HONEY_BOTTLE);
+                    rev.setItemSlot(EquipmentSlot.MAINHAND, mead);
+                    rev.getPersistentData().putBoolean("skycraft_reveler", true);
+                    if (leader == null) {
+                        leader = rev;
+                        rev.setDestination(g.pastPlayer());
+                    } else {
+                        rev.setLeader(leader.getUUID());
+                    }
+                }
+                return leader != null;
             }
             default -> {
                 return false;

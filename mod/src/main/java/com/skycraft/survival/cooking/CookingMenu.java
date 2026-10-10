@@ -49,8 +49,12 @@ public class CookingMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return access.evaluate((level, p) -> level.getBlockState(p).getBlock() instanceof CookingPotBlock
-                && player.distanceToSqr(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5) <= 64.0, true);
+        return access.evaluate((level, p) -> {
+            net.minecraft.world.level.block.Block b = level.getBlockState(p).getBlock();
+            boolean valid = b instanceof CookingPotBlock || b == net.minecraft.world.level.block.Blocks.SMOKER
+                    || b == net.minecraft.world.level.block.Blocks.CAMPFIRE || b == net.minecraft.world.level.block.Blocks.SOUL_CAMPFIRE;
+            return valid && player.distanceToSqr(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5) <= 64.0;
+        }, true);
     }
 
     /** Invisible, locked mirror of a player inventory slot. */

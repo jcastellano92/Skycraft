@@ -71,6 +71,12 @@ public class SkyrimInventoryScreen extends Screen {
     private int scroll;
     private InvEntry selectedEntry;
 
+    // 3D inspect view
+    private boolean inspectMode = false;
+    private float inspectRotX = 15f;
+    private float inspectRotY = 0f;
+    private float inspectZoom = 1.0f;
+
     // layout
     private int x0, contentW, catX, catW, listX, listW, detX, detW, top, bottom, listTop;
 
@@ -263,6 +269,11 @@ public class SkyrimInventoryScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        if (inspectMode && selectedEntry != null) {
+            renderInspectOverlay(g, mouseX, mouseY);
+            return;
+        }
+
         g.fillGradient(0, 0, width, height, 0xA8050505, 0xD8050505);
         hoverText = null;
         drawCategories(g, mouseX, mouseY);
@@ -276,6 +287,31 @@ public class SkyrimInventoryScreen extends Screen {
         } else if (hoverText != null) {
             g.renderTooltip(font, hoverText, mouseX, mouseY);
         }
+    }
+
+    private void renderInspectOverlay(GuiGraphics g, int mx, int my) {
+        g.fill(0, 0, width, height, 0xEE050505);
+        int cx = width / 2;
+        int cy = height / 2;
+
+        g.pose().pushPose();
+        g.pose().translate(cx, cy, 300);
+        g.pose().mulPose(Axis.XP.rotationDegrees(inspectRotX));
+        g.pose().mulPose(Axis.YP.rotationDegrees(inspectRotY));
+        float scale = (Math.min(width, height) / 10.0f) * inspectZoom;
+        g.pose().scale(scale, scale, scale);
+        g.pose().translate(0, 0, -150);
+        g.renderItem(selectedEntry.stack, -8, -8);
+        g.pose().popPose();
+
+        String title = selectedEntry.name;
+        g.drawString(font, title, cx - font.width(title) / 2, 20, SkyUi.BRIGHT, false);
+        String kind = kindLine(selectedEntry).getString();
+        g.drawString(font, kind, cx - font.width(kind) / 2, 32, SkyUi.DIM, false);
+        SkyUi.divider(g, cx, 46, Math.min(100, width / 4));
+
+        String hint = "[Drag] Rotate   [Scroll] Zoom   [X / Esc] Exit Inspect";
+        g.drawString(font, hint, cx - font.width(hint) / 2, height - 25, SkyUi.GOLD, false);
     }
 
     private void drawCategories(GuiGraphics g, int mx, int my) {
@@ -451,26 +487,49 @@ public class SkyrimInventoryScreen extends Screen {
         // ---------------------------------------------------------- stat cells: Damage/Armor | Weight | Value
         List<Component> labels = new ArrayList<>();
         List<String> values = new ArrayList<>();
+        List<Integer> colorsList = new ArrayList<>();
         double damage = damage(stack);
         double armor = armor(stack);
         if (armor > 0) {
             labels.add(Component.translatable("inventory.skycraft.stat.armor"));
-            values.add(fmt(armor));
+            EquipmentSlot slot = InventoryActions.equipSlotFor(stack);
+            double curArmor = slot != null && minecraft != null && minecraft.player != null ? armor(minecraft.player.getItemBySlot(slot)) : 0;
+            double diff = armor - curArmor;
+            String val = fmt(armor);
+            int col = SkyUi.BRIGHT;
+            if (curArmor > 0 && Math.abs(diff) >= 0.1) {
+                val += (diff > 0 ? " (+" : " (") + fmt(diff) + ")";
+                col = diff > 0 ? 0xFF70D070 : 0xFFD07070;
+            }
+            values.add(val);
+            colorsList.add(col);
         } else if (damage > 1) {
             labels.add(Component.translatable("inventory.skycraft.stat.damage"));
-            values.add(fmt(damage));
+            double curDamage = minecraft != null && minecraft.player != null ? damage(minecraft.player.getMainHandItem()) : 0;
+            double diff = damage - curDamage;
+            String val = fmt(damage);
+            int col = SkyUi.BRIGHT;
+            if (curDamage > 1 && Math.abs(diff) >= 0.1) {
+                val += (diff > 0 ? " (+" : " (") + fmt(diff) + ")";
+                col = diff > 0 ? 0xFF70D070 : 0xFFD07070;
+            }
+            values.add(val);
+            colorsList.add(col);
         }
         labels.add(Component.translatable("inventory.skycraft.stat.weight"));
         values.add(ItemWeights.format(e.weight));
+        colorsList.add(SkyUi.BRIGHT);
         labels.add(Component.translatable("inventory.skycraft.stat.value"));
         values.add(String.valueOf(e.value));
+        colorsList.add(SkyUi.GOLD);
+
         int cellW = (detW - 8) / labels.size();
         for (int i = 0; i < labels.size(); i++) {
             int ccx = detX + 4 + cellW * i + cellW / 2;
             String l = SkyUi.ellipsize(font, SkyUi.caps(labels.get(i)), cellW - 2);
             g.drawString(font, l, ccx - font.width(l) / 2, y + 2, SkyUi.HEADER, false);
             String v = values.get(i);
-            g.drawString(font, v, ccx - font.width(v) / 2, y + 13, i == labels.size() - 1 ? SkyUi.GOLD : SkyUi.BRIGHT, false);
+            g.drawString(font, v, ccx - font.width(v) / 2, y + 13, colorsList.get(i), false);
             if (i > 0) g.fill(detX + 4 + cellW * i, y + 2, detX + 5 + cellW * i, y + 21, 0x40C8BC9A);
         }
         y += 25;
@@ -537,9 +596,12 @@ public class SkyrimInventoryScreen extends Screen {
         List<Component> labels = new ArrayList<>();
         List<String> keys = new ArrayList<>();
         List<Runnable> runs = new ArrayList<>();
-        labels.add(Component.translatable("inventory.skycraft.action." + ClientInventoryHandlers.primaryLabelKey(e)));
-        keys.add("E");
-        runs.add(this::primary);
+        String primary = ClientInventoryHandlers.primaryLabelKey(e);
+        if (primary != null) {
+            labels.add(Component.translatable("inventory.skycraft.action." + primary));
+            keys.add("E");
+            runs.add(this::primary);
+        }
         if (e.equip == InvEntry.LEFT || (e.leftHandable() && e.equip != InvEntry.WORN)) {
             labels.add(Component.translatable(e.equip == InvEntry.LEFT ? "inventory.skycraft.action.unequip_left" : "inventory.skycraft.action.equip_left"));
             keys.add("");
@@ -633,9 +695,9 @@ public class SkyrimInventoryScreen extends Screen {
 
     /** Key hints ("E Use  Q Drop ..."), keeping the most important ones when the screen is narrow. */
     private void drawHints(GuiGraphics g, int y) {
-        String[] keys = {"E", "RMB", "Q", "Shift+Q", "F", "R", "C", "Tab"};
-        String[] names = {"use", "left", "drop", "drop_all", "favorite", "sort", "crafting", "close"};
-        int[] priority = {0, 4, 1, 7, 2, 6, 5, 3};
+        String[] keys = {"E", "RMB", "Q", "Shift+Q", "F", "R", "X", "Tab"};
+        String[] names = {"use", "left", "drop", "drop_all", "favorite", "sort", "inspect", "close"};
+        int[] priority = {0, 5, 1, 7, 2, 6, 4, 3};
         int n = keys.length;
         String[] labels = new String[n];
         int[] widths = new int[n];
@@ -807,6 +869,14 @@ public class SkyrimInventoryScreen extends Screen {
 
     @Override
     public boolean keyPressed(int key, int scan, int mods) {
+        if (inspectMode) {
+            if (key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_X || key == GLFW.GLFW_KEY_TAB) {
+                inspectMode = false;
+                return true;
+            }
+            return true;
+        }
+
         switch (key) {
             case GLFW.GLFW_KEY_W, GLFW.GLFW_KEY_UP -> {
                 move(-1);
@@ -844,6 +914,15 @@ public class SkyrimInventoryScreen extends Screen {
                 primary();
                 return true;
             }
+            case GLFW.GLFW_KEY_X -> {
+                if (selectedEntry != null) {
+                    inspectMode = true;
+                    inspectRotX = 15f;
+                    inspectRotY = 0f;
+                    inspectZoom = 1.0f;
+                    return true;
+                }
+            }
             case GLFW.GLFW_KEY_Q -> {
                 drop(hasShiftDown());
                 return true;
@@ -854,10 +933,6 @@ public class SkyrimInventoryScreen extends Screen {
             }
             case GLFW.GLFW_KEY_R -> {
                 setSort((sortMode + 1) % 3);
-                return true;
-            }
-            case GLFW.GLFW_KEY_C -> {
-                openVanilla();
                 return true;
             }
             case GLFW.GLFW_KEY_TAB -> {
@@ -876,17 +951,28 @@ public class SkyrimInventoryScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        if (inspectMode) {
+            if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+                inspectMode = false;
+                return true;
+            }
+            return true;
+        }
+
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+            if (hoverPreview && selectedEntry != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+                inspectMode = true;
+                inspectRotX = 15f;
+                inspectRotY = 0f;
+                inspectZoom = 1.0f;
+                return true;
+            }
             if (hoverCat >= 0) {
                 setCategory(InvCategory.VALUES[hoverCat]);
                 return true;
             }
             if (hoverSort >= 0 && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
                 setSort(hoverSort);
-                return true;
-            }
-            if (hoverCrafting && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-                openVanilla();
                 return true;
             }
             if (hoverAction >= 0 && hoverAction < actions.size() && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
@@ -913,7 +999,21 @@ public class SkyrimInventoryScreen extends Screen {
     }
 
     @Override
+    public boolean mouseDragged(double mx, double my, int button, double dragX, double dragY) {
+        if (inspectMode) {
+            inspectRotY += (float) dragX * 1.5f;
+            inspectRotX -= (float) dragY * 1.5f;
+            return true;
+        }
+        return super.mouseDragged(mx, my, button, dragX, dragY);
+    }
+
+    @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
+        if (inspectMode) {
+            inspectZoom = Mth.clamp(inspectZoom + (float) delta * 0.15f, 0.5f, 3.0f);
+            return true;
+        }
         int step = delta > 0 ? -1 : delta < 0 ? 1 : 0;
         if (step == 0) return false;
         if (SkyUi.inside(mx, my, catX, top, catX + catW, bottom)) {

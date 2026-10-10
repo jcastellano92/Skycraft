@@ -57,6 +57,8 @@ public class LeveledGear extends LootItemConditionalFunction {
     public static final DeferredRegister<LootItemFunctionType> FUNCTIONS = DeferredRegister.create(Registries.LOOT_FUNCTION_TYPE, Skycraft.MODID);
     public static final RegistryObject<LootItemFunctionType> LEVELED_GEAR = FUNCTIONS.register("leveled_gear",
             () -> new LootItemFunctionType(new Serializer()));
+    public static final RegistryObject<LootItemFunctionType> LEGENDARY_ITEM = FUNCTIONS.register("legendary_item",
+            () -> new LootItemFunctionType(new com.skycraft.combat.LegendaryItemFunction.Serializer()));
 
     public enum Kind { WEAPON, ARMOR, BOW, ARROW }
 

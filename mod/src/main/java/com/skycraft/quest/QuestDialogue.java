@@ -108,6 +108,8 @@ public final class QuestDialogue {
     // ------------------------------------------------------------------ provider
 
     static void addOptions(ServerPlayer player, LivingEntity npc, List<DialogueOption> out) {
+        String hold = com.skycraft.core.Holds.holdAt(player.level(), player.blockPosition());
+        if (com.skycraft.crime.Crimes.isGuard(npc) && com.skycraft.crime.Bounty.get(player, hold) > 0) return;
         MinecraftServer server = player.server;
         // 1. turn-ins for current objectives
         for (Quests.Ref ref : Quests.active(server, player.getUUID())) {
@@ -145,6 +147,8 @@ public final class QuestDialogue {
                     (pl, n) -> ask(pl, n, "bounty", () -> RadiantQuests.bounty(pl, n))));
             out.add(opt("quest.hunt", "dialogue.skycraft.quest.hunts", 311,
                     (pl, n) -> ask(pl, n, "hunt", () -> RadiantQuests.hunt(pl, n))));
+            out.add(opt("quest.challenge", "dialogue.skycraft.quest.challenges", 312,
+                    (pl, n) -> ask(pl, n, "challenge", () -> RadiantQuests.challenge(pl, n))));
             companionsTopics(player, data, out);
             civilWarTopics(player, data, out);
         }
@@ -152,6 +156,7 @@ public final class QuestDialogue {
             thievesTopics(player, data, out);
             darkBrotherhoodTopics(player, data, out);
         }
+        SideQuests.addSideQuestTopics(player, npc, out);
     }
 
     // ------------------------------------------------------------------ offers
@@ -290,6 +295,42 @@ public final class QuestDialogue {
         } else {
             out.add(opt("quest.college.work", "dialogue.skycraft.faction.work", 401,
                     (pl, n) -> factionAsk(pl, n, f, () -> RadiantQuests.collegeContract(pl, n)), f.displayName()));
+
+            if (!data.module("quest").getBoolean("college_destruction_completed") && !Quests.hasActiveKind(player.server, player.getUUID(), "college_destruction")) {
+                out.add(opt("quest.college.dest", "dialogue.skycraft.college.dest", 401, (pl, n) -> {
+                    if (CollegeQuests.startDestruction(pl, n)) {
+                        Dialogue.open(pl, n, tr("dialogue.skycraft.college.dest_start"));
+                    }
+                }));
+            }
+            if (!data.module("quest").getBoolean("college_restoration_completed") && !Quests.hasActiveKind(player.server, player.getUUID(), "college_restoration")) {
+                out.add(opt("quest.college.rest", "dialogue.skycraft.college.rest", 401, (pl, n) -> {
+                    if (CollegeQuests.startRestoration(pl, n)) {
+                        Dialogue.open(pl, n, tr("dialogue.skycraft.college.rest_start"));
+                    }
+                }));
+            }
+            if (!data.module("quest").getBoolean("college_alteration_completed") && !Quests.hasActiveKind(player.server, player.getUUID(), "college_alteration")) {
+                out.add(opt("quest.college.alt", "dialogue.skycraft.college.alt", 401, (pl, n) -> {
+                    if (CollegeQuests.startAlteration(pl, n)) {
+                        Dialogue.open(pl, n, tr("dialogue.skycraft.college.alt_start"));
+                    }
+                }));
+            }
+            if (!data.module("quest").getBoolean("college_conjuration_completed") && !Quests.hasActiveKind(player.server, player.getUUID(), "college_conjuration")) {
+                out.add(opt("quest.college.conj", "dialogue.skycraft.college.conj", 401, (pl, n) -> {
+                    if (CollegeQuests.startConjuration(pl, n)) {
+                        Dialogue.open(pl, n, tr("dialogue.skycraft.college.conj_start"));
+                    }
+                }));
+            }
+            if (!data.module("quest").getBoolean("college_illusion_completed") && !Quests.hasActiveKind(player.server, player.getUUID(), "college_illusion")) {
+                out.add(opt("quest.college.ill", "dialogue.skycraft.college.ill", 401, (pl, n) -> {
+                    if (CollegeQuests.startIllusion(pl, n)) {
+                        Dialogue.open(pl, n, tr("dialogue.skycraft.college.ill_start"));
+                    }
+                }));
+            }
         }
     }
 

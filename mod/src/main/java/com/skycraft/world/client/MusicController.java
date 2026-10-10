@@ -90,6 +90,16 @@ public final class MusicController {
             return;
         }
 
+        if (nearPerformingBard(mc)) {
+            if (current != null && !current.isStopped() && mc.getSoundManager().isActive(current)) {
+                current.fadeOut(30);
+                current = null;
+                currentSituation = null;
+                silenceSeconds = 2;
+            }
+            return;
+        }
+
         Situation want = decide(mc);
         // require a mood to hold for a few seconds before switching (combat switches at once)
         if (want != pendingSituation) {
@@ -203,6 +213,17 @@ public final class MusicController {
         int count = mc.level.getEntitiesOfClass(LivingEntity.class, box,
                 e -> e instanceof AbstractVillager || e.getType().is(TALKERS)).size();
         return count >= 2;
+    }
+
+    private static boolean nearPerformingBard(Minecraft mc) {
+        if (mc.level == null || mc.player == null) return false;
+        var box = mc.player.getBoundingBox().inflate(24);
+        for (LivingEntity e : mc.level.getEntitiesOfClass(LivingEntity.class, box)) {
+            if (e instanceof com.skycraft.society.entity.NpcEntity npc && npc.isPlaying()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------ sound instance

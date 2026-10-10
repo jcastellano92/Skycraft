@@ -22,7 +22,7 @@ import java.util.Set;
 @Mod.EventBusSubscriber(modid = Skycraft.MODID, value = Dist.CLIENT)
 public final class KeyConflictResolver {
     private static final int[] FALLBACKS = {
-            GLFW.GLFW_KEY_G, GLFW.GLFW_KEY_H, GLFW.GLFW_KEY_J, GLFW.GLFW_KEY_K, GLFW.GLFW_KEY_N, GLFW.GLFW_KEY_O,
+            GLFW.GLFW_KEY_G, GLFW.GLFW_KEY_J, GLFW.GLFW_KEY_K, GLFW.GLFW_KEY_N, GLFW.GLFW_KEY_O,
             GLFW.GLFW_KEY_P, GLFW.GLFW_KEY_U, GLFW.GLFW_KEY_I, GLFW.GLFW_KEY_Y, GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_X,
             GLFW.GLFW_KEY_B, GLFW.GLFW_KEY_V, GLFW.GLFW_KEY_R, GLFW.GLFW_KEY_C, GLFW.GLFW_KEY_COMMA, GLFW.GLFW_KEY_PERIOD,
             GLFW.GLFW_KEY_SEMICOLON, GLFW.GLFW_KEY_APOSTROPHE, GLFW.GLFW_KEY_LEFT_BRACKET, GLFW.GLFW_KEY_RIGHT_BRACKET,
@@ -33,22 +33,55 @@ public final class KeyConflictResolver {
 
     private KeyConflictResolver() {}
 
+    private static int checkTicks = 0;
+
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (done || event.phase != TickEvent.Phase.END) return;
+        if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.options == null) return;
-        done = true;
-        try {
+        if (!done || (++checkTicks % 40 == 0)) {
+            done = true;
+            try {
+                resolve(mc);
+            } catch (Exception e) {
+                Skycraft.LOGGER.warn("Could not resolve key conflicts", e);
+            }
+        }
+    }
+
+    public static void enforceKeys(Minecraft mc) {
+        if (mc != null && mc.options != null) {
             resolve(mc);
-        } catch (Exception e) {
-            Skycraft.LOGGER.warn("Could not resolve key conflicts", e);
         }
     }
 
     private static void resolve(Minecraft mc) {
         KeyMapping[] all = mc.options.keyMappings;
         boolean changed = false;
+        // Silence intrusive keys from other mods & vanilla conflicting with Skyrim controls
+        for (KeyMapping k : all) {
+            String name = k.getName().toLowerCase(java.util.Locale.ROOT);
+            if (name.equals("key.drop") || name.equals("key.swapoffhand") || name.equals("key.advancements")) {
+                k.setKey(InputConstants.UNKNOWN);
+                changed = true;
+            } else if (name.contains("treechop") || name.contains("essential") || name.contains("emote") || name.contains("chat_peek")) {
+                k.setKey(InputConstants.UNKNOWN);
+                changed = true;
+            } else if ((name.equals("key.chat") || name.contains("peek")) && (k.getKey().getValue() == GLFW.GLFW_KEY_Z || k.getKey().getValue() == GLFW.GLFW_KEY_R)) {
+                k.setKey(InputConstants.UNKNOWN);
+                changed = true;
+            } else if (k.getKey().getValue() == GLFW.GLFW_KEY_Z && !name.equals("key.skycraft.shout")) {
+                k.setKey(InputConstants.UNKNOWN);
+                changed = true;
+            }
+        }
+
+        if (mc.options.toggleCrouch().get()) {
+            mc.options.toggleCrouch().set(false);
+            changed = true;
+        }
+
         for (KeyMapping ours : all) {
             if (!ours.getName().startsWith("key.skycraft.") || !ours.isDefault() || ours.isUnbound()) continue;
             if (!conflicts(ours, ours.getKey(), all)) continue;

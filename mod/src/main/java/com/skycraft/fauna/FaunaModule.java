@@ -37,11 +37,12 @@ public final class FaunaModule {
         FaunaItems.init(modBus);
         modBus.addListener(FaunaModule::onAttributes);
         modBus.addListener(FaunaSpawns::register);
+        Stables.register();
     }
 
     /** Registers this module's packets via {@link com.skycraft.network.SkyNetwork#register}. Called once at startup. */
     public static void registerPackets() {
-        // Fauna syncs everything through SynchedEntityData and block states; no packets needed.
+        FaunaPackets.register();
     }
 
     private static void onAttributes(EntityAttributeCreationEvent event) {

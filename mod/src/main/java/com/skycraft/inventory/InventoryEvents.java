@@ -35,6 +35,25 @@ public final class InventoryEvents {
         }
     }
 
+    /** Convert any coin purse or septims sitting in player inventory directly into gold. */
+    @SubscribeEvent
+    public static void onPlayerTick(net.minecraftforge.event.TickEvent.PlayerTickEvent event) {
+        if (event.phase != net.minecraftforge.event.TickEvent.Phase.END || event.player.level().isClientSide) return;
+        var inv = event.player.getInventory();
+        long totalFound = 0;
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            net.minecraft.world.item.ItemStack stack = inv.getItem(i);
+            long val = com.skycraft.core.Currency.valueOf(stack);
+            if (val > 0) {
+                totalFound += val;
+                inv.setItem(i, net.minecraft.world.item.ItemStack.EMPTY);
+            }
+        }
+        if (totalFound > 0) {
+            com.skycraft.core.Currency.give(event.player, totalFound);
+        }
+    }
+
     /** Item tags were (re)bound on this side: tag-based weights must be resolved again. */
     @SubscribeEvent
     public static void onTagsUpdated(TagsUpdatedEvent event) {

@@ -32,7 +32,11 @@ public final class HudNotifications {
         long now = Util.getMillis();
         switch (msg.kind()) {
             case SKILL_XP -> meter = new Entry(msg, now, 2500);
-            case MESSAGE, CRIME -> {
+            case CRIME -> {
+                MESSAGES.removeIf(e -> e.msg.kind() == NotifyKind.CRIME);
+                MESSAGES.add(new Entry(msg, now, 5000));
+            }
+            case MESSAGE -> {
                 MESSAGES.add(new Entry(msg, now, 5000));
                 while (MESSAGES.size() > 5) MESSAGES.remove(0);
             }
@@ -42,6 +46,17 @@ public final class HudNotifications {
                     BANNERS.removeIf(e -> e.msg.kind() == NotifyKind.SKILL_UP && e.msg.value() == msg.value());
                 }
                 BANNERS.add(new Entry(msg, 0, durationOf(msg.kind())));
+            }
+        }
+
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.player != null) {
+            switch (msg.kind()) {
+                case LEVEL_UP -> mc.player.playSound(net.minecraft.sounds.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+                case SKILL_UP -> mc.player.playSound(net.minecraft.sounds.SoundEvents.PLAYER_LEVELUP, 0.8f, 1.2f);
+                case QUEST_COMPLETED -> mc.player.playSound(net.minecraft.sounds.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.9f, 1.1f);
+                case QUEST_UPDATED, QUEST_STARTED -> mc.player.playSound(net.minecraft.sounds.SoundEvents.EXPERIENCE_ORB_PICKUP, 0.8f, 1.0f);
+                default -> {}
             }
         }
     }
@@ -74,3 +89,4 @@ public final class HudNotifications {
         if (meter != null && now - meter.start > meter.duration) meter = null;
     }
 }
+

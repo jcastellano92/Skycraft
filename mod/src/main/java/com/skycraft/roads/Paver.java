@@ -38,8 +38,8 @@ final class Paver {
     private static final int QUIET = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS;
     /** Fences must update their neighbours so rails connect. */
     private static final int CONNECT = Block.UPDATE_CLIENTS;
-    private static final float ROAD_HALF_WIDTH_SQ = 2.25f; // 1.5^2: a 3-wide band around the polyline
-    private static final float RAIL_SQ = 6.25f;            // 2.5^2: bridge rails
+    private static final float ROAD_HALF_WIDTH_SQ = 4.0f;  // 2.0^2: wider 4-5 block road band
+    private static final float RAIL_SQ = 6.25f;            // 2.5^2: edge stones and bridge rails
     private static final int MAX_PILLAR = 16;
 
     private static final LongLinkedOpenHashSet QUEUE = new LongLinkedOpenHashSet();
@@ -246,26 +246,51 @@ final class Paver {
             if (!fluid.is(FluidTags.WATER) || road.longWater(idx)) return 0;
             return bridge(level, top, ts, edge, center && idx % 4 == 0);
         }
-        if (edge) return 0;
         if (ts.is(Blocks.SNOW)) { // thick snow layers block motion: pave the ground under them
             top = top.below();
             ts = level.getBlockState(top);
         }
-        if (isRoadMaterial(ts)) return 0;
-        BlockState surface = surfaceFor(level, top, ts, x, z);
-        if (surface == null) return 0;
         BlockPos above = top.above();
         BlockPos above2 = above.above();
+        BlockPos above3 = above2.above();
         BlockState a1 = level.getBlockState(above);
         BlockState a2 = level.getBlockState(above2);
+        BlockState a3 = level.getBlockState(above3);
         if (!clearable(a1)) return 0;
         if (PlacedBlocks.isPlayerPlaced(level, top) || (!a1.isAir() && PlacedBlocks.isPlayerPlaced(level, above))) return 0;
+
+        if (edge) {
+            if (isRoadMaterial(ts)) return 0;
+            BlockState edgeBlock = edgeFor(level, top, ts, x, z);
+            if (edgeBlock == null) return 0;
+            if (!a1.isAir() && clearable(a1) && !PlacedBlocks.isPlayerPlaced(level, above)) level.setBlock(above, Blocks.AIR.defaultBlockState(), QUIET);
+            if (!a2.isAir() && clearable(a2) && !PlacedBlocks.isPlayerPlaced(level, above2)) level.setBlock(above2, Blocks.AIR.defaultBlockState(), QUIET);
+            if (!a3.isAir() && clearable(a3) && !PlacedBlocks.isPlayerPlaced(level, above3)) level.setBlock(above3, Blocks.AIR.defaultBlockState(), QUIET);
+            level.setBlock(top, edgeBlock, QUIET);
+            return 2;
+        }
+
+        if (isRoadMaterial(ts)) {
+            if (a1.is(Blocks.SNOW) || (clearable(a1) && !PlacedBlocks.isPlayerPlaced(level, above))) {
+                level.setBlock(above, Blocks.AIR.defaultBlockState(), QUIET);
+                if (!a2.isAir() && clearable(a2) && !PlacedBlocks.isPlayerPlaced(level, above2)) level.setBlock(above2, Blocks.AIR.defaultBlockState(), QUIET);
+                if (!a3.isAir() && clearable(a3) && !PlacedBlocks.isPlayerPlaced(level, above3)) level.setBlock(above3, Blocks.AIR.defaultBlockState(), QUIET);
+                return 1;
+            }
+            return 0;
+        }
+        BlockState surface = surfaceFor(level, top, ts, x, z);
+        if (surface == null) return 0;
         int changes = 0;
-        if (!a2.isAir() && a2.getBlock() instanceof BushBlock && a2.getFluidState().isEmpty()) {
-            level.setBlock(above2, Blocks.AIR.defaultBlockState(), QUIET); // upper half of tall plants
+        if (!a3.isAir() && clearable(a3) && !PlacedBlocks.isPlayerPlaced(level, above3)) {
+            level.setBlock(above3, Blocks.AIR.defaultBlockState(), QUIET);
             changes++;
         }
-        if (!a1.isAir()) {
+        if (!a2.isAir() && clearable(a2) && !PlacedBlocks.isPlayerPlaced(level, above2)) {
+            level.setBlock(above2, Blocks.AIR.defaultBlockState(), QUIET);
+            changes++;
+        }
+        if (!a1.isAir() && clearable(a1) && !PlacedBlocks.isPlayerPlaced(level, above)) {
             level.setBlock(above, Blocks.AIR.defaultBlockState(), QUIET);
             changes++;
         }
@@ -317,27 +342,39 @@ final class Paver {
     static boolean isRoadMaterial(BlockState s) {
         return s.is(Blocks.DIRT_PATH) || s.is(Blocks.GRAVEL) || s.is(Blocks.COARSE_DIRT) || s.is(Blocks.COBBLESTONE)
                 || s.is(Blocks.MOSSY_COBBLESTONE) || s.is(Blocks.SMOOTH_SANDSTONE) || s.is(Blocks.SMOOTH_RED_SANDSTONE)
-                || s.is(Blocks.PACKED_MUD) || s.is(Blocks.SPRUCE_PLANKS);
+                || s.is(Blocks.PACKED_MUD) || s.is(Blocks.SPRUCE_PLANKS) || s.is(Blocks.ANDESITE) || s.is(Blocks.STONE_BRICKS);
     }
 
-    /** The road block for a natural surface, or null to leave the column alone. */
+    /** The road block for a natural surface, or null to leave the column alone. Cobble & path mix. */
     private static BlockState surfaceFor(ServerLevel level, BlockPos pos, BlockState s, int x, int z) {
         int roll = roll(x, z);
         if (s.is(BlockTags.DIRT)) {
-            if (roll < 7) return Blocks.COARSE_DIRT.defaultBlockState();
-            if (roll < 11 && supported(level, pos)) return Blocks.GRAVEL.defaultBlockState();
+            if (roll < 20) return Blocks.COBBLESTONE.defaultBlockState();
+            if (roll < 35) return Blocks.MOSSY_COBBLESTONE.defaultBlockState();
+            if (roll < 45 && supported(level, pos)) return Blocks.GRAVEL.defaultBlockState();
             return Blocks.DIRT_PATH.defaultBlockState();
         }
         if (s.is(BlockTags.SAND)) {
             if (s.is(Blocks.RED_SAND)) return Blocks.SMOOTH_RED_SANDSTONE.defaultBlockState();
-            return roll < 15 ? Blocks.PACKED_MUD.defaultBlockState() : Blocks.SMOOTH_SANDSTONE.defaultBlockState();
+            return roll < 20 ? Blocks.COBBLESTONE.defaultBlockState() : (roll < 35 ? Blocks.PACKED_MUD.defaultBlockState() : Blocks.SMOOTH_SANDSTONE.defaultBlockState());
         }
         if (s.is(BlockTags.BASE_STONE_OVERWORLD) || s.is(BlockTags.TERRACOTTA) || s.is(Blocks.SNOW_BLOCK)
                 || s.is(Blocks.POWDER_SNOW) || s.is(Blocks.CALCITE) || s.is(Blocks.CLAY)) {
-            if (roll < 55 && supported(level, pos)) return Blocks.GRAVEL.defaultBlockState();
-            return roll < 60 ? Blocks.MOSSY_COBBLESTONE.defaultBlockState() : Blocks.COBBLESTONE.defaultBlockState();
+            if (roll < 25 && supported(level, pos)) return Blocks.GRAVEL.defaultBlockState();
+            if (roll < 60) return Blocks.COBBLESTONE.defaultBlockState();
+            if (roll < 80) return Blocks.MOSSY_COBBLESTONE.defaultBlockState();
+            return Blocks.STONE_BRICKS.defaultBlockState();
         }
-        return null;
+        return Blocks.COBBLESTONE.defaultBlockState();
+    }
+
+    /** Edge stones lining the border of the road. */
+    private static BlockState edgeFor(ServerLevel level, BlockPos pos, BlockState s, int x, int z) {
+        int roll = roll(x, z);
+        if (roll < 40) return Blocks.COBBLESTONE.defaultBlockState();
+        if (roll < 65) return Blocks.MOSSY_COBBLESTONE.defaultBlockState();
+        if (roll < 85) return Blocks.ANDESITE.defaultBlockState();
+        return Blocks.STONE_BRICKS.defaultBlockState();
     }
 
     /** Gravel would fall into air/fluid below. */
@@ -351,6 +388,7 @@ final class Paver {
         if (!s.getFluidState().isEmpty()) return false;
         if (s.is(Blocks.SNOW)) return true;
         if (s.getBlock() instanceof BushBlock) return true;
+        if (s.is(BlockTags.LEAVES) || s.is(BlockTags.LOGS) || s.is(BlockTags.FLOWERS)) return true;
         return s.canBeReplaced();
     }
 

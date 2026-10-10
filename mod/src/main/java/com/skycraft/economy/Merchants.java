@@ -36,6 +36,7 @@ public final class Merchants {
 
     public static boolean isMerchant(LivingEntity npc) {
         if (npc == null || !npc.isAlive()) return false;
+        if (com.skycraft.roads.Carriages.isCarriageDriver(npc)) return false;
         if (npc instanceof Villager v) {
             if (v.isBaby()) return false;
             VillagerProfession p = v.getVillagerData().getProfession();

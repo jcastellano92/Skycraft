@@ -84,6 +84,25 @@ public final class ArcaneEvents {
         if (ing != null) Alchemy.discoverByTasting(player, ing);
     }
 
+    @SubscribeEvent
+    public static void onRightClickIngredient(PlayerInteractEvent.RightClickItem event) {
+        ItemStack stack = event.getItemStack();
+        if (stack.isEdible()) return;
+        Ingredients.Ingredient ing = Ingredients.get(stack);
+        if (ing != null) {
+            Player player = event.getEntity();
+            if (player instanceof ServerPlayer sp) {
+                Alchemy.discoverByTasting(sp, ing);
+                if (!sp.getAbilities().instabuild) {
+                    stack.shrink(1);
+                }
+            }
+            player.playSound(SoundEvents.GENERIC_EAT, 0.7f, 0.9f + player.getRandom().nextFloat() * 0.2f);
+            event.setCancellationResult(InteractionResult.SUCCESS);
+            event.setCanceled(true);
+        }
+    }
+
     // ------------------------------------------------------------------ Green Thumb
 
     @SubscribeEvent

@@ -19,6 +19,7 @@ public enum Skill {
     BLOCK(Group.WARRIOR, 8.1f, 1f, 0f, "The Lady"),
     HEAVY_ARMOR(Group.WARRIOR, 3.8f, 1f, 0f, "The Lord"),
     SMITHING(Group.WARRIOR, 0.25f, 1f, 300f, "The Steed"),
+    UNARMED(Group.WARRIOR, 5.5f, 1f, 0f, "The Warrior"),
     // Mage (blue constellation)
     DESTRUCTION(Group.MAGE, 1.35f, 1f, 0f, "The Mage"),
     RESTORATION(Group.MAGE, 2.0f, 1f, 0f, "The Mage"),
@@ -37,7 +38,8 @@ public enum Skill {
     MINING(Group.LIFE, 1.0f, 1f, 0f, "The Serpent"),
     WOODCUTTING(Group.LIFE, 1.0f, 1f, 0f, "The Tower"),
     FISHING(Group.LIFE, 1.0f, 1f, 0f, "The Ritual"),
-    HUNTING(Group.LIFE, 1.0f, 1f, 0f, "The Steed");
+    HUNTING(Group.LIFE, 1.0f, 1f, 0f, "The Steed"),
+    ATHLETICS(Group.LIFE, 3.5f, 1f, 0f, "The Steed");
 
     public enum Group {
         WARRIOR(0xC8463C), MAGE(0x4A7BD8), THIEF(0x4CB050), LIFE(0xD8B04A);

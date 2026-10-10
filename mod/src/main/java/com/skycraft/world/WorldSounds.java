@@ -24,6 +24,33 @@ public final class WorldSounds {
     public static final RegistryObject<SoundEvent> MUSIC_SOVNGARDE = register("music.sovngarde");
     public static final RegistryObject<SoundEvent> MUSIC_DISCOVERY = register("music.discovery");
 
+    // Skyrim SFX: Thu'um shouting
+    public static final RegistryObject<SoundEvent> SHOUT_FUS_RO_DAH = register("shout.fus_ro_dah");
+    public static final RegistryObject<SoundEvent> SHOUT_WULD_NAH_KEST = register("shout.wuld_nah_kest");
+    public static final RegistryObject<SoundEvent> SHOUT_YOL_TOOR_SHUL = register("shout.yol_toor_shul");
+    public static final RegistryObject<SoundEvent> SHOUT_GENERIC = register("shout.generic");
+
+    // Word walls & Dragon souls
+    public static final RegistryObject<SoundEvent> WORDWALL_CHANT = register("wordwall.chant");
+    public static final RegistryObject<SoundEvent> WORDWALL_LEARN = register("wordwall.learn");
+    public static final RegistryObject<SoundEvent> MAGIC_DRAGON_SOUL = register("magic.dragon_soul");
+
+    // Shrines & Stones
+    public static final RegistryObject<SoundEvent> MAGIC_SHRINE_PRAY = register("magic.shrine_pray");
+    public static final RegistryObject<SoundEvent> MAGIC_STANDING_STONE = register("magic.standing_stone");
+    public static final RegistryObject<SoundEvent> WORLD_NIRNROOT_HUM = register("world.nirnroot_hum");
+
+    // Skyrim UI & Lockpicking
+    public static final RegistryObject<SoundEvent> UI_MENU_OPEN = register("ui.menu_open");
+    public static final RegistryObject<SoundEvent> UI_MENU_CLOSE = register("ui.menu_close");
+    public static final RegistryObject<SoundEvent> UI_MENU_CLICK = register("ui.menu_click");
+    public static final RegistryObject<SoundEvent> UI_SKILL_UP = register("ui.skill_up");
+    public static final RegistryObject<SoundEvent> UI_QUEST_UPDATE = register("ui.quest_update");
+    public static final RegistryObject<SoundEvent> UI_LOCKPICK_TURN = register("ui.lockpick_turn");
+    public static final RegistryObject<SoundEvent> UI_LOCKPICK_STRAIN = register("ui.lockpick_strain");
+    public static final RegistryObject<SoundEvent> UI_LOCKPICK_BREAK = register("ui.lockpick_break");
+    public static final RegistryObject<SoundEvent> UI_LOCKPICK_UNLOCK = register("ui.lockpick_unlock");
+
     private WorldSounds() {}
 
     private static RegistryObject<SoundEvent> register(String name) {
