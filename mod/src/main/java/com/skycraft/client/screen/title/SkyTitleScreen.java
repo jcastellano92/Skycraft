@@ -63,6 +63,7 @@ public class SkyTitleScreen extends Screen {
     private LevelSummary mostRecentSave = null;
     private boolean savesLoaded = false;
     private float animTick = 0f;
+    private static net.minecraft.client.resources.sounds.SimpleSoundInstance titleMusicInstance = null;
 
     public SkyTitleScreen() {
         super(Component.literal("Skycraft"));
@@ -82,6 +83,32 @@ public class SkyTitleScreen extends Screen {
     protected void init() {
         menuItems.clear();
         loadSavesAsync();
+        playTitleMusic();
+    }
+
+    @Override
+    public void removed() {
+        super.removed();
+    }
+
+    private void playTitleMusic() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.options.getSoundSourceVolume(net.minecraft.sounds.SoundSource.MUSIC) <= 0f) return;
+        if (titleMusicInstance == null || !mc.getSoundManager().isActive(titleMusicInstance)) {
+            titleMusicInstance = net.minecraft.client.resources.sounds.SimpleSoundInstance.forMusic(com.skycraft.world.WorldSounds.MUSIC_SOVNGARDE.get());
+            mc.getSoundManager().play(titleMusicInstance);
+        }
+    }
+
+    public static void stopTitleMusic() {
+        if (titleMusicInstance != null) {
+            Minecraft.getInstance().getSoundManager().stop(titleMusicInstance);
+            titleMusicInstance = null;
+        }
+    }
+
+    private void playUiSound(net.minecraft.sounds.SoundEvent sound, float pitch) {
+        Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(sound, pitch));
     }
 
     private void loadSavesAsync() {
@@ -148,11 +175,15 @@ public class SkyTitleScreen extends Screen {
         // Nordic slate gradient behind left menu column for sharp text contrast
         g.fillGradient(0, 0, Math.min(340, width / 2 + 60), height, 0xD0080808, 0x15080808);
 
-        // Subtle mountain / mist ambient layers at bottom
-        for (int i = 0; i < 3; i++) {
-            int alpha = (i + 1) * 6;
-            int mistY = height - 30 - i * 14;
-            g.fill(0, mistY, width, height, (alpha << 24) | 0x1E1A16);
+        // Drifting ethereal fog layers across screen
+        float time = animTick * 0.4f;
+        for (int layer = 0; layer < 4; layer++) {
+            float speed = (layer + 1) * 0.4f;
+            float wave = (float) Math.sin((time * speed * 0.05f) + layer * 1.5f);
+            int baseMistY = height - 60 - layer * 18 + (int) (wave * 6);
+            int alpha = 10 + layer * 6;
+            int mistColor = (alpha << 24) | 0x1E1A16;
+            g.fillGradient(0, baseMistY, width, height, mistColor, 0x001E1A16);
         }
 
         // Title and Dragon Sigil styling
@@ -183,14 +214,17 @@ public class SkyTitleScreen extends Screen {
             boolean isHovered = mouseX >= titleX - 10 && mouseX <= titleX + 180 && mouseY >= itemY && mouseY < itemY + itemHeight;
             if (isHovered && selectedIndex != i) {
                 selectedIndex = i;
+                playUiSound(com.skycraft.world.WorldSounds.UI_MENU_CLICK.get(), 1.0f);
             }
 
             boolean isSelected = (selectedIndex == i);
             int textColor = isSelected ? COLOR_HOVER : COLOR_NORMAL;
 
             if (isSelected) {
-                // Skyrim diamond / pip selection indicator
-                g.drawString(font, "▶", titleX - 12, itemY + 2, COLOR_GOLD, false);
+                // Skyrim diamond / pip selection indicator with pulsing glow
+                int pulseAlpha = (int) (200 + 55 * Math.sin(animTick * 0.2f));
+                int pulseColor = (pulseAlpha << 24) | (COLOR_GOLD & 0x00FFFFFF);
+                g.drawString(font, "▶", titleX - 12, itemY + 2, pulseColor, false);
                 g.fill(titleX - 2, itemY + itemHeight - 3, titleX + 130, itemY + itemHeight - 2, 0x50E8C060);
             }
 
@@ -222,6 +256,7 @@ public class SkyTitleScreen extends Screen {
                 int itemY = menuStartY + i * itemHeight;
                 if (mx >= titleX - 10 && mx <= titleX + 180 && my >= itemY && my < itemY + itemHeight) {
                     selectedIndex = i;
+                    playUiSound(com.skycraft.world.WorldSounds.UI_MENU_OPEN.get(), 1.0f);
                     activateItem(menuItems.get(i));
                     return true;
                 }
@@ -235,22 +270,26 @@ public class SkyTitleScreen extends Screen {
         if (key == GLFW.GLFW_KEY_UP || key == GLFW.GLFW_KEY_W) {
             if (!menuItems.isEmpty()) {
                 selectedIndex = Math.floorMod(selectedIndex - 1, menuItems.size());
+                playUiSound(com.skycraft.world.WorldSounds.UI_MENU_CLICK.get(), 1.0f);
                 return true;
             }
         }
         if (key == GLFW.GLFW_KEY_DOWN || key == GLFW.GLFW_KEY_S) {
             if (!menuItems.isEmpty()) {
                 selectedIndex = Math.floorMod(selectedIndex + 1, menuItems.size());
+                playUiSound(com.skycraft.world.WorldSounds.UI_MENU_CLICK.get(), 1.0f);
                 return true;
             }
         }
         if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_SPACE) {
             if (selectedIndex >= 0 && selectedIndex < menuItems.size()) {
+                playUiSound(com.skycraft.world.WorldSounds.UI_MENU_OPEN.get(), 1.0f);
                 activateItem(menuItems.get(selectedIndex));
                 return true;
             }
         }
         if (key == GLFW.GLFW_KEY_ESCAPE) {
+            playUiSound(com.skycraft.world.WorldSounds.UI_MENU_CLOSE.get(), 1.0f);
             confirmQuit();
             return true;
         }
@@ -262,16 +301,19 @@ public class SkyTitleScreen extends Screen {
         switch (item) {
             case CONTINUE -> {
                 if (mostRecentSave != null) {
+                    stopTitleMusic();
                     mc.createWorldOpenFlows().loadLevel(this, mostRecentSave.getLevelId());
                 }
             }
             case NEW_GAME -> {
+                stopTitleMusic();
                 CreateWorldScreen.openFresh(mc, this);
             }
             case LOAD -> {
                 mc.setScreen(new SkyLoadWorldScreen(this));
             }
             case MULTIPLAYER -> {
+                stopTitleMusic();
                 mc.setScreen(new JoinMultiplayerScreen(this));
             }
             case FRIENDS -> {

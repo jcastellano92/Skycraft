@@ -1,0 +1,152 @@
+package com.skycraft.client;
+
+import com.skycraft.Skycraft;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.boss.wither.WitherBoss;
+import net.minecraft.world.phys.AABB;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.gui.overlay.ForgeGui;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
+/**
+ * Authentic Skyrim Boss Health Bar:
+ * Displays a carved Nordic health gauge for active boss encounters.
+ * Fades out smoothly when the player retreats beyond the encounter range (> 32-48 blocks)
+ * or when the player enters a sneak HIDDEN state out of combat.
+ */
+@Mod.EventBusSubscriber(modid = Skycraft.MODID, value = Dist.CLIENT)
+public final class SkyBossHud {
+    private static final int COLOR_GOLD = 0xFFE8C060;
+    private static final int COLOR_HEALTH = 0xFFB22222; // Skyrim deep crimson
+    private static final int COLOR_BG = 0xFF141210;
+
+    private static LivingEntity activeBoss = null;
+    private static float currentDisplayHealth = 1.0f;
+    private static float currentAlpha = 0.0f;
+    private static float targetAlpha = 0.0f;
+
+    private SkyBossHud() {}
+
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) {
+            activeBoss = null;
+            currentAlpha = 0.0f;
+            return;
+        }
+
+        // Find closest boss entity within 50 blocks
+        if (activeBoss == null || !activeBoss.isAlive() || activeBoss.distanceTo(mc.player) > 52.0f) {
+            activeBoss = findNearestBoss(mc);
+        }
+
+        if (activeBoss != null && activeBoss.isAlive()) {
+            float dist = mc.player.distanceTo(activeBoss);
+
+            // Distance falloff: fully visible at <= 32 blocks, fading to 0 at 48 blocks
+            float distAlpha = 1.0f - Mth.clamp((dist - 32.0f) / 16.0f, 0.0f, 1.0f);
+
+            // Stealth falloff: if player is sneaking and HIDDEN, fade bar out
+            boolean hidden = mc.player.isCrouching() && (activeBoss instanceof Mob mob ? mob.getTarget() != mc.player : true);
+            if (hidden) {
+                distAlpha *= 0.35f;
+            }
+
+            targetAlpha = distAlpha;
+            float targetHealth = activeBoss.getHealth() / activeBoss.getMaxHealth();
+            currentDisplayHealth = Mth.lerp(0.12f, currentDisplayHealth, targetHealth);
+        } else {
+            targetAlpha = 0.0f;
+        }
+
+        // Smooth alpha easing
+        currentAlpha = Mth.lerp(0.15f, currentAlpha, targetAlpha);
+    }
+
+    private static LivingEntity findNearestBoss(Minecraft mc) {
+        AABB search = mc.player.getBoundingBox().inflate(48.0);
+        LivingEntity closest = null;
+        double closestDist = 48.0 * 48.0;
+
+        for (LivingEntity e : mc.level.getEntitiesOfClass(LivingEntity.class, search, LivingEntity::isAlive)) {
+            if (e == mc.player) continue;
+            if (isBossEntity(e)) {
+                double d = mc.player.distanceToSqr(e);
+                if (d < closestDist) {
+                    closest = e;
+                    closestDist = d;
+                }
+            }
+        }
+        return closest;
+    }
+
+    private static boolean isBossEntity(LivingEntity e) {
+        if (e instanceof EnderDragon || e instanceof WitherBoss) return true;
+        String name = e.getType().getDescriptionId().toLowerCase(java.util.Locale.ROOT);
+        return name.contains("dragon") || name.contains("giant") || name.contains("troll")
+                || name.contains("deathlord") || name.contains("chief") || name.contains("centurion");
+    }
+
+    @SubscribeEvent
+    public static void onRenderOverlay(RenderGuiOverlayEvent.Post event) {
+        if (!event.getOverlay().id().equals(VanillaGuiOverlay.CROSSHAIR.id())) return;
+        if (currentAlpha <= 0.01f || activeBoss == null) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.options.hideGui) return;
+
+        GuiGraphics g = event.getGuiGraphics();
+        int width = mc.getWindow().getGuiScaledWidth();
+        Font font = mc.font;
+
+        int barW = 220;
+        int barH = 5;
+        int barX = (width - barW) / 2;
+        int barY = 24;
+
+        int alphaInt = (int) (currentAlpha * 255.0f);
+        int borderCol = (alphaInt << 24) | 0x2A241C;
+        int bgCol = (alphaInt << 24) | 0x0A0908;
+        int healthCol = (alphaInt << 24) | (COLOR_HEALTH & 0x00FFFFFF);
+        int textCol = (alphaInt << 24) | 0xE0E0E0;
+        int goldCol = (alphaInt << 24) | (COLOR_GOLD & 0x00FFFFFF);
+
+        // Nordic carved dragon wing ends
+        g.drawString(font, "◄══", barX - 22, barY - 2, goldCol, false);
+        g.drawString(font, "══►", barX + barW + 4, barY - 2, goldCol, false);
+
+        // Frame and Background
+        g.fill(barX - 1, barY - 1, barX + barW + 1, barY + barH + 1, borderCol);
+        g.fill(barX, barY, barX + barW, barY + barH, bgCol);
+
+        // Health Fill
+        int fillW = (int) (barW * Mth.clamp(currentDisplayHealth, 0.0f, 1.0f));
+        if (fillW > 0) {
+            g.fill(barX, barY, barX + fillW, barY + barH, healthCol);
+            // Highlight specular line
+            g.fill(barX, barY, barX + fillW, barY + 1, (alphaInt << 24) | 0xFFE08080);
+        }
+
+        // Center diamond marker
+        g.fill(barX + barW / 2 - 1, barY - 1, barX + barW / 2 + 1, barY + barH + 1, goldCol);
+
+        // Boss Name label
+        Component bossName = activeBoss.getDisplayName();
+        int nameW = font.width(bossName);
+        g.drawString(font, bossName, (width - nameW) / 2, barY - 10, textCol, true);
+    }
+}

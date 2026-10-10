@@ -77,6 +77,18 @@ public final class NpcDialogue {
     }
 
     static Component greeting(ServerPlayer player, NpcEntity npc) {
+        if (npc.getPersistentData().getBoolean("skycraft_old_orc")) {
+            return Component.literal("I am waiting for a good death. Old age is a shame for an Orc warrior. Send me to Malacath with honor!");
+        }
+        if (npc.getPersistentData().getBoolean("skycraft_fugitive")) {
+            return Component.literal("Take this! Don't tell anyone you saw me, or I'll kill you when I return!");
+        }
+        if (npc.getPersistentData().getBoolean("skycraft_bounty_hunter")) {
+            return Component.literal("Hold, traveler. Did you see a fugitive flee through here carrying stolen property?");
+        }
+        if (npc.getPersistentData().getBoolean("skycraft_reveler")) {
+            return Component.literal("Hail, traveler! We are drinking Honningbrew Mead in celebration of life! Care to share a toast?");
+        }
         NpcRole role = npc.role();
         if (npc.isPrisoner()) return line("prisoner");
         int townsfolk = Reputation.get(player, Reputation.TOWNSFOLK);
@@ -109,6 +121,66 @@ public final class NpcDialogue {
             out.add(new DialogueOption("society.free", opt("free"), 10, NpcDialogue::freePrisoner));
             return;
         }
+
+        if (npc.getPersistentData().getBoolean("skycraft_old_orc")) {
+            out.add(new DialogueOption("society.orc_duel", Component.literal("I will grant you a warrior's death."), 10, (p, n) -> {
+                if (n instanceof NpcEntity orc) {
+                    orc.setTarget(p);
+                    Barks.sayLineNow(orc, "combat");
+                    Dialogue.open(p, n, Component.literal("Malacath guide our blades! To glory!"));
+                }
+            }));
+            out.add(new DialogueOption("society.orc_why", Component.literal("Why do you seek death?"), 20, (p, n) -> {
+                Dialogue.open(p, n, Component.literal("I am old. My family is gone, my stronghold forgotten. I will not die useless in a bed like a weakling."));
+            }));
+            return;
+        }
+
+        if (npc.getPersistentData().getBoolean("skycraft_fugitive")) {
+            out.add(new DialogueOption("society.fugitive_take", Component.literal("Take the item and let him run."), 10, (p, n) -> {
+                if (n instanceof NpcEntity fug) {
+                    ItemStack gift = new ItemStack(Items.IRON_SWORD);
+                    gift.setHoverName(Component.literal("Stolen Nordic Blade"));
+                    if (!p.getInventory().add(gift)) p.drop(gift, false);
+                    fug.getPersistentData().remove("skycraft_fugitive");
+                    Notifier.message(p, Component.literal("The fugitive shoved a Stolen Nordic Blade into your hands and bolted!"));
+                    Dialogue.open(p, n, Component.literal("Keep it safe! If you betray me, you'll regret it!"));
+                }
+            }));
+            return;
+        }
+
+        if (npc.getPersistentData().getBoolean("skycraft_bounty_hunter")) {
+            out.add(new DialogueOption("society.hunter_point", Component.literal("He ran that way into the woods."), 10, (p, n) -> {
+                Dialogue.open(p, n, Component.literal("Good. He won't get far. The law always catches up."));
+            }));
+            out.add(new DialogueOption("society.hunter_lie", Component.literal("I haven't seen anyone pass by."), 20, (p, n) -> {
+                Dialogue.open(p, n, Component.literal("Hmm. If you're hiding him, you'll share his fate. Keep your eyes open."));
+            }));
+            out.add(new DialogueOption("society.hunter_return", Component.literal("He gave me this stolen blade. Take it."), 30, (p, n) -> {
+                Currency.give(p, 40);
+                Notifier.message(p, Component.literal("Bounty Hunter handed you 40 Septims as a reward for returning stolen property."));
+                Dialogue.open(p, n, Component.literal("An honest citizen in Skyrim! Rare indeed. Take this reward for your trouble."));
+            }));
+            return;
+        }
+
+        if (npc.getPersistentData().getBoolean("skycraft_reveler")) {
+            out.add(new DialogueOption("society.reveler_drink", Component.literal("I'll share a drink with you! (Toast)"), 10, (p, n) -> {
+                ItemStack mead = new ItemStack(Items.HONEY_BOTTLE);
+                mead.setHoverName(Component.literal("Honningbrew Mead"));
+                if (!p.getInventory().add(mead)) p.drop(mead, false);
+                p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 20 * 60 * 3, 0));
+                p.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 20 * 15, 0));
+                Notifier.message(p, Component.literal("You shared a toast of Honningbrew Mead! (+Strength & Regeneration)"));
+                Dialogue.open(p, n, Component.literal("To victory and good health! May your travels be blessed!"));
+            }));
+            out.add(new DialogueOption("society.reveler_why", Component.literal("What are you celebrating?"), 20, (p, n) -> {
+                Dialogue.open(p, n, Component.literal("Skyrim! Life, friendship, and fine Nord mead! What else does one need?"));
+            }));
+            return;
+        }
+
         out.add(new DialogueOption("society.job", opt("job"), 600,
                 (p, n) -> Dialogue.open(p, n, say("job." + role.id))));
 

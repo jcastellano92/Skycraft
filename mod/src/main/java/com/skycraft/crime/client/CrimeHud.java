@@ -174,17 +174,17 @@ public final class CrimeHud {
             }
 
             if (block.getDescriptionId().contains("shrine")) {
-                drawSmall(g, font, Component.literal("Pray  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+                drawSmall(g, font, Component.literal("[F] Pray  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
                 return;
             }
 
             if (block.getDescriptionId().contains("standing_stone")) {
-                drawSmall(g, font, Component.literal("Activate  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+                drawSmall(g, font, Component.literal("[F] Commune  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
                 return;
             }
 
             if (block.getDescriptionId().contains("word_wall")) {
-                drawSmall(g, font, Component.literal("Read  Word Wall"), cx, cy, 0.75f, 0xD0E8E2D0);
+                drawSmall(g, font, Component.literal("[F] Read  Word Wall"), cx, cy, 0.75f, 0xD0E8E2D0);
                 return;
             }
 
