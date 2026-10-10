@@ -93,7 +93,7 @@ jobs:
         run: tools/test-server.sh
       - name: Client smoke test (headless autotest with software GL)
         run: |
-          sudo apt-get update && sudo apt-get install -y xvfb libgl1-mesa-dri libgl1-mesa-glx
+          sudo apt-get update && sudo apt-get install -y xvfb libgl1 libglx-mesa0 libgl1-mesa-dri
           tools/test-client.sh || true
       - uses: actions/upload-artifact@v4
         if: always()
