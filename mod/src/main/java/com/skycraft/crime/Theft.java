@@ -236,14 +236,17 @@ public final class Theft {
             // Check if witness arrived within reach of a guard
             List<net.minecraft.world.entity.Mob> guards = level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, witness.getBoundingBox().inflate(14), Crimes::isGuard);
             if (!guards.isEmpty()) {
+                com.skycraft.society.Barks.say(witness, net.minecraft.network.chat.Component.literal("Guards! Help! That one's a thief!"));
                 com.skycraft.society.Barks.say(witness, net.minecraft.network.chat.Component.literal("Guards! Help! That one's a criminal!"));
                 Crimes.report(player, r.pos(), r.bounty(), true, null);
                 it.remove();
                 continue;
             }
 
+            // If timer expired, witness escaped and reported the crime to hold authorities
             // If timer expired, witness only reports if they reached guards near a settlement
             if (r.timer()[0] <= 0) {
+                Crimes.report(player, r.pos(), r.bounty(), true, null);
                 List<net.minecraft.world.entity.Mob> settlementGuards = level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, witness.getBoundingBox().inflate(32), Crimes::isGuard);
                 if (!settlementGuards.isEmpty()) {
                     Crimes.report(player, r.pos(), r.bounty(), true, null);
