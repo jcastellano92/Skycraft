@@ -746,10 +746,17 @@ final class NpcGoals {
         private Player findTrespasser() {
             BlockPos home = npc.getHome();
             if (home == null) return null;
-            for (Player p : npc.level().getEntitiesOfClass(Player.class, npc.getBoundingBox().inflate(10))) {
+            var level = npc.level();
+            // Only indoor trespassing at night
+            if (level.canSeeSky(npc.blockPosition())) return null;
+
+            for (Player p : level.getEntitiesOfClass(Player.class, npc.getBoundingBox().inflate(5))) {
                 if (!p.isSpectator() && !p.isCreative() && p.isAlive()) {
-                    if (com.skycraft.crime.Ownership.isOwnedByOther(p, npc.level(), npc.blockPosition())
-                            || com.skycraft.crime.Ownership.isOwnedByOther(p, npc.level(), home)) {
+                    // Player must also be indoors under roof
+                    if (level.canSeeSky(p.blockPosition())) continue;
+                    // Player must be within 4 blocks of the NPC's bed
+                    if (p.distanceToSqr(home.getX() + 0.5, home.getY() + 0.5, home.getZ() + 0.5) > 16.0) continue;
+                    if (com.skycraft.crime.Ownership.isOwnedByOther(p, level, p.blockPosition())) {
                         return p;
                     }
                 }

@@ -284,7 +284,7 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
         int bottomY = py + ph - 22;
         SkyUi.hline(g, px + 8, px + pw - 8, bottomY - 4, 0x80);
 
-        String actionHint = viewMode == 0 ? (isOwned ? "[E] Steal" : "[E] Take") : "[E] Store";
+        String actionHint = viewMode == 0 ? (isOwned ? "[F] Steal" : "[F] Take") : "[F] Store";
         int actionColor = (viewMode == 0 && isOwned) ? SkyUi.STOLEN : SkyUi.GOLD;
         g.drawString(font, actionHint, px + 12, bottomY, actionColor, false);
 
@@ -418,7 +418,7 @@ public class SkyrimContainerScreen extends AbstractContainerScreen<ChestMenu> {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         switch (keyCode) {
-            case GLFW.GLFW_KEY_E -> {
+            case GLFW.GLFW_KEY_F, GLFW.GLFW_KEY_E -> {
                 takeOrStoreSelected();
                 return true;
             }

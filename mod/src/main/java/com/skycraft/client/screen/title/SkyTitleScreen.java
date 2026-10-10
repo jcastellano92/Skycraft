@@ -278,9 +278,15 @@ public class SkyTitleScreen extends Screen {
                 try {
                     Class<?> socialMenu = Class.forName("gg.essential.gui.friends.SocialMenu");
                     java.lang.reflect.Method m = socialMenu.getMethod("getInstance");
-                    Screen s = (Screen) m.invoke(null);
-                    if (s != null) {
-                        mc.setScreen(s);
+                    Object inst = m.invoke(null);
+                    if (inst instanceof Screen s) {
+                        try {
+                            Class<?> guiUtil = Class.forName("gg.essential.api.utils.GuiUtil");
+                            java.lang.reflect.Method openM = guiUtil.getMethod("open", Screen.class);
+                            openM.invoke(null, s);
+                        } catch (Throwable ignored) {
+                            mc.setScreen(s);
+                        }
                         return;
                     }
                 } catch (Throwable t) {

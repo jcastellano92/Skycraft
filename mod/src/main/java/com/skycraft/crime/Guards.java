@@ -115,6 +115,21 @@ public final class Guards {
         guard.setLastHurtByMob(null);
     }
 
+    public static void handleAccidentalHit(ServerPlayer player, Mob guard) {
+        String hold = Holds.holdAt(player.level(), guard.blockPosition());
+        int bounty = Bounty.get(player, hold);
+        if (bounty < Bounty.KILL_ON_SIGHT) {
+            guard.getNavigation().moveTo(player, 1.0);
+            guard.getLookControl().setLookAt(player, 30f, 30f);
+            calm(guard);
+            Bounty.add(player, hold, 10);
+            Dialogue.open(player, guard, Component.translatableWithFallback("crime.skycraft.guard.watch_it", "Smart move. Put your weapon away and watch it next time."));
+        } else {
+            guard.setTarget(player);
+            resist(player);
+        }
+    }
+
     static void resist(ServerPlayer player) {
         Bounty.makeHostile(player, RESIST_TICKS);
         attack(player, RESIST_RANGE);

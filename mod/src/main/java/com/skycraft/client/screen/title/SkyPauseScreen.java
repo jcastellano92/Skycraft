@@ -207,7 +207,6 @@ public class SkyPauseScreen extends Screen {
                     if (confirmed) {
                         if (mc.level != null) mc.level.disconnect();
                         if (single) mc.clearLevel(new net.minecraft.client.gui.screens.GenericDirtMessageScreen(Component.translatable("menu.savingLevel")));
-                        else mc.disconnect();
                         else mc.clearLevel();
                         mc.setScreen(new SkyTitleScreen());
                     } else {
@@ -231,8 +230,15 @@ public class SkyPauseScreen extends Screen {
         Minecraft mc = Minecraft.getInstance();
         try {
             Class<?> modalFlow = Class.forName("gg.essential.gui.sps.InviteOrHostModalFlowKt");
-            java.lang.reflect.Method m = modalFlow.getMethod("launchInviteOrHostModalFlow", Screen.class);
-            m.invoke(null, this);
+            try {
+                java.lang.reflect.Method m = modalFlow.getMethod("launchInviteOrHostModalFlow");
+                m.invoke(null);
+                return;
+            } catch (NoSuchMethodException ignored) {
+                java.lang.reflect.Method m = modalFlow.getMethod("launchInviteOrHostModalFlow", Screen.class);
+                m.invoke(null, this);
+                return;
+            }
         } catch (Throwable t) {
             // Fallback to vanilla Open to LAN screen
             mc.setScreen(new net.minecraft.client.gui.screens.ShareToLanScreen(this));

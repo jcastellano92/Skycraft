@@ -4,6 +4,7 @@ import com.skycraft.Skycraft;
 import com.skycraft.core.SkyData;
 import com.skycraft.creatures.entity.DragonEntity;
 import com.skycraft.creatures.entity.DraugrEntity;
+import com.skycraft.creatures.entity.FrostbiteSpiderEntity;
 import com.skycraft.creatures.entity.GuardEntity;
 import com.skycraft.creatures.entity.SkeeverEntity;
 import net.minecraft.core.BlockPos;
@@ -173,6 +174,18 @@ public final class CreatureSpawns {
                     event.setSpawnCancelled(true);
                     level.addFreshEntity(draugr);
                 }
+            }
+        }
+
+        // 4. Frostbite spiders replace cave spiders and spiders in underground caves and mines
+        if ((mob.getType() == EntityType.SPIDER || mob.getType() == EntityType.CAVE_SPIDER)
+                && (type == MobSpawnType.CHUNK_GENERATION || type == MobSpawnType.SPAWNER || type == MobSpawnType.STRUCTURE)) {
+            FrostbiteSpiderEntity spider = ModEntities.FROSTBITE_SPIDER.get().create(level.getLevel());
+            if (spider != null) {
+                spider.moveTo(event.getX(), event.getY(), event.getZ(), mob.getYRot(), 0);
+                spider.finalizeSpawn(level, event.getDifficulty(), type, null, null);
+                event.setSpawnCancelled(true);
+                level.addFreshEntity(spider);
             }
         }
     }

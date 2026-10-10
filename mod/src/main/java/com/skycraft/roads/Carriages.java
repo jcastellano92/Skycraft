@@ -59,15 +59,14 @@ public final class Carriages {
     public static boolean isCarriageDriver(LivingEntity npc) {
         if (npc == null || !npc.isAlive()) return false;
         if (npc.getPersistentData().getBoolean("skycraft_carriage_driver")) return true;
+        if (npc.getPersistentData().getBoolean("skycraft_stable_master")) return false;
         String desc = npc.getType().getDescriptionId().toLowerCase(java.util.Locale.ROOT);
         if (desc.contains("carriage") || desc.contains("driver")) return true;
-        if (npc instanceof Villager v && !v.isBaby()) {
-            VillagerProfession p = v.getVillagerData().getProfession();
-            if (p == VillagerProfession.LEATHERWORKER || p == VillagerProfession.SHEPHERD || p == VillagerProfession.FARMER) {
-                return true;
-            }
+        if (npc.hasCustomName()) {
+            String name = npc.getCustomName().getString().toLowerCase(java.util.Locale.ROOT);
+            if (name.contains("carriage") || name.contains("driver")) return true;
         }
-        return npc.getPersistentData().getBoolean("skycraft_stable_master");
+        return false;
     }
 
     private static void addOptions(ServerPlayer player, LivingEntity npc, List<DialogueOption> out) {

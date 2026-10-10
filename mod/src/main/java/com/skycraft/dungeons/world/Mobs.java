@@ -38,25 +38,42 @@ public final class Mobs {
         return orElse(SKEEVER, "minecraft:cave_spider");
     }
 
+    public static String spider() {
+        return orElse("skycraft:frostbite_spider", "minecraft:cave_spider");
+    }
+
     public static String vampire() {
-        return orElse("vampirism:vampire", "minecraft:spider");
+        return orElse("skycraft:vampire", "vampirism:vampire", "minecraft:spider");
     }
 
     public static String vampireMaster() {
-        return orElse("vampirism:advanced_vampire", "vampirism:vampire_baron", "minecraft:witch");
+        return orElse("skycraft:vampire", "vampirism:advanced_vampire", "minecraft:witch");
     }
 
-    /** Wildlife for animal dens: fauna's beasts if registered, else wolves and skeevers. */
+    public static String necromancer() {
+        return orElse("skycraft:necromancer", "minecraft:evoker");
+    }
+
+    public static String hagraven() {
+        return orElse("skycraft:hagraven", "minecraft:witch");
+    }
+
+    public static String falmer() {
+        return orElse("skycraft:falmer", "minecraft:zombie");
+    }
+
+    /** Wildlife for animal dens: fauna's beasts if registered, frostbite spiders, wolves, and skeevers. */
     public static String denBeast(int roll) {
         return switch (Math.floorMod(roll, 4)) {
             case 0 -> orElse("skycraft:bear", "skycraft:wolf", SKEEVER, "minecraft:wolf");
             case 1 -> orElse("skycraft:wolf", "minecraft:wolf");
+            case 2 -> spider();
             default -> skeever();
         };
     }
 
     public static String denBoss() {
-        return orElse(TROLL, "skycraft:bear", "minecraft:ravager");
+        return orElse(TROLL, "skycraft:frostbite_spider", "skycraft:bear", "minecraft:ravager");
     }
 
     public static String mammoth() {

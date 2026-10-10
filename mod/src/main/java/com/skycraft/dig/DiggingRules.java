@@ -69,15 +69,15 @@ public final class DiggingRules {
         if (PlacedBlocks.isPlayerPlaced(player.level(), pos)) return null;
         ItemStack tool = player.getMainHandItem();
         Block b = state.getBlock();
-        if (b instanceof net.minecraft.world.level.block.DoublePlantBlock
-                || b instanceof net.minecraft.world.level.block.FlowerBlock
-                || b instanceof net.minecraft.world.level.block.TallGrassBlock
+        // Flowers, mushrooms, bushes, and crops are freely harvestable by hand (Skyrim style)
+        if (b instanceof net.minecraft.world.level.block.FlowerBlock
+                || b instanceof net.minecraft.world.level.block.MushroomBlock
                 || b instanceof net.minecraft.world.level.block.BushBlock
-                || b instanceof net.minecraft.world.level.block.SeaPickleBlock
-                || b instanceof net.minecraft.world.level.block.SeagrassBlock) {
-            if (!(tool.getItem() instanceof net.minecraft.world.item.ShearsItem || tool.getItem() instanceof net.minecraft.world.item.HoeItem)) {
-                return "message.skycraft.need_shears";
-            }
+                || b instanceof net.minecraft.world.level.block.DoublePlantBlock
+                || b instanceof net.minecraft.world.level.block.FlowerPotBlock
+                || state.is(net.minecraft.tags.BlockTags.FLOWERS)
+                || state.is(net.minecraft.tags.BlockTags.CROPS)) {
+            return null;
         }
         if (SkyConfig.REQUIRE_CORRECT_TOOL.get()) {
             if (state.is(Tags.Blocks.ORES) && !(tool.getItem() instanceof PickaxeItem)) return "message.skycraft.need_pickaxe";

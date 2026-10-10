@@ -134,9 +134,15 @@ public final class Crimes {
 
         if (!isCivilian(victim)) return;
 
-        // Attacking a guard while yielding or being confronted is resisting arrest
+        // Attacking a guard
         if (isGuard(victim)) {
-            if (victim instanceof Mob mob) mob.setTarget(player);
+            if (victim instanceof Mob mob) {
+                if ((com.skycraft.combat.Sheathe.isSheathed(player) || event.getAmount() < 6.0f) && !Bounty.isHostile(player)) {
+                    Guards.handleAccidentalHit(player, mob);
+                    return;
+                }
+                mob.setTarget(player);
+            }
             Guards.resist(player);
             return;
         }

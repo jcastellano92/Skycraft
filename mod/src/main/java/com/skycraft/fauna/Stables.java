@@ -33,13 +33,15 @@ public final class Stables {
 
     public static boolean isStableMaster(LivingEntity npc) {
         if (npc == null || !npc.isAlive()) return false;
-        if (npc instanceof Villager v && !v.isBaby()) {
-            VillagerProfession p = v.getVillagerData().getProfession();
-            if (p == VillagerProfession.LEATHERWORKER || p == VillagerProfession.SHEPHERD || p == VillagerProfession.FARMER) {
-                return true;
-            }
+        if (com.skycraft.roads.Carriages.isCarriageDriver(npc)) return false;
+        if (npc.getPersistentData().getBoolean("skycraft_stable_master")) return true;
+        String desc = npc.getType().getDescriptionId().toLowerCase(java.util.Locale.ROOT);
+        if (desc.contains("stable") || desc.contains("hostler")) return true;
+        if (npc.hasCustomName()) {
+            String name = npc.getCustomName().getString().toLowerCase(java.util.Locale.ROOT);
+            if (name.contains("stable") || name.contains("hostler")) return true;
         }
-        return npc.getType().getDescriptionId().contains("stable") || npc.getPersistentData().getBoolean("skycraft_stable_master");
+        return false;
     }
 
     private static void addOptions(ServerPlayer player, LivingEntity npc, List<DialogueOption> out) {

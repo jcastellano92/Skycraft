@@ -149,7 +149,7 @@ public class InsectEntity extends AmbientCreature {
 
     @Override
     protected InteractionResult mobInteract(Player player, InteractionHand hand) {
-        if (hand != InteractionHand.MAIN_HAND || !player.getItemInHand(hand).isEmpty() || !this.isAlive()) {
+        if (hand != InteractionHand.MAIN_HAND || !this.isAlive()) {
             return super.mobInteract(player, hand);
         }
         if (this.level() instanceof ServerLevel level) {

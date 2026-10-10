@@ -135,8 +135,38 @@ public final class Discovery {
         try {
             if (WorldConfig.DISCOVERY.get()) checkStructures(player);
             checkHold(player);
+            checkCorpseProximity(player);
         } catch (RuntimeException e) {
             Skycraft.LOGGER.debug("Skycraft discovery check failed for {}", player.getName().getString(), e);
+        }
+    }
+
+    private static void checkCorpseProximity(ServerPlayer player) {
+        PlayerData data = SkyData.get(player);
+        if (data == null) return;
+        ListTag list = WorldData.discovered(data);
+        String dim = player.level().dimension().location().toString();
+        boolean removed = false;
+        for (int i = list.size() - 1; i >= 0; i--) {
+            CompoundTag loc = list.getCompound(i);
+            String name = loc.getString("name");
+            String id = loc.getString("id");
+            if ("Your Corpse".equals(name) || id.startsWith("corpse|")) {
+                if (loc.getString("dim").equals(dim)) {
+                    int cx = loc.getInt("x");
+                    int cy = loc.getInt("y");
+                    int cz = loc.getInt("z");
+                    if (player.distanceToSqr(cx + 0.5, cy + 0.5, cz + 0.5) <= 64.0) {
+                        list.remove(i);
+                        removed = true;
+                    }
+                }
+            }
+        }
+        if (removed) {
+            data.markDirty();
+            com.skycraft.core.PlayerDataEvents.fullSync(player);
+            Notifier.send(player, NotifyKind.LOCATION_CLEARED, Component.literal("Your Corpse Recovered"), Component.literal("Corpse"));
         }
     }
 

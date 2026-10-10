@@ -266,10 +266,24 @@ public final class ClientEvents {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.screen != null) return;
         if (com.skycraft.combat.Sheathe.isSheathed(mc.player)) {
-            // Unsheathe on attack attempt
+            // Unsheathe immediately without playing the punch animation
+            event.setCanceled(true);
+            com.skycraft.combat.Sheathe.setSheathed(mc.player, false);
             SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+            return;
         }
-        if (mc.player.getMainHandItem().isEmpty() && mc.player.getOffhandItem().isEmpty()) {
+
+        ItemStack mainItem = mc.player.getMainHandItem();
+        ItemStack offItem = mc.player.getOffhandItem();
+        if (mainItem.isEmpty() && offItem.getItem() instanceof net.minecraft.world.item.ShieldItem) {
+            // Single shield equipped: shield bash instead of unarmed punch!
+            event.setCanceled(true);
+            mc.player.swing(net.minecraft.world.InteractionHand.OFF_HAND, false);
+            SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHIELD_BASH, 0));
+            return;
+        }
+
+        if (mainItem.isEmpty() && offItem.isEmpty()) {
             if (punchLeftNext) {
                 event.setCanceled(true);
                 mc.player.swing(net.minecraft.world.InteractionHand.OFF_HAND, false);
@@ -288,7 +302,7 @@ public final class ClientEvents {
         }
     }
 
-    /** First-person hand rendering: hide hands when sheathed; show both fists in combat stance when drawn and unarmed. */
+    /** First-person hand rendering: hide hands when sheathed; show both fists in clean, lowered combat stance when drawn and unarmed. */
     @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
         Minecraft mc = Minecraft.getInstance();
@@ -301,7 +315,7 @@ public final class ClientEvents {
             return;
         }
 
-        // When unarmed and drawn, render BOTH fists in brawler stance during MAIN_HAND pass
+        // When unarmed and drawn, render BOTH fists in a stable, lowered brawler stance during MAIN_HAND pass
         if (event.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND
                 && event.getItemStack().isEmpty() && player.getOffhandItem().isEmpty()) {
             event.setCanceled(true);
@@ -314,58 +328,26 @@ public final class ClientEvents {
             // 1. Render Left Fist (Offhand)
             poseStack.pushPose();
             float leftSwing = prevOffhandFistSwing + (offhandFistSwing - prevOffhandFistSwing) * pt;
-            float lf1 = net.minecraft.util.Mth.sqrt(leftSwing);
-            float lf2 = -0.25F * net.minecraft.util.Mth.sin(lf1 * (float) Math.PI);
-            float lf3 = 0.35F * net.minecraft.util.Mth.sin(lf1 * ((float) Math.PI * 2F));
-            float lf4 = -0.35F * net.minecraft.util.Mth.sin(leftSwing * (float) Math.PI);
+            float jab = -0.35F * net.minecraft.util.Mth.sin(leftSwing * (float) Math.PI);
 
-            // Left hand stance & punch jab positioning
-            poseStack.translate(-(lf2 + 0.45F), lf3 - 0.35F, lf4 - 0.55F);
-            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-25.0F));
-            if (wasBlocking) {
-                // Defensive guard pose (raise fists to protect face)
-                poseStack.translate(0.12F, 0.15F, -0.10F);
-                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-20.0F));
-                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(25.0F));
-            }
-            float lf5 = net.minecraft.util.Mth.sin(leftSwing * leftSwing * (float) Math.PI);
-            float lf6 = net.minecraft.util.Mth.sin(lf1 * (float) Math.PI);
-            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-lf6 * 45.0F));
-            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(lf5 * -15.0F));
-            poseStack.translate(0.9F, 3.4F, 3.3F);
-            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-120.0F));
-            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(200.0F));
-            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(135.0F));
-            poseStack.translate(-5.4F, 0.0F, 0.0F);
+            // Lowered near bottom corner of screen, slightly angled inward
+            poseStack.translate(-0.42F, -0.62F + (wasBlocking ? 0.18F : 0F), -0.72F + jab);
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-15.0F));
+            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(wasBlocking ? -25.0F : -10.0F));
+            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(wasBlocking ? 30.0F : 15.0F));
             renderer.renderLeftHand(poseStack, buffer, light, player);
             poseStack.popPose();
 
             // 2. Render Right Fist (Main hand)
             poseStack.pushPose();
             float rightSwing = player.getAttackAnim(pt);
-            float rf1 = net.minecraft.util.Mth.sqrt(rightSwing);
-            float rf2 = 0.25F * net.minecraft.util.Mth.sin(rf1 * (float) Math.PI);
-            float rf3 = 0.35F * net.minecraft.util.Mth.sin(rf1 * ((float) Math.PI * 2F));
-            float rf4 = -0.35F * net.minecraft.util.Mth.sin(rightSwing * (float) Math.PI);
+            float cross = -0.35F * net.minecraft.util.Mth.sin(rightSwing * (float) Math.PI);
 
-            // Right hand stance & punch cross positioning
-            poseStack.translate(rf2 + 0.45F, rf3 - 0.35F, rf4 - 0.55F);
-            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(25.0F));
-            if (wasBlocking) {
-                // Defensive guard pose
-                poseStack.translate(-0.12F, 0.15F, -0.10F);
-                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(20.0F));
-                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(25.0F));
-            }
-            float rf5 = net.minecraft.util.Mth.sin(rightSwing * rightSwing * (float) Math.PI);
-            float rf6 = net.minecraft.util.Mth.sin(rf1 * (float) Math.PI);
-            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(rf6 * 45.0F));
-            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(rf5 * 15.0F));
-            poseStack.translate(-0.9F, 3.4F, 3.3F);
-            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(120.0F));
-            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(200.0F));
-            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-135.0F));
-            poseStack.translate(5.4F, 0.0F, 0.0F);
+            // Lowered near bottom corner of screen, slightly angled inward
+            poseStack.translate(0.42F, -0.62F + (wasBlocking ? 0.18F : 0F), -0.72F + cross);
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(15.0F));
+            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(wasBlocking ? 25.0F : 10.0F));
+            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(wasBlocking ? 30.0F : 15.0F));
             renderer.renderRightHand(poseStack, buffer, light, player);
             poseStack.popPose();
         }

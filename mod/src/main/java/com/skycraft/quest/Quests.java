@@ -349,14 +349,27 @@ public final class Quests {
 
     public static void give(Player player, ItemStack stack) {
         if (stack.isEmpty()) return;
-        if (stack.getItem() instanceof net.minecraft.world.item.ArmorItem armor) {
-            net.minecraft.world.entity.EquipmentSlot slot = armor.getEquipmentSlot();
-            if (player.getItemBySlot(slot).isEmpty()) {
-                player.setItemSlot(slot, stack.copy());
+        // Never auto-equip quest rewards into armor or active hand slots! Place directly into inventory storage (9-35)
+        net.minecraft.world.entity.player.Inventory inv = player.getInventory();
+        for (int i = 9; i < 36; i++) {
+            ItemStack inSlot = inv.getItem(i);
+            if (ItemStack.isSameItemSameTags(inSlot, stack)) {
+                int space = inSlot.getMaxStackSize() - inSlot.getCount();
+                if (space > 0) {
+                    int move = Math.min(space, stack.getCount());
+                    inSlot.grow(move);
+                    stack.shrink(move);
+                    if (stack.isEmpty()) return;
+                }
+            }
+        }
+        for (int i = 9; i < 36; i++) {
+            if (inv.getItem(i).isEmpty()) {
+                inv.setItem(i, stack.copy());
                 return;
             }
         }
-        if (!player.getInventory().add(stack) && !stack.isEmpty()) player.drop(stack, false);
+        if (!inv.add(stack) && !stack.isEmpty()) player.drop(stack, false);
     }
 
     public static int count(Player player, Item item) {

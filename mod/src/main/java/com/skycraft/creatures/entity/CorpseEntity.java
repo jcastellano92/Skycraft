@@ -472,6 +472,24 @@ public class CorpseEntity extends Entity {
             LootCopy copy = copyFor(player);
             player.openMenu(new SimpleMenuProvider((id, inventory, p) -> ChestMenu.threeRows(id, inventory, copy), this.getDisplayName()));
             this.playSound(SoundEvents.ARMOR_EQUIP_LEATHER, 0.6f, 0.9f);
+            if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                com.skycraft.core.PlayerData data = com.skycraft.core.SkyData.get(sp);
+                if (data != null) {
+                    net.minecraft.nbt.ListTag list = com.skycraft.world.WorldData.discovered(data);
+                    boolean removed = false;
+                    for (int i = list.size() - 1; i >= 0; i--) {
+                        net.minecraft.nbt.CompoundTag loc = list.getCompound(i);
+                        if ("Your Corpse".equals(loc.getString("name")) || loc.getString("id").startsWith("corpse|")) {
+                            list.remove(i);
+                            removed = true;
+                        }
+                    }
+                    if (removed) {
+                        data.markDirty();
+                        com.skycraft.core.PlayerDataEvents.fullSync(sp);
+                    }
+                }
+            }
         }
         return InteractionResult.sidedSuccess(this.level().isClientSide);
     }

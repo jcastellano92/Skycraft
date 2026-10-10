@@ -16,6 +16,7 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -73,11 +74,23 @@ public final class Ownership {
             }
             // Client heuristics for responsive crosshair
             BlockState state = level.getBlockState(pos);
+            if (state.is(net.minecraft.tags.BlockTags.ANVIL) || state.is(net.minecraft.world.level.block.Blocks.GRINDSTONE)
+                    || state.is(net.minecraft.world.level.block.Blocks.SMITHING_TABLE)
+                    || state.is(net.minecraft.world.level.block.Blocks.CRAFTING_TABLE)
+                    || state.is(net.minecraft.world.level.block.Blocks.FURNACE)
+                    || state.is(net.minecraft.world.level.block.Blocks.BLAST_FURNACE)
+                    || state.is(net.minecraft.world.level.block.Blocks.SMOKER)
+                    || state.is(net.minecraft.world.level.block.Blocks.BREWING_STAND)
+                    || state.is(net.minecraft.world.level.block.Blocks.ENCHANTING_TABLE)
+                    || state.is(net.minecraft.world.level.block.Blocks.FLOWER_POT)
+                    || state.getBlock() instanceof net.minecraft.world.level.block.FlowerPotBlock) {
+                return false;
+            }
             if (state.getBlock() instanceof BedBlock && state.hasProperty(BedBlock.OCCUPIED) && state.getValue(BedBlock.OCCUPIED)) {
                 return true;
             }
-            if (!level.getEntitiesOfClass(Villager.class, new AABB(pos).inflate(24), Villager::isAlive).isEmpty()) {
-                return true;
+            if (state.getBlock() instanceof DoorBlock || state.getBlock() instanceof TrapDoorBlock) {
+                return false;
             }
             return false;
         }
@@ -103,16 +116,32 @@ public final class Ownership {
                 return false;
             }
 
-            // Inside a settlement/village: containers, beds, doors, and crafting stations are owned
+            // Inside a settlement/village: only private locked chests, occupied beds, or closed doors are restricted
             if (Theft.inVillage(sl, pos)) {
                 BlockState state = level.getBlockState(pos);
+                // Blacksmith workstations, anvils, grindstones, furnaces, and crafting tables are ALWAYS free to use!
+                if (state.is(net.minecraft.tags.BlockTags.ANVIL) || state.is(Blocks.GRINDSTONE) || state.is(Blocks.SMITHING_TABLE)
+                        || state.is(Blocks.CRAFTING_TABLE) || state.is(Blocks.FURNACE) || state.is(Blocks.BLAST_FURNACE)
+                        || state.is(Blocks.SMOKER) || state.is(Blocks.BREWING_STAND) || state.is(Blocks.ENCHANTING_TABLE)
+                        || state.is(Blocks.FLOWER_POT) || state.getBlock() instanceof net.minecraft.world.level.block.FlowerPotBlock) {
+                    return false;
+                }
                 // Bed check: rented rooms are permitted
                 if (state.getBlock() instanceof BedBlock) {
                     if (player instanceof ServerPlayer sp && com.skycraft.survival.inn.Innkeepers.roomHere(sp) != null) {
                         return false;
                     }
+                    return true;
                 }
-                return true;
+                // Doors during daytime (8:00 - 20:00) are public to allow visiting shops & homes
+                if (state.getBlock() instanceof DoorBlock || state.getBlock() instanceof TrapDoorBlock) {
+                    return !com.skycraft.economy.Shop.isOpen(sl);
+                }
+                // Containers: only village loot or locked containers belong to the household
+                if (be instanceof net.minecraft.world.Container) {
+                    return loot != null && loot.contains("village");
+                }
+                return false;
             }
         }
 
@@ -128,11 +157,6 @@ public final class Ownership {
             String ownerId = pd.getString(ENTITY_OWNER_KEY);
             if ("public".equals(ownerId) || ("player:" + player.getStringUUID()).equals(ownerId)) return false;
             return true;
-        }
-
-        // Placed clutter ItemEntity in settlements
-        if (entity instanceof ItemEntity && entity.level() instanceof ServerLevel sl) {
-            if (Theft.inVillage(sl, entity.blockPosition())) return true;
         }
 
         // Domestic farm animals in settlements belong to the settlement

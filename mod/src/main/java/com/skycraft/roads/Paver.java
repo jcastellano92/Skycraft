@@ -252,8 +252,10 @@ final class Paver {
         }
         BlockPos above = top.above();
         BlockPos above2 = above.above();
+        BlockPos above3 = above2.above();
         BlockState a1 = level.getBlockState(above);
         BlockState a2 = level.getBlockState(above2);
+        BlockState a3 = level.getBlockState(above3);
         if (!clearable(a1)) return 0;
         if (PlacedBlocks.isPlayerPlaced(level, top) || (!a1.isAir() && PlacedBlocks.isPlayerPlaced(level, above))) return 0;
 
@@ -261,14 +263,18 @@ final class Paver {
             if (isRoadMaterial(ts)) return 0;
             BlockState edgeBlock = edgeFor(level, top, ts, x, z);
             if (edgeBlock == null) return 0;
-            if (!a1.isAir()) level.setBlock(above, Blocks.AIR.defaultBlockState(), QUIET);
+            if (!a1.isAir() && clearable(a1) && !PlacedBlocks.isPlayerPlaced(level, above)) level.setBlock(above, Blocks.AIR.defaultBlockState(), QUIET);
+            if (!a2.isAir() && clearable(a2) && !PlacedBlocks.isPlayerPlaced(level, above2)) level.setBlock(above2, Blocks.AIR.defaultBlockState(), QUIET);
+            if (!a3.isAir() && clearable(a3) && !PlacedBlocks.isPlayerPlaced(level, above3)) level.setBlock(above3, Blocks.AIR.defaultBlockState(), QUIET);
             level.setBlock(top, edgeBlock, QUIET);
             return 2;
         }
 
         if (isRoadMaterial(ts)) {
-            if (a1.is(Blocks.SNOW)) {
+            if (a1.is(Blocks.SNOW) || (clearable(a1) && !PlacedBlocks.isPlayerPlaced(level, above))) {
                 level.setBlock(above, Blocks.AIR.defaultBlockState(), QUIET);
+                if (!a2.isAir() && clearable(a2) && !PlacedBlocks.isPlayerPlaced(level, above2)) level.setBlock(above2, Blocks.AIR.defaultBlockState(), QUIET);
+                if (!a3.isAir() && clearable(a3) && !PlacedBlocks.isPlayerPlaced(level, above3)) level.setBlock(above3, Blocks.AIR.defaultBlockState(), QUIET);
                 return 1;
             }
             return 0;
@@ -276,11 +282,15 @@ final class Paver {
         BlockState surface = surfaceFor(level, top, ts, x, z);
         if (surface == null) return 0;
         int changes = 0;
-        if (!a2.isAir() && a2.getBlock() instanceof BushBlock && a2.getFluidState().isEmpty()) {
-            level.setBlock(above2, Blocks.AIR.defaultBlockState(), QUIET); // upper half of tall plants
+        if (!a3.isAir() && clearable(a3) && !PlacedBlocks.isPlayerPlaced(level, above3)) {
+            level.setBlock(above3, Blocks.AIR.defaultBlockState(), QUIET);
             changes++;
         }
-        if (!a1.isAir()) {
+        if (!a2.isAir() && clearable(a2) && !PlacedBlocks.isPlayerPlaced(level, above2)) {
+            level.setBlock(above2, Blocks.AIR.defaultBlockState(), QUIET);
+            changes++;
+        }
+        if (!a1.isAir() && clearable(a1) && !PlacedBlocks.isPlayerPlaced(level, above)) {
             level.setBlock(above, Blocks.AIR.defaultBlockState(), QUIET);
             changes++;
         }
@@ -378,6 +388,7 @@ final class Paver {
         if (!s.getFluidState().isEmpty()) return false;
         if (s.is(Blocks.SNOW)) return true;
         if (s.getBlock() instanceof BushBlock) return true;
+        if (s.is(BlockTags.LEAVES) || s.is(BlockTags.LOGS) || s.is(BlockTags.FLOWERS)) return true;
         return s.canBeReplaced();
     }
 

@@ -66,28 +66,30 @@ public final class CrimeHud {
         net.minecraft.world.entity.item.ItemEntity item = getLookedAtItem(mc, 3.5);
         if (item != null) {
             boolean owned = Ownership.isOwnedByOther(mc.player, item);
-            Component prompt = Component.literal((owned ? "[E] Steal  " : "[E] Take  ") + item.getItem().getHoverName().getString());
+            Component prompt = Component.literal((owned ? "[F] Steal  " : "[F] Take  ") + item.getItem().getHoverName().getString());
             drawSmall(g, font, prompt, cx, cy, 0.75f, owned ? (0xD0000000 | RED) : 0xD0E8E2D0);
             return;
         }
 
         // Entities under crosshair
-        if (mc.crosshairPickEntity != null) {
+            if (mc.crosshairPickEntity instanceof com.skycraft.fauna.entity.InsectEntity insect && insect.isAlive()) {
+                drawSmall(g, font, Component.literal("[F] Catch  " + insect.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+                return;
+            }
             if (mc.crosshairPickEntity instanceof com.skycraft.creatures.entity.CorpseEntity corpse) {
-                Component prompt = Component.literal("Search  " + corpse.getDisplayName().getString());
+                Component prompt = Component.literal("[F] Search  " + corpse.getDisplayName().getString());
                 drawSmall(g, font, prompt, cx, cy, 0.75f, 0xD0E8E2D0);
                 return;
             }
             if (mc.crosshairPickEntity instanceof net.minecraft.world.entity.LivingEntity talker && talker.isAlive()
                     && (talker instanceof AbstractVillager || talker instanceof com.skycraft.society.entity.NpcEntity)) {
                 if (mc.player.isShiftKeyDown()) {
-                    drawSmall(g, font, Component.literal("Pickpocket  " + talker.getDisplayName().getString()), cx, cy, 0.75f, 0xC0C8C0B0);
+                    drawSmall(g, font, Component.literal("[F] Pickpocket  " + talker.getDisplayName().getString()), cx, cy, 0.75f, 0xC0C8C0B0);
                 } else {
-                    drawSmall(g, font, Component.literal("Talk  " + talker.getDisplayName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+                    drawSmall(g, font, Component.literal("[F] Talk  " + talker.getDisplayName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
                 }
                 return;
             }
-        }
 
         // Blocks under crosshair
         HitResult hit = mc.hitResult;
@@ -96,26 +98,35 @@ public final class CrimeHud {
             var bstate = mc.level.getBlockState(bpos);
             var block = bstate.getBlock();
 
+            if (block instanceof net.minecraft.world.level.block.FlowerBlock
+                    || block instanceof net.minecraft.world.level.block.MushroomBlock
+                    || block instanceof net.minecraft.world.level.block.BushBlock
+                    || block instanceof net.minecraft.world.level.block.DoublePlantBlock
+                    || bstate.is(net.minecraft.tags.BlockTags.FLOWERS)) {
+                drawSmall(g, font, Component.literal("[F] Harvest  " + block.getName().getString()), cx, cy, 0.75f, 0xD0E8E2D0);
+                return;
+            }
+
             if (block instanceof net.minecraft.world.level.block.BedBlock) {
                 if (Jail.isJailed(mc.player)) {
                     int served = Bounty.state(mc.player).getCompound("jail").getInt("served");
                     int left = Math.max(0, 60 - served);
                     if (left > 0) {
-                        drawSmall(g, font, Component.literal("Rest  Serve Sentence (" + left + "s wait)"), cx, cy, 0.75f, 0xD0000000 | RED);
+                        drawSmall(g, font, Component.literal("[F] Rest  Serve Sentence (" + left + "s wait)"), cx, cy, 0.75f, 0xD0000000 | RED);
                     } else {
-                        drawSmall(g, font, Component.literal("Sleep  Serve Sentence"), cx, cy, 0.75f, 0xD0E8E2D0);
+                        drawSmall(g, font, Component.literal("[F] Sleep  Serve Sentence"), cx, cy, 0.75f, 0xD0E8E2D0);
                     }
                     return;
                 }
                 boolean owned = Ownership.isOwnedByOther(mc.player, mc.level, bpos);
                 boolean occ = bstate.hasProperty(net.minecraft.world.level.block.BedBlock.OCCUPIED) && bstate.getValue(net.minecraft.world.level.block.BedBlock.OCCUPIED);
-                String t = occ ? "Bed (occupied)" : owned ? "Sleep  Bed (owned)" : "Sleep  Bed";
+                String t = occ ? "Bed (occupied)" : owned ? "[F] Sleep  Bed (owned)" : "[F] Sleep  Bed";
                 drawSmall(g, font, Component.literal(t), cx, cy, 0.75f, (owned || occ) ? (0xD0000000 | RED) : 0xD0E8E2D0);
                 return;
             }
 
             if (Jail.isJailed(mc.player) && block instanceof net.minecraft.world.level.block.TrapDoorBlock) {
-                drawSmall(g, font, Component.literal("Escape  Old Sewer Grate"), cx, cy, 0.75f, 0xD0E8E2D0);
+                drawSmall(g, font, Component.literal("[F] Escape  Old Sewer Grate"), cx, cy, 0.75f, 0xD0E8E2D0);
                 return;
             }
 
@@ -135,7 +146,7 @@ public final class CrimeHud {
             if (isContainer) {
                 boolean owned = (info != null && info.pos().equals(bpos) && info.owned()) || Ownership.isOwnedByOther(mc.player, mc.level, bpos);
                 String name = block.getName().getString();
-                String action = owned ? "Steal  " : "Open  ";
+                String action = owned ? "[F] Steal  " : "[F] Open  ";
                 drawSmall(g, font, Component.literal(action + name), cx, cy, 0.75f, owned ? (0xD0000000 | RED) : 0xD0E8E2D0);
                 return;
             }
@@ -152,11 +163,11 @@ public final class CrimeHud {
                 String label = est != null ? est : "Door";
                 String t;
                 if (locked) {
-                    t = "Locked  " + label + (owned ? " (Breaking & Entering)" : "");
+                    t = "[F] Pick Lock  " + label + (owned ? " (Breaking & Entering)" : "");
                 } else if (owned) {
-                    t = "Open  " + label + " (owned)";
+                    t = "[F] Open  " + label + " (owned)";
                 } else {
-                    t = "Open  " + label;
+                    t = "[F] Open  " + label;
                 }
                 drawSmall(g, font, Component.literal(t), cx, cy, 0.75f, (owned || locked) ? (0xD0000000 | RED) : 0xD0E8E2D0);
                 return;

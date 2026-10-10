@@ -97,6 +97,8 @@ public class RaceScreen extends Screen {
         int modelCenterY = height - 38;
 
         if (minecraft.player != null) {
+            minecraft.player.setInvisible(false);
+            minecraft.player.removeEffect(net.minecraft.world.effect.MobEffects.INVISIBILITY);
             // Skyrim circular stone dais under feet
             int daisRadius = (int) (modelScale * 0.55f);
             g.fill(modelCenterX - daisRadius, modelCenterY - 3, modelCenterX + daisRadius, modelCenterY + 2, 0x50000000);

@@ -34,6 +34,17 @@
     {"id": "towns_and_towers:village_taiga", "required": false},
     {"id": "dungeons_and_taverns:tavern", "required": false},
     {"id": "dungeons_and_taverns:roadside_shack", "required": false},
-    {"id": "dungeons_and_taverns:outpost", "required": false}
+    {"id": "dungeons_and_taverns:outpost", "required": false},
+    {"id": "skycraft:cave", "required": false},
+    {"id": "skycraft:mine", "required": false},
+    {"id": "skycraft:nordic_barrow", "required": false},
+    {"id": "skycraft:vampire_lair", "required": false},
+    {"id": "skycraft:necromancer_lair", "required": false},
+    {"id": "skycraft:hagraven_lair", "required": false},
+    {"id": "skycraft:bandit_camp", "required": false},
+    {"id": "skycraft:fort", "required": false},
+    {"id": "skycraft:giant_camp", "required": false},
+    {"id": "skycraft:dragon_lair", "required": false},
+    {"id": "skycraft:dwemer_ruin", "required": false}
   ]
 }

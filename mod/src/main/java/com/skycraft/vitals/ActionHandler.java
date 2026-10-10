@@ -52,7 +52,24 @@ public final class ActionHandler {
             case Action.CLIMB_TICK -> handleClimbTick(player);
             case Action.UNSTUCK -> handleUnstuck(player);
             case Action.TAKE_WORLD_ITEM -> handleTakeWorldItem(player, arg);
+            case Action.SHIELD_BASH -> handleShieldBash(player);
             default -> {
+            }
+        }
+    }
+
+    private static void handleShieldBash(ServerPlayer player) {
+        if (!Vitals.consumeStamina(player, 15f, false)) return;
+        net.minecraft.server.level.ServerLevel level = player.serverLevel();
+        level.playSound(null, player.blockPosition(), net.minecraft.sounds.SoundEvents.SHIELD_BLOCK, net.minecraft.sounds.SoundSource.PLAYERS, 1.0f, 0.9f);
+        net.minecraft.world.phys.Vec3 look = player.getViewVector(1.0f);
+        net.minecraft.world.phys.AABB box = player.getBoundingBox().expandTowards(look.scale(3.0)).inflate(1.0);
+        for (net.minecraft.world.entity.LivingEntity target : level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, box, e -> e != player && e.isAlive())) {
+            if (player.distanceTo(target) < 3.0) {
+                float bashDmg = 4.0f + (com.skycraft.perk.Perks.has(player, "block.deadly_bash") ? 6.0f : 0f);
+                target.hurt(player.damageSources().playerAttack(player), bashDmg);
+                target.knockback(0.6, -look.x, -look.z);
+                break;
             }
         }
     }

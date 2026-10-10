@@ -51,6 +51,8 @@ public final class PlayerDataEvents {
     public static void login(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             player.setMaxUpStep(1.0625f);
+            player.setInvisible(false);
+            player.removeEffect(net.minecraft.world.effect.MobEffects.INVISIBILITY);
             fullSync(player);
             PlayerData data = SkyData.get(player);
             if (!data.module("core").getBoolean("spawn_placed")) {
@@ -142,6 +144,9 @@ public final class PlayerDataEvents {
         }
         // Auto-clear corpse marker on map and compass when player reaches within 6 blocks of their corpse
         if (player.tickCount % 20 == 0) {
+            if (!player.getPersistentData().getBoolean("skycraft_spell_invisibility")) {
+                if (player.isInvisible()) player.setInvisible(false);
+            }
             PlayerData data = SkyData.get(player);
             net.minecraft.nbt.ListTag discovered = com.skycraft.world.WorldData.discovered(data);
             boolean removedCorpse = false;

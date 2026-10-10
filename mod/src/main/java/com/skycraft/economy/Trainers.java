@@ -30,6 +30,7 @@ public final class Trainers {
     /** The skill this NPC trains, or null if they are no trainer. */
     public static Skill skillFor(LivingEntity npc) {
         if (npc == null || !npc.isAlive()) return null;
+        if (com.skycraft.roads.Carriages.isCarriageDriver(npc)) return null;
         if (npc instanceof WanderingTrader) return pick(npc, Skill.PICKPOCKET, Skill.LOCKPICKING, Skill.SPEECH);
         if (!(npc instanceof Villager v) || v.isBaby()) return null;
         VillagerProfession p = v.getVillagerData().getProfession();

@@ -82,19 +82,23 @@ public class JewelryLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<
     private static boolean matchKeyword(ItemStack stack, String keyword) {
         if (stack.isEmpty()) return false;
         ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        return id != null && id.getPath().contains(keyword);
+        if (id != null && id.getPath().toLowerCase(java.util.Locale.ROOT).contains(keyword)) return true;
+        String desc = stack.getItem().getDescriptionId().toLowerCase(java.util.Locale.ROOT);
+        if (desc.contains(keyword)) return true;
+        String name = stack.getHoverName().getString().toLowerCase(java.util.Locale.ROOT);
+        return name.contains(keyword);
     }
 
     private static boolean isCirclet(ItemStack stack) {
-        return matchKeyword(stack, "circlet");
+        return matchKeyword(stack, "circlet") || matchKeyword(stack, "crown") || matchKeyword(stack, "tiara") || matchKeyword(stack, "diadem");
     }
 
     private static boolean isNecklace(ItemStack stack) {
-        return matchKeyword(stack, "necklace") || matchKeyword(stack, "amulet") || matchKeyword(stack, "pendant");
+        return matchKeyword(stack, "necklace") || matchKeyword(stack, "amulet") || matchKeyword(stack, "pendant") || matchKeyword(stack, "choker") || matchKeyword(stack, "locket");
     }
 
     private static boolean isRing(ItemStack stack) {
-        return matchKeyword(stack, "ring");
+        return matchKeyword(stack, "ring") || matchKeyword(stack, "band");
     }
 
     @Override
@@ -143,12 +147,24 @@ public class JewelryLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<
         VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));
         int overlay = OverlayTexture.NO_OVERLAY;
 
+        boolean hasHelmet = !headStack.isEmpty();
         if (hasCirclet) {
+            pose.pushPose();
+            if (hasHelmet) {
+                pose.scale(1.08f, 1.08f, 1.12f);
+            }
             circlet.render(pose, vc, packedLight, overlay);
+            pose.popPose();
         }
 
+        boolean hasArmor = !chestStack.isEmpty();
         if (hasNecklace || hasClothing) {
+            pose.pushPose();
+            if (hasArmor) {
+                pose.scale(1.08f, 1.02f, 1.16f);
+            }
             torso.render(pose, vc, packedLight, overlay);
+            pose.popPose();
         }
 
         if (hasRing) {

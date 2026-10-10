@@ -63,23 +63,6 @@ public final class InventoryClientEvents {
 
         if (next.getClass() == InventoryScreen.class) {
             if (!player.isCreative() && !player.isSpectator()) {
-                // If looking at an item in the world, [E] takes/steals it without opening menus
-                var lookedItem = com.skycraft.crime.client.CrimeHud.getLookedAtItem(mc, 3.5);
-                if (lookedItem != null) {
-                    event.setCanceled(true);
-                    com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.TAKE_WORLD_ITEM, lookedItem.getId()));
-                    return;
-                }
-
-                if (mc.crosshairPickEntity instanceof net.minecraft.world.entity.LivingEntity le && le.isAlive()
-                        && (le instanceof net.minecraft.world.entity.npc.AbstractVillager || le instanceof com.skycraft.society.entity.NpcEntity)
-                        && !player.isShiftKeyDown()) {
-                    event.setCanceled(true);
-                    if (mc.gameMode != null) {
-                        mc.gameMode.interact(player, le, net.minecraft.world.InteractionHand.MAIN_HAND);
-                    }
-                    return;
-                }
                 event.setNewScreen(new com.skycraft.client.screen.HubScreen());
             }
             return;
@@ -118,6 +101,42 @@ public final class InventoryClientEvents {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
+
+        // Universal [F] Key for Interactions (talk to NPCs, pick up items, open doors, harvest plants)
+        while (com.skycraft.client.SkyKeys.INTERACT.consumeClick()) {
+            if (mc.screen != null || player.isSpectator()) continue;
+            // 1. Pick up looked-at world item
+            var lookedItem = com.skycraft.crime.client.CrimeHud.getLookedAtItem(mc, 3.5);
+            if (lookedItem != null) {
+                com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.TAKE_WORLD_ITEM, lookedItem.getId()));
+                continue;
+            }
+            // 2. Interact with living entity under crosshair (NPC, villager, horse)
+            if (mc.crosshairPickEntity instanceof net.minecraft.world.entity.LivingEntity le && le.isAlive()) {
+                if (mc.gameMode != null) {
+                    mc.gameMode.interact(player, le, net.minecraft.world.InteractionHand.MAIN_HAND);
+                }
+                continue;
+            }
+            // 3. Interact with block under crosshair (door, chest, plant, flower, mushroom, crafting table)
+            if (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult bhr && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                net.minecraft.core.BlockPos bpos = bhr.getBlockPos();
+                net.minecraft.world.level.block.state.BlockState bs = player.level().getBlockState(bpos);
+                if (bs.getBlock() instanceof net.minecraft.world.level.block.FlowerBlock
+                        || bs.getBlock() instanceof net.minecraft.world.level.block.MushroomBlock
+                        || bs.getBlock() instanceof net.minecraft.world.level.block.BushBlock
+                        || bs.getBlock() instanceof net.minecraft.world.level.block.DoublePlantBlock
+                        || bs.is(net.minecraft.tags.BlockTags.FLOWERS)) {
+                    if (mc.gameMode != null) {
+                        mc.gameMode.destroyBlock(bpos);
+                    }
+                    continue;
+                }
+                if (mc.gameMode != null) {
+                    mc.gameMode.useItemOn(player, net.minecraft.world.InteractionHand.MAIN_HAND, bhr);
+                }
+            }
+        }
 
         while (InventoryKeys.FAVORITES.consumeClick()) {
             if (mc.screen == null && !player.isSpectator()) mc.setScreen(new FavoritesScreen());
@@ -161,6 +180,8 @@ public final class InventoryClientEvents {
         return list;
     }
 
+    private static int lastDrawnMainSlot = 0;
+
     @SubscribeEvent
     public static void onMouseScroll(net.minecraftforge.client.event.InputEvent.MouseScrollingEvent event) {
         Minecraft mc = Minecraft.getInstance();
@@ -172,15 +193,24 @@ public final class InventoryClientEvents {
 
         List<InvEntry> favs = getFavorites(player);
         if (favs.isEmpty()) {
-            com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
-            for (int i = 0; i < 9; i++) {
-                if (player.getInventory().getItem(i).isEmpty()) {
-                    player.getInventory().selected = i;
-                    break;
+            boolean wasSheathed = com.skycraft.combat.Sheathe.isSheathed(player);
+            if (!wasSheathed) {
+                if (!player.getMainHandItem().isEmpty()) lastDrawnMainSlot = player.getInventory().selected;
+                com.skycraft.combat.Sheathe.setSheathed(player, true);
+                com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+                for (int i = 0; i < 9; i++) {
+                    if (player.getInventory().getItem(i).isEmpty()) {
+                        player.getInventory().selected = i;
+                        break;
+                    }
                 }
+                ClientPacketHandlers.notify(new CorePackets.Notify(NotifyKind.MESSAGE, Component.literal("Hands Sheathed"), Component.empty(), 0, 0f));
+            } else {
+                com.skycraft.combat.Sheathe.setSheathed(player, false);
+                com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
+                player.getInventory().selected = lastDrawnMainSlot;
+                ClientPacketHandlers.notify(new CorePackets.Notify(NotifyKind.MESSAGE, Component.literal("Hands Drawn"), Component.empty(), 0, 0f));
             }
-            boolean sheathed = !com.skycraft.combat.Sheathe.isSheathed(player);
-            ClientPacketHandlers.notify(new CorePackets.Notify(NotifyKind.MESSAGE, Component.literal(sheathed ? "Hands Sheathed" : "Hands Drawn"), Component.empty(), 0, 0f));
             return;
         }
 
@@ -193,6 +223,8 @@ public final class InventoryClientEvents {
         }
 
         if (scrollFavIndex == favs.size()) {
+            if (!player.getMainHandItem().isEmpty()) lastDrawnMainSlot = player.getInventory().selected;
+            com.skycraft.combat.Sheathe.setSheathed(player, true);
             com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
             for (int i = 0; i < 9; i++) {
                 if (player.getInventory().getItem(i).isEmpty()) {
@@ -204,6 +236,7 @@ public final class InventoryClientEvents {
         } else {
             InvEntry chosen = favs.get(scrollFavIndex);
             if (com.skycraft.combat.Sheathe.isSheathed(player)) {
+                com.skycraft.combat.Sheathe.setSheathed(player, false);
                 com.skycraft.network.SkyNetwork.sendToServer(new CorePackets.Action(CorePackets.Action.SHEATHE_TOGGLE, 0));
             }
             ClientInventoryHandlers.primary(chosen);
