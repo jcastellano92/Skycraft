@@ -14,7 +14,7 @@
 - [x] `mr:corpse` (pinned)
 - [x] `cf:dynamiclights-reforged` (pinned)
 - [x] `mr:mouse-tweaks` (pinned)
-- [x] `mr:controllable`
+- [x] `cf:controllable` (pinned)
 - [x] `mr:default-options` (pinned)
 - [x] `mr:essential` (pinned)
 - [x] `mr:itemphysic-lite` (pinned)
@@ -43,7 +43,8 @@
 - [x] `mr:yungs-extras` (pinned)
 - [x] `mr:aquaculture` (pinned)
 - [x] `mr:comforts` (pinned)
+- [x] `mr:treechop` (pinned)
 - [x] `mr:complementary-reimagined` (pinned)
 - [x] Skycraft Core (local jar)
 
-Resolved: 44, unresolved: 0
+Resolved: 45, unresolved: 0
