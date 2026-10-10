@@ -55,10 +55,22 @@ public final class Harvesting {
 
     private Harvesting() {}
 
-    /** True if this block can be harvested as flora, tall grass, herb or crop. */
+    /**
+     * True if this block can be harvested as flora, herbs, flowers, mushrooms or crops.
+     * Ambient grass, tall grass, ferns, and dead bushes cannot be harvested (matching Skyrim).
+     */
     public static boolean isHarvestable(BlockState state) {
         if (state == null || state.isAir()) return false;
         Block b = state.getBlock();
+
+        // Ambient grass, ferns, seagrass, saplings and dead bushes can NEVER be harvested
+        if (state.is(Blocks.GRASS) || state.is(Blocks.TALL_GRASS)
+                || state.is(Blocks.FERN) || state.is(Blocks.LARGE_FERN)
+                || state.is(Blocks.SEAGRASS) || state.is(Blocks.TALL_SEAGRASS)
+                || state.is(Blocks.DEAD_BUSH)
+                || b instanceof net.minecraft.world.level.block.SaplingBlock) {
+            return false;
+        }
 
         // 1. Crops
         if (b instanceof CropBlock || state.is(BlockTags.CROPS) || b instanceof NetherWartBlock || b instanceof CocoaBlock) {
@@ -75,24 +87,22 @@ public final class Harvesting {
             return true;
         }
 
-        // 4. Tall Grass, Grass, Ferns, Seagrass
-        if (state.is(Blocks.GRASS) || state.is(Blocks.TALL_GRASS)
-                || state.is(Blocks.FERN) || state.is(Blocks.LARGE_FERN)
-                || state.is(Blocks.SEAGRASS)) {
+        // 4. Flowers and double flowers
+        if (b instanceof FlowerBlock || state.is(BlockTags.FLOWERS)) {
+            return true;
+        }
+        if (state.is(Blocks.SUNFLOWER) || state.is(Blocks.LILAC) || state.is(Blocks.ROSE_BUSH) || state.is(Blocks.PEONY)) {
             return true;
         }
 
-        // 5. Flowers and double flowers
-        if (b instanceof FlowerBlock || state.is(BlockTags.FLOWERS) || b instanceof DoublePlantBlock) {
+        // 5. Mushrooms and fungi
+        if (b instanceof MushroomBlock || b instanceof FungusBlock
+                || state.is(Blocks.BROWN_MUSHROOM) || state.is(Blocks.RED_MUSHROOM)
+                || state.is(Blocks.CRIMSON_FUNGUS) || state.is(Blocks.WARPED_FUNGUS)) {
             return true;
         }
 
-        // 6. Mushrooms and fungi
-        if (b instanceof MushroomBlock || b instanceof FungusBlock) {
-            return true;
-        }
-
-        return b instanceof BushBlock;
+        return false;
     }
 
     /** True if the plant or crop is mature/ready for harvest. */
@@ -119,7 +129,7 @@ public final class Harvesting {
             return CaveVines.hasGlowBerries(state);
         }
 
-        // Wild flora, tall grass, flowers and mushrooms are always ready
+        // Wild flowers and mushrooms are always ready
         return true;
     }
 
@@ -236,23 +246,7 @@ public final class Harvesting {
             level.playSound(null, pos, SoundEvents.CAVE_VINES_PICK_BERRIES, SoundSource.BLOCKS, 1.0f, 1.0f);
             Progression.addSkillXp(player, Skill.ALCHEMY, 1.5f);
 
-        // ------------------------------------------------------------------ 4. Tall Grass, Grass, Ferns
-        } else if (state.is(Blocks.GRASS) || state.is(Blocks.TALL_GRASS)
-                || state.is(Blocks.FERN) || state.is(Blocks.LARGE_FERN)
-                || state.is(Blocks.SEAGRASS)) {
-
-            Item grassItem = getGrassItem(state);
-            harvestedItems.add(new ItemStack(grassItem, 1));
-
-            // 50% chance for wheat seeds / plant fibers
-            if (level.random.nextFloat() < 0.5f) {
-                harvestedItems.add(new ItemStack(Items.WHEAT_SEEDS, 1));
-            }
-
-            removeFlora(level, pos, state);
-            level.playSound(null, pos, SoundEvents.GRASS_BREAK, SoundSource.BLOCKS, 0.9f, 1.1f);
-
-        // ------------------------------------------------------------------ 5. Flowers, Mushrooms, Flora
+        // ------------------------------------------------------------------ 4. Flowers, Mushrooms, Flora
         } else {
             Item item = block.asItem();
             if (item != Items.AIR) {
@@ -271,14 +265,6 @@ public final class Harvesting {
         }
 
         return true;
-    }
-
-    private static Item getGrassItem(BlockState state) {
-        if (state.is(Blocks.TALL_GRASS)) return Items.TALL_GRASS;
-        if (state.is(Blocks.LARGE_FERN)) return Items.LARGE_FERN;
-        if (state.is(Blocks.FERN)) return Items.FERN;
-        if (state.is(Blocks.SEAGRASS)) return Items.SEAGRASS;
-        return Items.GRASS;
     }
 
     private static void removeFlora(ServerLevel level, BlockPos pos, BlockState state) {
